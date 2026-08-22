@@ -221,6 +221,35 @@ All three are candidates for upstreaming to `maplibre/maplibre-native-qt` (0006 
 breaks every custom-layer user of the Quick path, not just Nimbus); not filed yet, tracked here
 so it isn't lost.
 
+## Slice 4 finding (2026-08-22): a lost-signal race that only bites the *second* map
+
+**Patch 0007 — `MapQuickItem` connects the core `Map`'s signals too late.** `MapQuickItemPrivate::
+initialize()` constructs the `Map` and immediately calls `setStyleUrl()`, but
+`needsRendering`/`mapChanged` are only connected later, in `updatePaintNode()`, when the
+scene-graph node is first created. Anything mbgl emits in that window is lost outright.
+
+With a cold style fetch this is invisible: the network round-trip guarantees the paint node exists
+long before `MapChangeDidFinishLoadingStyle` arrives. It becomes reproducible the moment a
+*second* map loads the *same* style URL, because the cached style resolves almost immediately —
+the event fires with nothing connected, and then `m_styleLoaded` stays `false`,
+`syncStyleChanges()` never runs, and (with patch 0005 in place) `styleLoaded()` never fires. A
+host that gates `addCustomLayer()` on `styleLoaded()` — which patch 0005's own doc comment
+correctly instructs you to do — therefore waits forever.
+
+Found by growing Phase 1 slice 4's pane grid from 1×1 to 2×2: pane 0 rendered radar, panes 1-3
+silently rendered base map only, with no error anywhere. The log made it unambiguous — only pane 0
+ever reached "registering radar sweep layer".
+
+Fix: connect both signals immediately after the `Map` is constructed, before `setStyleUrl()`, and
+remove the connections from `updatePaintNode()` (leaving them in both places would double-connect
+and deliver every change twice). Note the deliberate ordering dependency this creates — if a
+future submodule bump moves the `Map` construction or the style-load kickoff, this patch's whole
+point is that the connect must stay *between* them.
+
+This one is the strongest upstream candidate of the four: it silently breaks any Quick-path
+application that shows more than one map sharing a style, custom layers or not (`syncStyleChanges`
+never running affects declarative style parameters too).
+
 Additional context that matters for the actual radar-sweep port (slice 3's main work, still
 ahead): the vendored core uses the **drawables** renderer architecture — a custom layer's
 `render()` runs via `DrawableCustomLayerHostTweaker` inside the translucent pass, with

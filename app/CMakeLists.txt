@@ -21,14 +21,17 @@ qt_add_executable(nimbus-app
     source/nimbus/data/radar_site_data_service.hpp
     source/nimbus/data/radar_site_database.cpp
     source/nimbus/data/radar_site_database.hpp
+    source/nimbus/panes/pane_controller.cpp
+    source/nimbus/panes/pane_controller.hpp
+    source/nimbus/panes/pane_grid_model.cpp
+    source/nimbus/panes/pane_grid_model.hpp
+    source/nimbus/products/product_descriptor.hpp
     source/nimbus/products/radar_product_status.cpp
     source/nimbus/products/radar_product_status.hpp
     source/nimbus/products/radar_sweep_product.cpp
     source/nimbus/products/radar_sweep_product.hpp
     source/nimbus/render/radar_sweep_layer.cpp
     source/nimbus/render/radar_sweep_layer.hpp
-    source/nimbus/render/radar_layer_controller.cpp
-    source/nimbus/render/radar_layer_controller.hpp
     source/nimbus/util/geodesic.cpp
     source/nimbus/util/geodesic.hpp
     $<$<PLATFORM_ID:Windows>:res/branding/app.rc>
@@ -43,6 +46,7 @@ qt_add_qml_module(nimbus-app
         qml/Main.qml
         qml/Chrome/TopBar.qml
         qml/Chrome/SideRail.qml
+        qml/Panes/PaneGrid.qml
         qml/Panes/PaneHost.qml
     RESOURCES
         res/branding/nimbus-icon.png

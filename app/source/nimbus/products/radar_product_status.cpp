@@ -135,7 +135,10 @@ RadarProductStatus::RadarProductStatus(const std::string& radarSite, QObject* pa
               Q_EMIT statusTextChanged();
            });
 
-   service->LoadLatestLevel2Data();
+   // Deliberately does not call LoadLatestLevel2Data(): RadarSweepProduct owns triggering the
+   // load for its site now (docs/ROADMAP.md §7 Phase 1 slice 4). This is a passive status view of
+   // whatever that site's service reports, so it stays correct whether or not a pane happens to
+   // be showing this site.
 }
 
 RadarProductStatus::~RadarProductStatus() = default;

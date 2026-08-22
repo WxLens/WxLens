@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
 
-// Phase 1 slice 1: static chrome shell only. This is the successor to
-// scwx-qt/ui/radar_toolbox_rail_widget.cpp - real tool icons/actions land alongside the
-// features they open (measurement in slice 7, palette editor in slice 9, etc.).
+// Successor to scwx-qt/ui/radar_toolbox_rail_widget.cpp. Most tool actions land alongside the
+// features they open (measurement in slice 7, palette editor in slice 9, etc.); the grid-size
+// buttons are here because slice 4's pane grid needs *some* way to be driven, and the real pane
+// chrome/quick controls (§4.5) don't exist until slice 5.
 Rectangle {
     id: root
     width: 56
@@ -24,15 +25,39 @@ Rectangle {
         spacing: 12
 
         Repeater {
-            model: 4
+            model: [
+                { label: "1", w: 1, h: 1 },
+                { label: "2", w: 2, h: 1 },
+                { label: "4", w: 2, h: 2 },
+                { label: "9", w: 3, h: 3 }
+            ]
 
-            Rectangle {
+            delegate: Rectangle {
+                required property var modelData
+
                 width: 32
                 height: 32
                 radius: 6
-                color: "#20262e"
-                border.color: "#2f3742"
+                color: active ? "#2b3a4d" : "#20262e"
+                border.color: active ? "#4a7ab0" : "#2f3742"
                 border.width: 1
+
+                readonly property bool active:
+                    paneGridModel.gridWidth === modelData.w &&
+                    paneGridModel.gridHeight === modelData.h
+
+                Text {
+                    anchors.centerIn: parent
+                    text: parent.modelData.label
+                    color: parent.active ? "#dce6f2" : "#8d99a8"
+                    font.pixelSize: 13
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: paneGridModel.setGridSize(parent.modelData.w, parent.modelData.h)
+                }
             }
         }
     }

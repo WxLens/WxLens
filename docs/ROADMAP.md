@@ -1324,6 +1324,51 @@ completing the Data Source → Data Product → Visualization Layer → View pip
   bridging context properties/objects (`radarStatus`, `radarLayerController`,
   `radarSiteLatitude`/`radarSiteLongitude` in `main.cpp`) are explicitly temporary stand-ins for.
 
+**Status as of 2026-08-22 — Slice 4 complete: the pane grid is real.** 1×1 through 3×3 (capped at
+4×4), every pane fully independent. Per this slice's own scope, **no cross-pane synchronization**
+was built - that's slice 5, layered onto a working grid rather than designed against a single-pane
+special case.
+
+- `app/source/nimbus/panes/pane_controller.hpp/.cpp` (`nimbus::panes::PaneController`): one pane =
+  one View. Holds a `products::ProductDescriptor` and its own camera state - deliberately **no
+  `radarSite` field**, per §4.6's audit note. `attachLayers(QMapLibre::Map*)` is the single place
+  that dispatches on product kind, and is where a second data domain would branch.
+- `app/source/nimbus/products/product_descriptor.hpp`: the generic `{kind, sourceKey, product}`
+  value type that keeps the pane domain-agnostic. Deliberately *not* a class hierarchy - the point
+  is that PaneController never names a radar site, not that speculative satellite/model types get
+  modelled now (§0's no-premature-later-phase-tech rule).
+- `app/source/nimbus/panes/pane_grid_model.hpp/.cpp`: `QAbstractListModel` of PaneControllers.
+  Panes **persist across grid resizes** (growing appends, shrinking drops trailing panes), so
+  resizing doesn't discard cameras/sites a user already set up.
+- `RadarSweepProduct` gained a per-site `Instance()` singleton mirroring `RadarSiteDataService`'s
+  pattern one level up the pipeline (§4.6): N panes on one site share one computed sweep instead
+  of each recomputing ~2.2M identical vertices. It also now **triggers its own data load** rather
+  than depending on `RadarProductStatus` having done so first - that construction-order coupling
+  was fine for one hardcoded site and wrong the moment a second site is possible.
+- `RadarLayerController` deleted - superseded by `PaneController`, per its own doc comment.
+- QML: new `Panes/PaneGrid.qml`; `PaneHost.qml` is now bound to a `paneController` and holds no
+  site/radar state of its own. Grid-size buttons (1/2/4/9) added to `SideRail.qml` purely so the
+  grid is drivable - real pane chrome/quick controls (§4.5) are slice 5.
+- **A fourth MapLibre Native Qt patch was required (0007), and it's the most severe yet** - full
+  detail in ADR 0004's "Slice 4 finding". `MapQuickItem` connects the core `Map`'s
+  `needsRendering`/`mapChanged` signals in `updatePaintNode()`, but constructs the `Map` and starts
+  its style load earlier, in `initialize()`. A style that resolves fast - notably **the second map
+  reusing the first's cached style** - finishes loading in that gap, so
+  `MapChangeDidFinishLoadingStyle` is emitted with nothing connected and lost outright:
+  `m_styleLoaded` stays false, `syncStyleChanges()` never runs, and `styleLoaded()` never fires.
+  Every pane after the first therefore waited forever for a signal that had already been missed.
+  Symptom was silent - base map fine, radar simply absent, no error; the log's missing
+  "registering radar sweep layer" lines for panes 1-3 is what pinned it. Fix moves both connects
+  to immediately after the `Map` is constructed.
+- **Not done this slice:** all cross-pane sync (§4.1-4.2), per-pane site/product selection UI,
+  pane popout/dock, persistence of the grid (§4.6's JSON schema). Bearing/pitch live on
+  PaneController but nothing writes them yet - `MapQuickItem` exposes only `coordinate` and
+  `zoomLevel` as QML properties, so observing rotation needs either another patch or the core
+  `Map`'s own signals.
+- **Verified for real, not just built:** launched, confirmed 1×1 renders KEAX centered on the site,
+  then switched to 2×2 and confirmed all four panes independently registered layers and rendered
+  radar (log + screenshot), with pane 0 keeping its camera across the resize.
+
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
 **Scope:** a national/regional mosaic reflectivity (and optionally echo-tops/precip) layer as a

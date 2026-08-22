@@ -1,7 +1,6 @@
-#include <nimbus/data/radar_site_database.hpp>
 #include <nimbus/log/logger.hpp>
+#include <nimbus/panes/pane_grid_model.hpp>
 #include <nimbus/products/radar_product_status.hpp>
-#include <nimbus/render/radar_layer_controller.hpp>
 
 #include <scwx/util/threads.hpp>
 
@@ -91,29 +90,19 @@ int main(int argc, char* argv[])
                            logger->error("QML warning: {}", w.toString().toStdString());
                         }
                      });
-   // Phase 1 slices 2-3: one hardcoded site, proving the data path and (trivial) render path
-   // end-to-end (docs/ROADMAP.md §7 Phase 1). Superseded by PaneGridModel/PaneController once
-   // the pane grid exists (slice 4) - these context properties/objects are deliberately
-   // temporary bridges, not the real Data Product layer.
-   static const std::string kRadarSite = "KEAX";
+   // The site every new pane starts on. Per-pane site selection is pane chrome (docs/ROADMAP.md
+   // §4.5), which lands with slice 5 - until then PaneGridModel hands this to each pane it
+   // creates, and the grid itself is real (slice 4), not a hardcoded single view.
+   static const std::string kDefaultRadarSite = "KEAX";
 
-   nimbus::products::RadarProductStatus radarStatus {kRadarSite};
+   nimbus::panes::PaneGridModel paneGridModel;
+   paneGridModel.setDefaultSourceKey(QString::fromStdString(kDefaultRadarSite));
+   engine.rootContext()->setContextProperty("paneGridModel", &paneGridModel);
+
+   // Still a single-site status line in the top bar: a temporary bridge (see RadarProductStatus's
+   // own doc comment) that predates the grid and is superseded by per-pane chrome, not extended.
+   nimbus::products::RadarProductStatus radarStatus {kDefaultRadarSite};
    engine.rootContext()->setContextProperty("radarStatus", &radarStatus);
-
-   nimbus::render::RadarLayerController radarLayerController;
-   engine.rootContext()->setContextProperty("radarLayerController", &radarLayerController);
-
-   const auto radarSiteInfo = nimbus::data::FindRadarSite(kRadarSite);
-   if (radarSiteInfo.has_value())
-   {
-      engine.rootContext()->setContextProperty("radarSiteLatitude", radarSiteInfo->latitude);
-      engine.rootContext()->setContextProperty("radarSiteLongitude", radarSiteInfo->longitude);
-   }
-   else
-   {
-      logger->error("No site metadata found for {} - radar site marker will not be drawn",
-                    kRadarSite);
-   }
 
    engine.loadFromModule("Nimbus.App", "Main");
 

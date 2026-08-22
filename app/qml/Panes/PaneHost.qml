@@ -2,10 +2,9 @@
 import QtQuick
 import MapLibre 4.0
 
-// Phase 1 slice 1: proves the Qt Quick/QML -> MapLibre Native Qt rendering seam end-to-end
-// (docs/ROADMAP.md §0.2 "prove the rendering seam early") with one bare, hardcoded map surface -
-// no PaneGridModel/PaneController (slice 4), no radar data (slice 2+), no per-channel sync
-// (slice 5).
+// One pane's map surface, bound to a nimbus::panes::PaneController (docs/ROADMAP.md §4.6).
+// Everything pane-specific comes from `paneController` - this item holds no radar/site state of
+// its own, and several of these exist at once inside PaneGrid.
 //
 // Base map: OpenFreeMap (docs/data-sources.md), free/unlimited/no-API-key OSM vector tiles - both
 // dark and light styles come from the same tile source, so switching is just a style URL swap.
@@ -16,6 +15,13 @@ import MapLibre 4.0
 Rectangle {
     id: root
     color: "#000000"
+
+    // The nimbus::panes::PaneController this pane renders.
+    required property var paneController
+
+    // Whether to show the per-pane identification label (only useful once the grid has more than
+    // one pane). Passed in rather than read from a global so this item stays self-contained.
+    property bool showLabel: false
 
     readonly property bool darkMode: true
     readonly property string mapStyle: darkMode
@@ -34,22 +40,35 @@ Rectangle {
         focus: true
 
         style: root.mapStyle
-        zoomLevel: 4
-        coordinate: [39.8, -98.6] // CONUS center, matches the app's initial radar-viewer use case
 
-        // Registers the radar reflectivity sweep custom layer (nimbus::render::RadarSweepLayer,
-        // docs/ROADMAP.md §7 Phase 1 slice 3). Must wait for styleLoaded, not just mapReady -
-        // addCustomLayer() calls made before the style has actually loaded are silently dropped
-        // (confirmed: matches the legacy app's own MapWidget::mapChanged, which gates its
-        // equivalent AddLayers() call the same way). mapLibreMap()/mapReady()/styleLoaded() are
-        // not upstream - see external/patches/0005-mln-qt-expose-map-object.patch.
-        onStyleLoaded: {
-            if (typeof radarLayerController !== "undefined" &&
-                typeof radarSiteLatitude !== "undefined") {
-                radarLayerController.attachRadarSweep(
-                    map.mapLibreMap(), radarStatus.siteId, radarSiteLatitude, radarSiteLongitude)
-            }
+        // Seeded imperatively rather than bound, because the camera is written back below:
+        // assigning to a property in QML replaces any binding on it, so a binding here plus the
+        // write-back would silently break after the first user pan. Slice 5's sync will drive the
+        // other direction explicitly, from PaneController's cameraChanged.
+        Component.onCompleted: {
+            map.zoomLevel = root.paneController.zoom
+            map.coordinate = [root.paneController.centerLatitude,
+                              root.paneController.centerLongitude]
         }
+
+        // The controller is where camera state lives (§4.6), so slice 5's per-channel sync and
+        // the persistence schema both have a single source of truth. Panes are fully independent
+        // this slice, so there is no propagation to guard against yet - that guard (§4.2) arrives
+        // with sync itself. MapQuickItem exposes only `coordinate` and `zoomLevel`; bearing/pitch
+        // have no QML property to observe yet, so PaneController's stay at their defaults.
+        onCoordinateChanged: {
+            root.paneController.centerLatitude = map.coordinate[0]
+            root.paneController.centerLongitude = map.coordinate[1]
+        }
+        onZoomLevelChanged: root.paneController.zoom = map.zoomLevel
+
+        // Registers this pane's Visualization Layer(s). Must wait for styleLoaded, not just
+        // mapReady - addCustomLayer() calls made before the style has actually loaded are
+        // silently dropped (confirmed: matches the legacy app's own MapWidget::mapChanged, which
+        // gates its equivalent AddLayers() call the same way). mapLibreMap()/mapReady()/
+        // styleLoaded() are not upstream - see
+        // external/patches/0005-mln-qt-expose-map-object.patch.
+        onStyleLoaded: root.paneController.attachLayers(map.mapLibreMap())
 
         PinchHandler {
             id: pinch
@@ -76,6 +95,20 @@ Rectangle {
                           wheel.point.position)
             }
         }
+    }
+
+    // Minimal per-pane identification while the grid has more than one pane. Real pane chrome
+    // (site/product pickers, the quick sync controls of §4.5) lands with slice 5.
+    Text {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: 6
+        visible: root.showLabel
+        text: root.paneController.sourceKey + " " + root.paneController.productName
+        font.pixelSize: 11
+        color: "#c8d0d8"
+        style: Text.Outline
+        styleColor: "#00000090"
     }
 
     // OSM's ODbL and the OpenMapTiles schema both require attribution; MapLibre Native Qt's

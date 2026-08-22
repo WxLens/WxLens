@@ -29,9 +29,10 @@ Window {
                 height: parent.height
             }
 
-            PaneHost {
+            PaneGrid {
                 width: parent.width - 56
                 height: parent.height
+                model: paneGridModel
             }
         }
     }

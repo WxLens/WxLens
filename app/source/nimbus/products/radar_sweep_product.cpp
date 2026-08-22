@@ -1,5 +1,6 @@
 #include <nimbus/products/radar_sweep_product.hpp>
 #include <nimbus/data/radar_site_data_service.hpp>
+#include <nimbus/data/radar_site_database.hpp>
 #include <nimbus/log/logger.hpp>
 #include <nimbus/util/geodesic.hpp>
 
@@ -10,7 +11,9 @@
 
 #include <algorithm>
 #include <chrono>
+#include <map>
 #include <mutex>
+#include <shared_mutex>
 #include <sstream>
 
 #include <units/angle.h>
@@ -536,17 +539,62 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
 {
    auto service = nimbus::data::RadarSiteDataService::Instance(radarSite);
 
-   // RadarProductStatus (products/radar_product_status.cpp) is currently the one that calls
-   // service->LoadLatestLevel2Data() for this site, per main.cpp's construction order - this just
-   // listens. See that file's comment for why; a real Data Product layer (slice 4+) will own
-   // triggering its own loads instead of relying on construction order.
    connect(service.get(),
            &nimbus::data::RadarSiteDataService::LevelTwoDataLoaded,
            this,
            [this](std::shared_ptr<scwx::wsr88d::Ar2vFile> file) { p->OnLevelTwoDataLoaded(file); });
+
+   // This product owns requesting its own data, rather than depending on some other object having
+   // done so first (which is what an earlier slice relied on, and which stops being true as soon
+   // as more than one site can be on screen).
+   service->LoadLatestLevel2Data();
 }
 
 RadarSweepProduct::~RadarSweepProduct() = default;
+
+std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(const std::string& radarSite)
+{
+   static std::shared_mutex                                          instanceMutex;
+   static std::map<std::string, std::shared_ptr<RadarSweepProduct>>  instances;
+
+   std::shared_lock readLock {instanceMutex};
+   if (auto it = instances.find(radarSite); it != instances.end())
+   {
+      return it->second;
+   }
+   readLock.unlock();
+
+   const auto siteInfo = nimbus::data::FindRadarSite(radarSite);
+   if (!siteInfo.has_value())
+   {
+      logger_->error("No site metadata found for {}", radarSite);
+      return nullptr;
+   }
+
+   std::unique_lock writeLock {instanceMutex};
+   auto [it, inserted] = instances.try_emplace(radarSite, nullptr);
+   if (inserted)
+   {
+      it->second = std::make_shared<RadarSweepProduct>(
+         radarSite, siteInfo->latitude, siteInfo->longitude);
+   }
+   return it->second;
+}
+
+const std::string& RadarSweepProduct::radar_site() const
+{
+   return p->radarSite_;
+}
+
+double RadarSweepProduct::site_latitude() const
+{
+   return p->siteLatitude_;
+}
+
+double RadarSweepProduct::site_longitude() const
+{
+   return p->siteLongitude_;
+}
 
 std::shared_ptr<const SweepData> RadarSweepProduct::sweep_data() const
 {

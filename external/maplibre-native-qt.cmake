@@ -61,6 +61,18 @@ nimbus_apply_mln_qt_patch(
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0006-mln-qt-no-clear-in-renderable-bind.patch"
     "remove mid-frame framebuffer clear from renderable bind() (ADR 0004)")
 
+# MapQuickItem connects the core Map's needsRendering/mapChanged signals in updatePaintNode(), i.e.
+# when the scene-graph node is first created - but the Map is created and its style load started
+# earlier, in MapQuickItemPrivate::initialize(). A style that resolves fast enough (notably a
+# second map reusing the first one's cached style) finishes loading in that window, so
+# MapChangeDidFinishLoadingStyle is emitted with nothing connected and is lost outright:
+# m_styleLoaded stays false, syncStyleChanges() never runs, and styleLoaded() never fires. Found in
+# Phase 1 slice 4 - growing the pane grid from 1x1 to 2x2 left every pane after the first without
+# its radar layer forever. Moves both connections to immediately after the Map is constructed.
+nimbus_apply_mln_qt_patch(
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0007-mln-qt-connect-map-signals-before-style-load.patch"
+    "connect Map signals before the style load starts (ADR 0004)")
+
 set(MLN_QT_WITH_QUICK_PLUGIN ON)
 set(MLN_QT_WITH_LOCATION OFF)
 set(MLN_QT_WITH_WIDGETS OFF)

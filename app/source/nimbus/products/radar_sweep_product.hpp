@@ -58,6 +58,22 @@ public:
                               QObject*           parent = nullptr);
    ~RadarSweepProduct() override;
 
+   /**
+    * Per-site singleton, mirroring RadarSiteDataService::Instance's pattern one level up the
+    * pipeline (docs/ROADMAP.md §4.6): every pane showing the same site shares one computed sweep
+    * rather than each recomputing identical geometry. Looks the site's coordinates up via
+    * data::FindRadarSite; returns nullptr for an unknown site id.
+    *
+    * Requesting the underlying data load is this product's own job (it is the Data Product for
+    * that site), so simply obtaining an instance is enough to start a fetch - callers must not
+    * depend on some other object having triggered one first.
+    */
+   static std::shared_ptr<RadarSweepProduct> Instance(const std::string& radarSite);
+
+   [[nodiscard]] const std::string& radar_site() const;
+   [[nodiscard]] double             site_latitude() const;
+   [[nodiscard]] double             site_longitude() const;
+
    RadarSweepProduct(const RadarSweepProduct&)            = delete;
    RadarSweepProduct& operator=(const RadarSweepProduct&) = delete;
    RadarSweepProduct(RadarSweepProduct&&)                 = delete;

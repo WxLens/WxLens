@@ -93,8 +93,9 @@ install already (confirmed during Phase 0).
 
 ### Vendored-dependency patches (`external/patches/`)
 `external/maplibre-native-qt` needed real fixes/additions this repo can't make upstream directly
-(a build-breaking CMake bug, a missing custom-layer API, a black-screen rendering bug — see ADR
-0004). Rather than hand-editing the vendored source, each fix is a tracked `.patch` file under
+(a build-breaking CMake bug, a missing custom-layer API, a black-screen rendering bug, and a
+lost-signal race that strands every map after the first — see ADR 0004). Rather than hand-editing
+the vendored source, each fix is a tracked `.patch` file under
 `external/patches/`, applied idempotently at CMake configure time by
 `nimbus_apply_mln_qt_patch()` in `external/maplibre-native-qt.cmake` (checks
 `git apply --check --reverse` first, so re-configuring is safe and `external/` stays pristine in

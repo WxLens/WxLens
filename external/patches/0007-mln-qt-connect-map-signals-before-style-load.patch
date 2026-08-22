@@ -1,0 +1,31 @@
+--- a/src/quick/plugins/map_quick_item.cpp
++++ b/src/quick/plugins/map_quick_item.cpp
+@@ -355,8 +355,8 @@
+         std::unique_ptr<TextureNodeBase> mbglNode = std::make_unique<TextureNodeVulkan>(
+             d->m_map, viewportSize, window()->devicePixelRatio());
+ #endif
+-        QObject::connect(d->m_map.get(), &Map::needsRendering, this, &QQuickItem::update);
+-        QObject::connect(d->m_map.get(), &Map::mapChanged, this, &MapQuickItem::onMapChanged);
++        // Map signals are connected in MapQuickItemPrivate::initialize(), as soon as the Map
++        // exists - not here. Connecting here races the style load: see that function's comment.
+ 
+         d->m_syncState = ViewportSync | CameraOptionsSync;
+ 
+@@ -443,6 +443,17 @@
+     m_map = std::make_unique<Map>(nullptr, m_settings, viewportSize, pixelRatio);
+     m_map->setConnectionEstablished();
+ 
++    // Connect before setStyleUrl() below, not later in updatePaintNode(). Upstream connects these
++    // when the scene-graph node is first created, which is after the style load has already been
++    // kicked off here - so a style that resolves quickly (e.g. a second map reusing the first
++    // one's now-cached style) can emit MapChangeDidFinishLoadingStyle before anything is
++    // listening. That event is then lost entirely: m_styleLoaded stays false, syncStyleChanges()
++    // never runs, and styleLoaded() never fires, so a host waiting on it to register a custom
++    // layer waits forever. Reproduced in Nimbus by growing a 1x1 pane grid to 2x2 - the first
++    // pane worked, every later pane silently never got its radar layer.
++    QObject::connect(m_map.get(), &Map::needsRendering, q, &QQuickItem::update);
++    QObject::connect(m_map.get(), &Map::mapChanged, q, &MapQuickItem::onMapChanged);
++
+     // Set default style
+     if (!m_style.isEmpty()) {
+         m_map->setStyleUrl(m_style);
