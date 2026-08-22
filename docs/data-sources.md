@@ -39,6 +39,13 @@ is the detail version of `docs/ROADMAP.md` §6 — update it as agents actually 
 kickoff — license + binary-footprint review first, per `docs/ROADMAP.md` §0/§9 Q7. Not evaluated
 yet as of Phase 0.
 
+## Base map (vector tiles for the map surface itself, not a weather data layer)
+
+| Layer | Source | Access pattern | Notes |
+|---|---|---|---|
+| Base map (light + dark) | [OpenFreeMap](https://openfreemap.org) | `https://tiles.openfreemap.org/styles/{dark,positron,liberty,bright}` style JSON, tiles from `https://tiles.openfreemap.org/planet` | Free, unlimited, no API key/signup, MIT-licensed project. Chosen over MapLibre's own `demotiles.maplibre.org` (Phase 1 slice 1's original placeholder - too sparse/low-detail for real use, explicitly a demo/test dataset) and over a self-hosted Protomaps PMTiles extract (would need bundling a large regional file plus a custom `pmtiles://` protocol handler in MapLibre Native - real engineering cost not justified this early). `app/qml/Panes/PaneHost.qml` currently hardcodes `dark`; should switch on `ThemeManager`'s active theme once that exists (Phase 1 slice 10). Attribution required by OSM's ODbL and the OpenMapTiles schema ("© OpenStreetMap contributors © OpenMapTiles") - added by hand in `PaneHost.qml` since MapLibre Native Qt's Quick item has no built-in attribution control. |
+| Base map, user-provided key (future) | e.g. MapTiler, Stadia Maps, or any MapLibre-compatible style URL | User-supplied style URL/API key in Settings | Not built yet - belongs to Phase 1's "map provider choice" settings item (§7). Framed as an opt-in upgrade for users who want more detail/a different look, not a requirement - OpenFreeMap must keep working with zero configuration. |
+
 ## Not yet integrated / no provider exists anywhere in the codebase
 Confirmed by inspection during Phase 0: no satellite, sounding, model, or mosaic provider exists in
 `wxdata` today. All Phase 2/3 provider work listed above is genuinely new, not a port of anything.

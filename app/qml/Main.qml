@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: MIT
 import QtQuick
 import QtQuick.Window
+
+import Nimbus.App
 
 Window {
     id: mainWindow
@@ -9,11 +12,27 @@ Window {
     title: "Nimbus"
     color: "#101418"
 
-    Text {
-        anchors.centerIn: parent
-        text: "Nimbus — Phase 0 shell\n(no radar/map layer yet)"
-        color: "#c8d0d8"
-        horizontalAlignment: Text.AlignHCenter
-        font.pixelSize: 20
+    Column {
+        anchors.fill: parent
+        spacing: 0
+
+        TopBar {
+            width: parent.width
+        }
+
+        Row {
+            width: parent.width
+            height: parent.height - 48
+            spacing: 0
+
+            SideRail {
+                height: parent.height
+            }
+
+            PaneHost {
+                width: parent.width - 56
+                height: parent.height
+            }
+        }
     }
 }

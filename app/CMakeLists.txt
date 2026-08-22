@@ -25,6 +25,9 @@ qt_add_qml_module(nimbus-app
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/Chrome/TopBar.qml
+        qml/Chrome/SideRail.qml
+        qml/Panes/PaneHost.qml
     RESOURCES
         res/branding/nimbus-icon.png
 )
@@ -43,6 +46,38 @@ target_link_libraries(nimbus-app PRIVATE
     Boost::timer
     Boost::json
 )
+
+# declarative_maplibre (docs/adr/0004-maplibre-qml-integration.md) is a Qt QML plugin - a
+# MODULE_LIBRARY loaded by the QML engine at runtime, not something an app links against at
+# compile time (target_link_libraries on it is a CMake error: "may not be linked into another
+# target"). add_dependencies just orders the build so it exists before the POST_BUILD copy step
+# below runs. QT_QML_IMPORT_PATH helps build-time QML tooling (qmllint, IDEs) find it; the copy
+# step places it at <exe-dir>/qml/MapLibre so it resolves at runtime the same way Qt's own QML
+# modules already do (QQmlEngine's default import path list includes "<app-dir>/qml" - confirmed
+# during Phase 0, no qt.conf needed). NIMBUS_MLN_QT_QML_PLUGIN_DIR (set in
+# external/maplibre-native-qt.cmake), not $<TARGET_FILE_DIR:declarative_maplibre>, is the correct
+# source - see that file's comment for why the generator-expression path is wrong on this
+# multi-config generator.
+add_dependencies(nimbus-app declarative_maplibre)
+
+set_target_properties(nimbus-app PROPERTIES
+    QT_QML_IMPORT_PATH "${NIMBUS_MLN_QT_QML_PLUGIN_DIR}/.."
+)
+
+# The plugin's qmldir/qmltypes (written by configure_file, unaffected by the output-dir bug
+# above) live in NIMBUS_MLN_QT_QML_PLUGIN_DIR, but its actual .dll doesn't - that got redirected
+# by the same per-config-property bug to wherever CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE points
+# (confirmed: Release/lib, not .../MapLibre). $<TARGET_FILE:...> always finds the real artifact
+# regardless of which directory it landed in, so copy that explicitly alongside the qmldir/types.
+add_custom_command(TARGET nimbus-app
+                   POST_BUILD
+                   COMMAND "${CMAKE_COMMAND}" -E copy_directory
+                       "${NIMBUS_MLN_QT_QML_PLUGIN_DIR}"
+                       "$<TARGET_FILE_DIR:nimbus-app>/qml/MapLibre"
+                   COMMAND "${CMAKE_COMMAND}" -E copy
+                       "$<TARGET_FILE:declarative_maplibre>"
+                       "$<TARGET_FILE_DIR:nimbus-app>/qml/MapLibre/"
+                   COMMENT "Deploying MapLibre QML plugin next to nimbus-app...")
 
 if (MSVC)
     target_compile_options(nimbus-app PRIVATE "/MP")

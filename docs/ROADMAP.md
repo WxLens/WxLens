@@ -1063,6 +1063,61 @@ its own before the next begins.
 now explicitly includes the full sync/object architecture rather than a simplified first pass —
 delivered as the 13 slices above rather than one monolithic build.
 
+**Status as of 2026-08-22 — Slice 1 (Application shell) done, verified end-to-end:**
+- Resolved the MapLibre QML plugin blocker left open at the end of Phase 0
+  (`docs/adr/0004-maplibre-qml-integration.md`'s "second follow-up finding"): confirmed with the
+  user to take option 1 (a tracked patch applied at configure time, not the
+  `ExternalProject_Add`/`find_package` standalone-build alternative). The actual upstream bug was
+  `${CMAKE_SOURCE_DIR}` used instead of `${CMAKE_CURRENT_SOURCE_DIR}` in
+  `src/quick/plugins/CMakeLists.txt`'s source list and include dirs; fixed via
+  `external/patches/0004-mln-qt-plugins-cmake-source-dir.patch` (captured with `git diff` inside
+  the submodule, then the submodule reverted with `git checkout --` so `external/` stays pristine
+  in git), applied idempotently by `external/maplibre-native-qt.cmake` via
+  `execute_process(COMMAND git apply ...)` guarded by a `git apply --check --reverse` idempotency
+  check. `MLN_QT_WITH_QUICK_PLUGIN` is back to `ON`.
+- Second, separate bug found while wiring the plugin into `nimbus-app`: the plugin's own
+  `set_target_properties(... LIBRARY_OUTPUT_DIRECTORY/RUNTIME_OUTPUT_DIRECTORY ...)` call (generic,
+  non-per-config properties) loses to Nimbus's own `tools/nimbus_config.cmake`, which sets
+  per-config `CMAKE_*_OUTPUT_DIRECTORY_RELEASE` globally - CMake applies those to every new
+  target's per-config property *at creation time*, and a per-config property always wins over a
+  later generic-property override on a multi-config generator (confirmed empirically: the actual
+  `declarative_maplibre.dll` lands in `Release/lib` alongside every other library in the build,
+  while its `qmldir`/`.qmltypes` - written via `configure_file`, unaffected by output-dir
+  properties - stay at the plugin's own intended `.../src/quick/plugins/MapLibre/` location). Net
+  effect: `$<TARGET_FILE_DIR:declarative_maplibre>` is **not** a reliable way to locate this
+  plugin's QML module folder in this build. Worked around by having
+  `external/maplibre-native-qt.cmake` capture the real, always-correct qmldir/qmltypes path
+  directly as `NIMBUS_MLN_QT_QML_PLUGIN_DIR`, and `app/CMakeLists.txt`'s `POST_BUILD` deploy step
+  copies that directory *plus* the actual dll (via `$<TARGET_FILE:declarative_maplibre>`, which
+  does correctly resolve to wherever the binary really landed) into
+  `<nimbus-app exe dir>/qml/MapLibre` - mirroring exactly where `windeployqt` already places Qt's
+  own QML modules (`QQmlEngine`'s default import path list includes `<app-dir>/qml`, confirmed
+  during Phase 0, no `qt.conf` involved).
+- Chrome shell built: `app/qml/Chrome/TopBar.qml` (app name + placeholder site/product/time text)
+  and `SideRail.qml` (placeholder tool-icon slots, successor to `radar_toolbox_rail_widget.cpp`),
+  composed in `Main.qml`. No `ThemeManager` yet (that's slice 10) - colors are hardcoded
+  placeholders for now, consistent with not pulling later-phase work early.
+- `app/qml/Panes/PaneHost.qml` hosts a real `MapLibre` QML item (pan/pinch/wheel handlers ported
+  from the vendored `examples/quick-standalone/main.qml`), proving the full
+  Qt Quick/QML → MapLibre Native Qt → GPU rendering chain end-to-end per §0.2's "prove the
+  rendering seam early" rule - **not** yet a `PaneGridModel`/`PaneController` (slice 4), no radar
+  data (slice 2+), no per-channel sync (slice 5). Uses the public `demotiles.maplibre.org` style
+  as a hardcoded placeholder, not a real base-map provider choice.
+- **Verified for real, not just built:** `nimbus-app.exe` launched, stayed running, and a
+  screenshot (both self-captured and one supplied directly by the user) confirms the chrome
+  (top bar, side rail) renders correctly and the map renders actual basemap tiles (US outline,
+  state/lake borders, labels), centered on CONUS as configured, after a few seconds for the
+  network fetch - an earlier screenshot taken too soon after launch showed a black pane before
+  tiles loaded, which is expected load latency, not a bug. `nimbus-wxdata-test` still builds
+  clean after these changes (not re-run in full this slice - nothing touched wxdata or its test
+  wiring, so this was a build-only sanity check, not a full 200-test re-verification).
+- **Not verified this slice:** pan/zoom/pinch interaction (handlers are wired per the ported
+  example pattern, but not manually exercised), Linux/macOS (Windows-only session, as with Phase
+  0), the CI workflow (still unexercised per Phase 0's status).
+- **Next slice:** slice 2, one functional radar pane - wire `RadarSiteDataService`
+  (`app/source/nimbus/data/`) to `wxdata`'s existing providers and get one hardcoded product from
+  one site flowing end-to-end, still with no pane grid/sync yet.
+
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
 **Scope:** a national/regional mosaic reflectivity (and optionally echo-tops/precip) layer as a

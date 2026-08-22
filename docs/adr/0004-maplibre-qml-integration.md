@@ -133,3 +133,54 @@ previous section's plan once this was found):**
 **No decision made yet on which of these three to take** — flag to the user/next agent before
 picking one, since options 1 and 2 are a real architectural tradeoff (patch-and-maintain vs.
 build-and-install), not a small implementation detail.
+
+## Resolution (Phase 1 slice 1, 2026-08-22): option 1, tracked patch applied at configure time
+
+Confirmed with the user before implementing (per this ADR's own "flag before picking one" note):
+**option 1**, the local tracked patch, not the standalone `ExternalProject_Add`/`find_package`
+build (option 2).
+
+- The fix: `src/quick/plugins/CMakeLists.txt`'s `Plugin_Sources` list and
+  `target_include_directories` call both replace `${CMAKE_SOURCE_DIR}/src/quick/...` with
+  `${CMAKE_CURRENT_SOURCE_DIR}/../...`-relative paths (root cause confirmed exactly as diagnosed
+  above - `CMAKE_SOURCE_DIR` resolves to Nimbus's own repo root under `add_subdirectory`, not
+  MapLibre Native Qt's). The `${CMAKE_BINARY_DIR}/src/core/include` entry on the same line block
+  was investigated too (same-looking bug) but left untouched: `src/quick/CMakeLists.txt` uses the
+  identical `${CMAKE_SOURCE_DIR}/src/core` + `${CMAKE_BINARY_DIR}/src/core/include` pair for the
+  already-working `MLNQtQuickPrivate` target, so those particular paths are evidently unused
+  dead/redundant include entries (core's real headers reach consumers via a correctly-scoped
+  PUBLIC/INTERFACE include elsewhere) rather than a second live bug - `target_include_directories`
+  doesn't fail at configure time just because a listed directory doesn't exist, unlike the
+  `Plugin_Sources` list, which requires every entry to be a real file.
+- The fix is captured as `external/patches/0004-mln-qt-plugins-cmake-source-dir.patch` (generated
+  via `git diff` inside the submodule, then the submodule working tree was reverted with
+  `git checkout --`, so `external/` stays pristine in git per the "never edit external/ in place"
+  rule). `external/maplibre-native-qt.cmake` applies it at configure time via
+  `execute_process(COMMAND git apply ...)`, idempotently (`git apply --check --reverse` first
+  checks whether it's already applied, so re-running `cmake .` doesn't fail on a second apply
+  attempt). `MLN_QT_WITH_QUICK_PLUGIN` is now back to `ON`.
+- Filing the bug upstream (`maplibre/maplibre-native-qt`) is still worth doing but wasn't done as
+  part of this slice - flagged here so it isn't lost, not blocking.
+- **Runtime QML plugin resolution** (separate from the configure-time fix above): the
+  `declarative_maplibre` target has no `QMapLibre::` namespaced ALIAS in this in-tree build (only
+  `Core` and `QuickPrivate` do - confirmed by reading `src/core/CMakeLists.txt` and
+  `src/quick/CMakeLists.txt`), so `app/CMakeLists.txt` links the bare target name
+  `declarative_maplibre` directly, not a `QMapLibre::` alias.
+  `qmaplibre_quick_setup_plugins()` (the upstream-recommended helper, used by the vendored
+  `examples/quick-standalone`) still doesn't apply here for the same reason noted above - it needs
+  `find_package`-imported targets. Instead: `nimbus-app` sets its `QT_QML_IMPORT_PATH` target
+  property to `$<TARGET_FILE_DIR:declarative_maplibre>/..` (for build-time QML tooling), and a
+  `POST_BUILD` step copies the plugin's output directory (already named `MapLibre` via that
+  target's own `OUTPUT_DIRECTORY` setting) to `$<TARGET_FILE_DIR:nimbus-app>/qml/MapLibre`. This
+  mirrors exactly where `windeployqt` already places Qt's own QML modules
+  (`<exe-dir>/qml/QtQuick/Window`, etc., confirmed present after Phase 0's verified launch) -
+  `QQmlEngine`'s default import path list includes `<app-dir>/qml`, no `qt.conf` needed (confirmed
+  none exists in the deployed `Release/bin`), so `import MapLibre` resolves the same way
+  `import QtQuick.Window` already does.
+- `app/qml/Panes/PaneHost.qml` now hosts a real `MapLibre` QML item (pan/zoom/pinch wired,
+  pattern ported from `examples/quick-standalone/main.qml`) as Phase 1 slice 1's proof of this
+  rendering seam, per `docs/ROADMAP.md` §0.2's "prove the rendering seam early" rule - it uses the
+  public `demotiles.maplibre.org` style as a placeholder, not a real base-map provider choice
+  (that's a later Phase 1 settings item).
+- Build verification: see `docs/ROADMAP.md` Phase 1 slice 1 status for the actual
+  configure/build/launch results.
