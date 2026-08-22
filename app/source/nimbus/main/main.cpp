@@ -1,6 +1,7 @@
 #include <nimbus/log/logger.hpp>
 
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlError>
 #include <QQuickWindow>
@@ -14,6 +15,11 @@ int main(int argc, char* argv[])
    QGuiApplication app(argc, argv);
    QGuiApplication::setApplicationName("Nimbus");
    QGuiApplication::setOrganizationName("Nimbus");
+   // The base QtQuick.Window "Window" QML type has no `icon` property (that's an
+   // ApplicationWindow/Controls thing) - setting it here covers every window the app creates,
+   // and matters on platforms without an embedded .exe icon resource (Linux/macOS).
+   QGuiApplication::setWindowIcon(
+      QIcon(":/qt/qml/Nimbus/App/res/branding/nimbus-icon.png"));
 
    nimbus::log::Initialize();
    auto logger = nimbus::log::Create(logPrefix_);

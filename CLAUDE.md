@@ -46,6 +46,7 @@ nimbus/
 │   │   ├── log/                    # thin wrapper over wxdata's util::Logger
 │   │   └── util/
 │   ├── res/                        # icons, fonts, bundled .pal files
+│   │   └── branding/                # app icon/lockup/monochrome PNGs + generated nimbus.ico
 │   └── CMakeLists.txt
 ├── test/                          # GTest, mirrors app/source/nimbus/ tree once it has code
 │   ├── CMakeLists.txt / test.cmake # currently: nimbus-wxdata-test (reused wxdata test slice)

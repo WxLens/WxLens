@@ -15,6 +15,7 @@ qt_add_executable(nimbus-app
     source/nimbus/main/main.cpp
     source/nimbus/log/logger.cpp
     source/nimbus/log/logger.hpp
+    $<$<PLATFORM_ID:Windows>:res/branding/app.rc>
 )
 
 target_include_directories(nimbus-app PRIVATE source)
@@ -24,6 +25,8 @@ qt_add_qml_module(nimbus-app
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+    RESOURCES
+        res/branding/nimbus-icon.png
 )
 
 set_target_properties(nimbus-app PROPERTIES
