@@ -47,12 +47,23 @@ Nimbus derives code from the following sources (carried forward via `wxdata`):
 | [Color Table File Specification](http://www.grlevelx.com/manuals/color_tables/files_color_table.htm) | Used with permission |
 | [Place File Specification](https://www.grlevelx.com/manuals/gis/files_places.htm) | Used with permission |
 
-Assets
-------
+Map data
+--------
 
-Nimbus will bundle the following assets (carried forward via `wxdata`'s `res/palettes/wct/`, once
-copied into `app/res/`):
+Nimbus's default base map (`app/qml/Panes/PaneHost.qml`, see `docs/data-sources.md`) is served by
+[OpenFreeMap](https://openfreemap.org), free/no-API-key vector tile hosting of OpenStreetMap data:
 
 | Source | License | Notes |
 | ------ | ------- | ----- |
-| [NOAA's Weather and Climate Toolkit](https://www.ncdc.noaa.gov/wct/) | Public Domain | Default Color Tables |
+| [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors | [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/1-0/) | Underlying map data. Attribution shown in-app (`PaneHost.qml`). |
+| [OpenMapTiles](https://openmaptiles.org/) | [BSD 3-Clause](https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md) (schema/tools) | Vector tile schema OpenFreeMap's tiles follow. Attribution shown in-app. |
+
+Assets
+------
+
+Nimbus bundles the following assets:
+
+| Source | License | Notes |
+| ------ | ------- | ----- |
+| [NOAA's Weather and Climate Toolkit](https://www.ncdc.noaa.gov/wct/) | Public Domain | Default Color Tables (planned - carried forward via `wxdata`'s `res/palettes/wct/`, not yet copied into `app/res/`) |
+| [Supercell Wx](https://github.com/dpaulat/supercell-wx) `scwx-qt/res/config/radar_sites.json` | [MIT License](https://spdx.org/licenses/MIT.html) | Radar site location/elevation/time-zone data, compiled from public NOAA/NWS sources — copied unmodified into `app/res/config/`, used by `nimbus::data::FindRadarSite` |

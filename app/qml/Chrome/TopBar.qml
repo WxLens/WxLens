@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
 
-// Phase 1 slice 1: static chrome shell only - no ThemeManager (slice 10) and no live
-// site/product/time state (that arrives with the Data Source/Product wiring in slices 2+).
-// Colors are hardcoded placeholders here for the same reason.
+// Phase 1 slice 1/2: static chrome shell - no ThemeManager yet (slice 10). Colors are hardcoded
+// placeholders for that reason. The site/status text is real (radarStatus context property,
+// nimbus::products::RadarProductStatus, slice 2) but this is still a single hardcoded site, not
+// the real per-pane product binding that arrives with PaneGridModel/PaneController (slice 4+).
 Rectangle {
     id: root
     height: 48
@@ -29,7 +30,7 @@ Rectangle {
 
     Text {
         anchors.centerIn: parent
-        text: "No site selected"
+        text: radarStatus.siteId + " — " + radarStatus.statusText
         color: "#7b8794"
         font.pixelSize: 13
     }

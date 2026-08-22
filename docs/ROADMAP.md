@@ -1101,8 +1101,10 @@ delivered as the 13 slices above rather than one monolithic build.
   from the vendored `examples/quick-standalone/main.qml`), proving the full
   Qt Quick/QML → MapLibre Native Qt → GPU rendering chain end-to-end per §0.2's "prove the
   rendering seam early" rule - **not** yet a `PaneGridModel`/`PaneController` (slice 4), no radar
-  data (slice 2+), no per-channel sync (slice 5). Uses the public `demotiles.maplibre.org` style
-  as a hardcoded placeholder, not a real base-map provider choice.
+  data (slice 2+), no per-channel sync (slice 5). Basemap: OpenFreeMap (`docs/data-sources.md`) -
+  free, no API key, real OSM detail, dark/light styles from one tile source; swapped in after the
+  initial `demotiles.maplibre.org` placeholder proved too sparse for real use (user feedback).
+  Not yet a real base-map *provider choice* setting (e.g. an optional user-supplied MapTiler key).
 - **Verified for real, not just built:** `nimbus-app.exe` launched, stayed running, and a
   screenshot (both self-captured and one supplied directly by the user) confirms the chrome
   (top bar, side rail) renders correctly and the map renders actual basemap tiles (US outline,
@@ -1117,6 +1119,70 @@ delivered as the 13 slices above rather than one monolithic build.
 - **Next slice:** slice 2, one functional radar pane - wire `RadarSiteDataService`
   (`app/source/nimbus/data/`) to `wxdata`'s existing providers and get one hardcoded product from
   one site flowing end-to-end, still with no pane grid/sync yet.
+
+**Status as of 2026-08-22 — Slice 2 (one functional radar pane) done, verified end-to-end:**
+- `app/source/nimbus/data/radar_site_data_service.hpp/.cpp`: a deliberately minimal first version
+  of the Data Source role for radar (§4.6) - per-site singleton (`Instance(radarSite)`), fetches
+  the latest Level 2 volume via `wxdata`'s existing `NexradDataProviderFactory`/`AwsLevel2DataProvider`
+  on a background thread (`scwx::util::async`, wxdata's shared `io_context` helper - reused, not a
+  new thread pool), emits `LevelTwoDataLoaded`/`LoadFailed` back on the GUI thread. **Explicitly
+  not** RadarProductManager's full port: no caching, no multi-product/elevation tracking, no
+  refresh scheduling, no `Cleanup()` - those are follow-up work as the pattern matures (slice 3+),
+  not deferred by oversight.
+- `app/source/nimbus/data/radar_site_database.hpp/.cpp`: loads `res/config/radar_sites.json`
+  (bundled, carried forward unmodified from `scwx-qt/res/config/radar_sites.json` - lat/lon/
+  elevation/IANA time zone per site) for lookup by site ID. Also the intended home for the site
+  lat/lon/elevation §4.7's beam-height work will need later - reuse this, don't rebuild it then.
+- `app/source/nimbus/products/radar_product_status.hpp/.cpp`: a minimal, explicitly temporary
+  bridge (`nimbus::products::RadarProductStatus`) exposing site/status text to QML via a
+  `radarStatus` context property (`main.cpp`) - **not** the real Data Product layer, which arrives
+  with `PaneGridModel`/`PaneController` in slice 4 and should supersede this, not extend it.
+  Displays elevation-scan/message counts and the volume start time in UTC, the radar site's own
+  time zone ("Station"), and the local machine's time zone ("Local") - all three shown at once for
+  now per user request; a real switchable *preference* (persisted, UI-driven) belongs to Phase 1's
+  dedicated Settings work. Time zone lookups use `std::chrono::get_tzdb()`/`current_zone()`
+  (native C++20 tzdb support confirmed present on this toolchain - no `date` library fallback
+  needed here), matching the exact pattern already used in the legacy app's
+  `qt/config/radar_site.cpp`.
+- **Two real build/runtime issues found and fixed this slice** (beyond the feature work itself):
+  1. `main.cpp` needed the shared `scwx::util::io_context()` actually started on a worker thread
+     pool (with a `work_guard`, exception-recovering `run()` loop) and `Aws::InitAPI`/
+     `Aws::ShutdownAPI` around the app's lifetime - ported directly from the legacy app's
+     `main.cpp`. Neither existed before since nothing in `nimbus-app` made a network/AWS call
+     until this slice's S3-backed provider.
+  2. A real NOMINMAX/Windows.h `min`/`max` macro collision: `wxdata.cmake` sets `-DNOMINMAX`
+     `PRIVATE` on `wxdata` itself (`external/`, read-only), so it doesn't propagate to consumers.
+     `test/test.cmake` already had the same fix for the test target; `app/CMakeLists.txt` never
+     needed it until this slice's `radar_product_status.cpp` became the first `nimbus-app` source
+     to pull in `scwx::util::TimeString` (→ `date/tz.h` transitively). Fixed by adding the
+     identical `target_compile_options(nimbus-app PRIVATE -DNOMINMAX)` under `if (MSVC)` -
+     produces a cascade of unrelated-looking `units/core.h` template syntax errors if missed;
+     worth recognizing the signature (`warning C4003: not enough arguments for function-like
+     macro invocation 'min'` immediately preceding the cascade) if it recurs elsewhere.
+- **Verified for real, not just built:** launched `nimbus-app.exe` repeatedly against the live
+  NOAA `noaa-nexrad-level2` S3 bucket for KTLX - actual volumes loaded successfully each run
+  (9729-9730 messages, 19 elevation scans), confirmed via both the log file and the rendered top
+  bar text (screenshots supplied by the user). Station/Local time zones confirmed correct (CDT for
+  KTLX/Oklahoma, EDT matching the user's own machine).
+- **UX fixes made from live user feedback during this slice**, not just the core data-path work:
+  - Mouse-wheel zoom was far too coarse (a full 2x/0.5x per wheel notch, ported as-is from the
+    vendored example) - added a `wheelZoomSensitivity` property to `PaneHost.qml` (~19% per notch
+    now), tunable if it still isn't right.
+  - The map sometimes stayed blank for several seconds after launch before rendering (user
+    initially saw this resolve only after scrolling). Investigated the MapLibre Native Qt render-
+    trigger chain (`Map::needsRendering` → `QQuickItem::update`, `m_renderQueued` atomic-flag
+    reset on every actual render) and found nothing wrong with it - the library's repaint
+    signaling looks correctly designed. A later run showed the map finish rendering on its own
+    with no interaction, just slower than usual, and the slow run coincided with a large
+    concurrent Level 2 S3 download competing for the same network connection. Treating this as
+    tile-load latency (occasionally worsened by concurrent large downloads), not a render bug -
+    revisit only if it recurs without a plausible bandwidth cause.
+- **Not verified this slice:** Level 3 products (only Level 2/reflectivity path exercised), sites
+  other than KTLX, behavior when a site has no recent data or the network is unavailable (
+  `LoadFailed` path exists and is wired but wasn't deliberately triggered), Linux/macOS.
+- **Next slice:** slice 3, radar rendering - port `gl/draw/` to a Qt RHI custom render node and
+  expand to full NEXRAD Level 2 + Level 3 product coverage. The data now flowing from this slice
+  (`Ar2vFile`/elevation scans) is exactly what that renderer will consume.
 
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.

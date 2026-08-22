@@ -22,6 +22,12 @@ Rectangle {
         ? "https://tiles.openfreemap.org/styles/dark"
         : "https://tiles.openfreemap.org/styles/positron"
 
+    // The vendored example this was ported from uses a bare Math.pow(2, angleDelta/120) - a full
+    // 2x/0.5x zoom per single wheel notch, which is too coarse for precise navigation (user
+    // feedback during Phase 1 slice 2). This scales that down to roughly a 19% zoom change per
+    // notch instead; tune here if it still feels too fast/slow.
+    readonly property real wheelZoomSensitivity: 0.25
+
     MapLibre {
         id: map
         anchors.fill: parent
@@ -52,7 +58,8 @@ Rectangle {
                             ? PointerDevice.Mouse | PointerDevice.TouchPad
                             : PointerDevice.Mouse
             onWheel: (event) => {
-                map.scale(Math.pow(2.0, event.angleDelta.y / 120), wheel.point.position)
+                map.scale(Math.pow(2.0, (event.angleDelta.y / 120) * root.wheelZoomSensitivity),
+                          wheel.point.position)
             }
         }
     }

@@ -15,6 +15,12 @@ qt_add_executable(nimbus-app
     source/nimbus/main/main.cpp
     source/nimbus/log/logger.cpp
     source/nimbus/log/logger.hpp
+    source/nimbus/data/radar_site_data_service.cpp
+    source/nimbus/data/radar_site_data_service.hpp
+    source/nimbus/data/radar_site_database.cpp
+    source/nimbus/data/radar_site_database.hpp
+    source/nimbus/products/radar_product_status.cpp
+    source/nimbus/products/radar_product_status.hpp
     $<$<PLATFORM_ID:Windows>:res/branding/app.rc>
 )
 
@@ -30,6 +36,7 @@ qt_add_qml_module(nimbus-app
         qml/Panes/PaneHost.qml
     RESOURCES
         res/branding/nimbus-icon.png
+        res/config/radar_sites.json
 )
 
 set_target_properties(nimbus-app PROPERTIES
@@ -81,6 +88,14 @@ add_custom_command(TARGET nimbus-app
 
 if (MSVC)
     target_compile_options(nimbus-app PRIVATE "/MP")
+    # wxdata.cmake sets this PRIVATE on wxdata itself (external/, read-only) so it doesn't
+    # propagate to consumers - matches test/test.cmake's identical fix. Without it, an unguarded
+    # <windows.h> in nimbus-app's own compilation (pulled in transitively, e.g. via
+    # scwx/util/time.hpp -> date/tz.h) leaks min/max macros into external/units's templated
+    # operator==, producing a cascade of unrelated-looking syntax errors in units/core.h -
+    # confirmed while adding Phase 1 slice 2's radar_product_status.cpp, the first nimbus-app
+    # source to pull in scwx::util::TimeString.
+    target_compile_options(nimbus-app PRIVATE -DNOMINMAX)
 endif()
 
 if (WIN32)

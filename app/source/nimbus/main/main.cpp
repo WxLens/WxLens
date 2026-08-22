@@ -1,8 +1,14 @@
 #include <nimbus/log/logger.hpp>
+#include <nimbus/products/radar_product_status.hpp>
 
+#include <scwx/util/threads.hpp>
+
+#include <aws/core/Aws.h>
+#include <boost/asio.hpp>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QQmlError>
 #include <QQuickWindow>
 
@@ -24,6 +30,36 @@ int main(int argc, char* argv[])
    nimbus::log::Initialize();
    auto logger = nimbus::log::Create(logPrefix_);
 
+   // Start scwx::util::io_context() actually running - wxdata only defines it and the async()
+   // helper (docs/ROADMAP.md §7 Phase 1 slice 2's RadarSiteDataService uses scwx::util::async
+   // indirectly via wxdata's providers), the consuming app is responsible for running it. Ported
+   // from the legacy app's main.cpp; the try/catch-and-continue loop matches its handling of
+   // exceptions escaping posted work.
+   boost::asio::io_context& ioContext = scwx::util::io_context();
+   auto                     ioContextWork = boost::asio::make_work_guard(ioContext);
+   boost::asio::thread_pool ioThreadPool {4};
+   boost::asio::post(ioThreadPool,
+                     [&]()
+                     {
+                        while (true)
+                        {
+                           try
+                           {
+                              ioContext.run();
+                              break;
+                           }
+                           catch (const std::exception& ex)
+                           {
+                              logger->error(ex.what());
+                           }
+                        }
+                     });
+
+   // Required before any AWS S3 call (RadarSiteDataService's Level 2 provider uses one) - not
+   // previously needed since nothing in the app made network requests through the AWS SDK yet.
+   const Aws::SDKOptions awsSdkOptions {};
+   Aws::InitAPI(awsSdkOptions);
+
    QQmlApplicationEngine engine;
    QObject::connect(
       &engine,
@@ -41,6 +77,13 @@ int main(int argc, char* argv[])
                            logger->error("QML warning: {}", w.toString().toStdString());
                         }
                      });
+   // Phase 1 slice 2: one hardcoded site, proving the data path end-to-end
+   // (docs/ROADMAP.md §7 Phase 1 slice 2). Superseded by PaneGridModel/PaneController once the
+   // pane grid exists (slice 4) - this context property is a deliberately temporary bridge, not
+   // the real Data Product layer.
+   nimbus::products::RadarProductStatus radarStatus {"KTLX"};
+   engine.rootContext()->setContextProperty("radarStatus", &radarStatus);
+
    engine.loadFromModule("Nimbus.App", "Main");
 
    if (engine.rootObjects().isEmpty())
@@ -49,5 +92,14 @@ int main(int argc, char* argv[])
       return -1;
    }
 
-   return QGuiApplication::exec();
+   const int result = QGuiApplication::exec();
+
+   // Gracefully stop the io_context main loop before shutting down the AWS SDK, so no posted
+   // work tries to make an S3 call after Aws::ShutdownAPI runs.
+   ioContextWork.reset();
+   ioThreadPool.join();
+
+   Aws::ShutdownAPI(awsSdkOptions);
+
+   return result;
 }
