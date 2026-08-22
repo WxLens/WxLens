@@ -33,6 +33,17 @@ Option A: `external/legacy-supercell-wx/` is a shallow (`--depth 1`) submodule o
 (`aws-sdk-cpp`, `maplibre-native`, `imgui`, etc.) are **not** initialized — Nimbus doesn't need
 them, and initializing them would multiply the clone by several times for no benefit.
 
+## Follow-up finding (same session): pin `external/units` to the legacy repo's exact commit
+Building `wxdata` for real (see `docs/ROADMAP.md`'s Phase 0 status note) surfaced that `wxdata.cmake`
+compiles with `/W4 /WX` on MSVC (line ~338), and a newer `nholthaus/units` commit than the legacy
+repo pins (`aa4c448`/`v3.6.1`, this repo's initial clone, vs. the legacy repo's pinned `da6dd917`)
+introduces a `C4459` warning (`declaration of 'd' hides global declaration` in `time.h`/`velocity.h`)
+that becomes a hard error under `/WX`. Fixed by checking out `external/units` to the legacy repo's
+exact pinned commit (`da6dd9176e8515323c75030d5e51ee19cf6c9afd`) instead of tracking upstream HEAD
+— consistent with "reuse wxdata as-is," this extends to using dependency versions already proven
+compatible with it, not whatever's newest. Don't advance this pin casually; if it's ever bumped,
+rebuild `wxdata` and its tests first to catch this class of issue again.
+
 ## Consequences
 - Every fresh clone of Nimbus drags in the legacy repo's `scwx-qt`/`external`/history, exactly as
   §3.1 calls out as this option's tradeoff. Acceptable for now; not a blocker.

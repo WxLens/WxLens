@@ -2,6 +2,7 @@
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlError>
 #include <QQuickWindow>
 
 static const std::string logPrefix_ = "main";
@@ -24,6 +25,16 @@ int main(int argc, char* argv[])
       &app,
       []() { QCoreApplication::exit(-1); },
       Qt::QueuedConnection);
+   QObject::connect(&engine,
+                     &QQmlApplicationEngine::warnings,
+                     &app,
+                     [logger](const QList<QQmlError>& warnings)
+                     {
+                        for (const auto& w : warnings)
+                        {
+                           logger->error("QML warning: {}", w.toString().toStdString());
+                        }
+                     });
    engine.loadFromModule("Nimbus.App", "Main");
 
    if (engine.rootObjects().isEmpty())

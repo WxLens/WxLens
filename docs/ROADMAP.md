@@ -905,24 +905,63 @@ linked and building, and agent-legible docs in place.
   upstream `maplibre/maplibre-native-qt` (library version 4.0.0) at `external/maplibre-native-qt`,
   not the `dpaulat` Supercell-Wx-specific fork.
 - [x] Write `AGENTS.md`/`CLAUDE.md` for the new repo (§3.3) — done, not stubs, reasonably complete.
-- [ ] Wire up `util::Logger` with per-subsystem sinks (§3.4) — **not done yet**; `main.cpp` calls
-  `Logger::Initialize()`/`Logger::Create()` but no file sink or per-subsystem convention is wired
-  up yet. Next concrete step for whoever picks this up.
+- [x] Wire up `util::Logger` with per-subsystem sinks (§3.4) — `app/source/nimbus/log/` wraps
+  `scwx::util::Logger`, adding a file sink under `QStandardPaths::AppDataLocation`. Only one
+  subsystem exists so far (`main`); extend the naming convention as more subsystems are added in
+  Phase 1.
 - [x] Decide TOML vs. JSON for config storage — **TOML**, see
   `docs/adr/0003-config-storage-format.md`. `settings/` itself is still an empty directory —
   implementing the wrapper is Phase 1 work (§7 Phase 1 doesn't need it until pane-layout/theme
   persistence), not Phase 0's.
 - [x] App is named **Nimbus** (repo `nimbus/`, C++ namespace `nimbus`, see §9 Q1/Q3 — resolved).
 
-**Status as of 2026-08-21 (first overnight pass):** directory scaffold, all vendored submodules,
-build tooling, and docs are in place; `docs/adr/0001`-`0004` written. `nimbus-app` (empty QML
-shell, no MapLibre item wired in yet — that's explicitly the next slice, see ADR 0004's
-Consequences) and `nimbus-wxdata-test` (the wxdata-only slice of the legacy GTest suite,
-referenced from `external/legacy-supercell-wx/test/` rather than duplicated) are wired into the
-build. **Conan install / CMake configure / actual compilation had not finished verifying by the
-time this pass ended** — treat "builds green" as unconfirmed until someone runs it end-to-end and
-updates this line. CI workflow (`.github/workflows/ci.yml`) has **not** been written yet — remains
-open work.
+**Status as of 2026-08-22 (first overnight pass, verified end-to-end):** directory scaffold, all
+vendored submodules, build tooling, and docs are in place; `docs/adr/0001`-`0004` written and
+updated as real build issues were found and fixed (see below). `nimbus-app` (empty QML shell, no
+MapLibre item wired in yet — that's explicitly the next slice, see ADR 0004's Consequences) and
+`nimbus-wxdata-test` (the wxdata-only slice of the legacy GTest suite, referenced from
+`external/legacy-supercell-wx/test/` rather than duplicated) are wired into the build.
+
+**Conan install, CMake configure, and a full build were run to completion on the Windows VS2026
+preset, and the result was launched and verified, not just compiled:**
+- `conan install` + `cmake` configure succeed cleanly (Release config).
+- `nimbus-app.exe` and `nimbus-wxdata-test.exe` both build and link.
+- `nimbus-wxdata-test`: **185 passed, 12 skipped, 3 failed** (200 total). The 3 failures
+  (`AwsLevel2DataProvider.Prune`, `IemApiProviderTest.ListTextProducts`/`LoadTextProducts`) are
+  live-network/live-data tests hitting real AWS S3/IEM endpoints — the same category the legacy
+  repo's own Cursor Cloud notes (`external/legacy-supercell-wx/AGENTS.md`) already flag as
+  environment-dependent and excluded from their CI run. Nothing in the failure output points at a
+  Nimbus-introduced defect (see the git history around this date for the actual assertion text).
+  Re-verify before assuming they're still purely environmental if this is re-run much later.
+- `nimbus-app.exe` was launched for real (not just built): a genuine OS window titled "Nimbus"
+  appears, `Responding: True`, no crash, runs indefinitely until closed. Visual pixel content
+  couldn't be screenshotted this session (the dev machine's session was locked, so screen capture
+  only showed the lock screen) — functional launch is verified, pixel-level rendering isn't.
+
+**Three real build issues were found and fixed this session** (each has a corresponding ADR
+update with full detail — read those before touching the same areas):
+1. `wxdata`'s actual dependency set is wider than initially assumed — needs `aws-sdk-cpp`, `date`,
+   `units`, `hsluv-c` vendored too, each with their own (sometimes multiply-nested) submodule trees
+   that must be initialized, not just top-level. See ADR 0002.
+2. MapLibre Native Qt's QML plugin target (`MLN_QT_WITH_QUICK_PLUGIN`) has a genuine upstream
+   CMake bug (`CMAKE_SOURCE_DIR` misuse) that breaks under `add_subdirectory` consumption — worked
+   around by disabling that specific target for now (the QQuickItem library itself still builds
+   fine). See ADR 0004's second follow-up finding for the full writeup and unresolved options.
+3. `wxdata.cmake` itself doesn't declare `Boost::timer`/`Boost::json` even though its source uses
+   both (`boost::timer::cpu_timer`, `boost::json`) — invisible while `wxdata` is only compiled as
+   an OBJECT library, surfaces only at final link time in whatever executable consumes it. Fixed
+   by adding both to `app/CMakeLists.txt`/`test/test.cmake` directly (not editing `wxdata.cmake`).
+   Also needed pinning `external/units` to the exact commit the legacy repo uses (ADR 0002) after
+   a newer `units` release introduced an MSVC `/W4 /WX` warning-as-error in `wxdata`'s build.
+4. `windeployqt` is not optional on Windows — without it, `nimbus-app.exe` can't find Qt's DLLs or
+   the QML plugins backing even `QtQuick.Window` (`import QtQuick.Window` failed at runtime with
+   "module ... is not installed" until this ran with `--qmldir` pointing at `app/qml`). Added as an
+   automatic `POST_BUILD` step in `app/CMakeLists.txt`, not a manual step to remember.
+
+**Still open:** CI workflow (`.github/workflows/ci.yml`) is written but has never actually been run
+on GitHub Actions — treat it as an unverified draft, not a working pipeline, until it's been
+exercised for real. The MapLibre QML plugin wiring (making `import MapLibre` actually work in
+`Main.qml`) remains explicitly unresolved next-slice work per ADR 0004.
 **Size:** M.
 
 ### Phase 0.5 — Capability & interaction-taxonomy audit

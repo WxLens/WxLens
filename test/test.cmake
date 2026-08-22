@@ -3,7 +3,9 @@ project(nimbus-test CXX)
 
 include(GoogleTest)
 
-find_package(Boost)
+# Boost::timer/Boost::json: see app/CMakeLists.txt's comment - wxdata needs them but doesn't
+# declare them itself, and find_package(Boost) doesn't create globally-visible imported targets.
+find_package(Boost REQUIRED COMPONENTS timer json)
 find_package(BZip2)
 find_package(GTest)
 
@@ -81,6 +83,8 @@ target_compile_definitions(nimbus-wxdata-test PRIVATE
     SCWX_TEST_DATA_DIR="${NIMBUS_DIR}/external/legacy-supercell-wx/test/data")
 
 target_link_libraries(nimbus-wxdata-test GTest::gtest
-                                         wxdata)
+                                         wxdata
+                                         Boost::timer
+                                         Boost::json)
 
 gtest_discover_tests(nimbus-wxdata-test)
