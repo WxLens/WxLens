@@ -12,6 +12,7 @@ class NimbusConan(ConanFile):
     requires   = ("boost/1.91.0",
                   "bzip2/1.0.8",
                   "cpr/1.14.2",
+                  "geographiclib/2.6",
                   "glm/1.0.1",
                   "gtest/1.17.0",
                   "libxml2/2.15.3",

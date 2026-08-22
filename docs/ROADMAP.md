@@ -1249,6 +1249,81 @@ architectural significance, just a different demo site.
   replacing `RadarSiteMarkerLayer` with the real radar sweep renderer now that the custom-layer
   registration mechanism underneath it is proven and unblocked.
 
+**Status as of 2026-08-22 — Slice 3 complete: real radar reflectivity sweep rendering.** Replaces
+`RadarSiteMarkerLayer`/`RadarLayerController::attachSiteMarker` (deleted, per that class's own
+"superseded, not extended in place" doc comment) with an actual data-driven sweep renderer,
+completing the Data Source → Data Product → Visualization Layer → View pipeline (§0.1 principle
+#4) for one product on one site.
+
+- `app/source/nimbus/products/radar_sweep_product.hpp/.cpp`
+  (`nimbus::products::RadarSweepProduct`): the Data Product layer. Listens for
+  `RadarSiteDataService::LevelTwoDataLoaded`, then ports `view::Level2ProductView`'s
+  `ComputeCoordinates`/`ComputeSweep`/`UpdateColorTableLut` (level2_product_view.cpp) - WGS84
+  geodesic per-gate lat/lon via the new `nimbus::util::GeodesicDirect` (GeographicLib), the
+  triangle-quad/origin-fan vertex layout, the parallel data-moment buffer, and the color-table
+  LUT - into an immutable `SweepData` snapshot (`std::shared_ptr<const SweepData>`, published
+  under a mutex). Deliberately narrow, matching `RadarSiteDataService`'s own "minimal first
+  version" precedent: hardcoded to Level 2 Reflectivity (`DataBlockType::MomentRef`), the lowest
+  elevation cut, **no smoothing and no CFP** (both present in the legacy view but settings-driven
+  features this slice doesn't have a settings layer for yet), no mouse-picking/tooltip support
+  (that's the measurement/interrogation framework, §4.4, not this pass). Bundles
+  `app/res/palettes/wct/DR.pal` (NOAA WCT, public domain, copied unmodified from
+  `scwx-qt/res/palettes/wct/DR.pal` - the same default the legacy app uses for reflectivity) as
+  its fixed color table, loaded via `QFile` + `ColorTable::Load(std::istream&)` since
+  `ColorTable::Load(filename)` is a plain `std::ifstream` (wxdata is Qt-free) that can't see
+  Qt-resource `:/...` paths directly.
+- `app/source/nimbus/render/radar_sweep_layer.hpp/.cpp` (`nimbus::render::RadarSweepLayer`): the
+  Visualization Layer, replacing `RadarSiteMarkerLayer` as the registered custom layer. Ported
+  from `map::RadarProductLayer` (radar_product_layer.cpp): same MVP construction as the marker
+  layer proved, two VBOs (vertices, data moments) + a `GL_TEXTURE_1D` color-table texture bound to
+  `aLatLong`/`aDataMoment`/`uTexture`. Re-uploads GPU buffers only when
+  `RadarSweepProduct::sweep_data()` returns a new pointer (a cheap `shared_ptr` identity check
+  each `render()` call), not every frame. No CFP vertex attribute is ever enabled (location 2 -
+  matches the legacy layer's own behavior when CFP data is absent, and `uCFPEnabled` is always set
+  false).
+- `app/res/gl/radar.vert`/`radar.frag`: ported unchanged from the legacy app's `gl/radar.vert`/
+  `gl/radar.frag`, minus `radar.frag`'s `precision mediump float;` line - confirmed during the
+  marker-layer proof-of-concept (see the "Slice 3 findings" ADR 0004 section above) to be an
+  ES-only convention that's a hard syntax error on this desktop GL 3.3 core driver.
+- **New dependency: GeographicLib 2.6** (Conan, MIT) - `nimbus::util::GeodesicDirect`
+  (`app/source/nimbus/util/geodesic.hpp/.cpp`) wraps just `GeographicLib::Geodesic::WGS84().
+  Direct()`, the one operation this slice needs, not a full port of the legacy app's
+  `qt/util/geographic_lib.hpp` wrapper (`Inverse`/`GetDistance`/beam-height etc. belong to later
+  measurement/beam-height work, §4.4/§4.8, and should extend this same file rather than
+  reinventing it).
+- **Not done this slice:** product/elevation selection (still hardcoded Reflectivity + lowest
+  tilt - real selection is PaneController-driven, slice 4+), smoothing, CFP, mouse-picking/
+  tooltips, Level 3, sites other than KEAX, Linux/macOS.
+- **Two real bugs found by launching against live KEAX data**, neither visible from a clean build:
+  1. **The sweep never appeared until the user interacted with the map** (a scroll/pan), then
+     rendered perfectly. Radar data arrives asynchronously, long after the style loaded and mbgl
+     drew its last frame, and *registering a custom layer does not make mbgl repaint on its own*.
+     Fixed in `RadarLayerController::attachRadarSweep` by connecting
+     `RadarSweepProduct::SweepUpdated` to `QMapLibre::Map::triggerRepaint()` (plus a one-shot
+     catch-up call for the case where the data load beats the style load - that order is a network
+     race, not guaranteed). This is the same class of problem as slice 2's "map blank until
+     scroll" note, but a genuinely different cause, and it supersedes that note's "treat as tile
+     latency" conclusion for *custom layer* content specifically: anything drawn by a custom layer
+     needs an explicit repaint trigger when its data changes.
+  2. **No multisampling**, so the sub-pixel-sized per-gate triangles point-sampled into a speckled
+     sweep at wide zoom levels. Fixed in `main.cpp` with `QSurfaceFormat::setSamples(4)` before
+     the `QGuiApplication` constructor, matching the legacy app's own
+     `map_widget.cpp: surfaceFormat.setSamples(4)`. Still expected/unfixed: at very wide zoom
+     (~zoom 4, full CONUS) individual 250 m gates are far smaller than a pixel, so the sweep
+     necessarily thins out - a zoom-dependent decimation/overview strategy is real future work,
+     not something MSAA alone solves.
+- **Debugging note for future agents:** two GL-state hypotheses were tried and disproven along the
+  way (back-face culling, and leftover depth/stencil state from mbgl's drawables renderer). Neither
+  changed anything and both were reverted - `RadarSweepLayer::render` deliberately sets no more GL
+  state than the legacy `RadarProductLayer::Render` does. Don't re-add them speculatively.
+- **Verified for real, not just built:** launched against live KEAX data - the reflectivity sweep
+  renders correctly positioned/projected over the base map, appears without any interaction, and
+  is solid/correctly colored when zoomed in (screenshots confirmed by the user). `nimbus-app` and
+  `nimbus-wxdata-test` both build clean.
+- **Next slice:** slice 4, `PaneGridModel`/`PaneController` - the real multi-pane grid these
+  bridging context properties/objects (`radarStatus`, `radarLayerController`,
+  `radarSiteLatitude`/`radarSiteLongitude` in `main.cpp`) are explicitly temporary stand-ins for.
+
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
 **Scope:** a national/regional mosaic reflectivity (and optionally echo-tops/precip) layer as a

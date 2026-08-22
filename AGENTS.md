@@ -140,6 +140,13 @@ Follow the per-source-key-singleton + shared-cache pattern established by `Radar
 (`docs/ROADMAP.md` §4.6) — one service instance per source key (e.g. per radar site, or per
 mosaic region), shared across every pane displaying that source.
 
+### Custom map layers must trigger their own repaints
+A `QMapLibre::CustomLayerHostInterface` layer draws only when mbgl renders a frame, and mbgl does
+**not** repaint just because a custom layer registered or its data changed. Whenever a layer's
+underlying product publishes new data, something must call `QMapLibre::Map::triggerRepaint()` —
+see `RadarLayerController::attachRadarSweep`. Skipping this produces content that stays invisible
+until an unrelated pan/scroll forces a frame, which reads as "the data never loaded."
+
 ### Adding a new overlay draw primitive
 Port the *behavior* of the matching class in
 `external/legacy-supercell-wx/scwx-qt/source/scwx/qt/gl/draw/` to a Qt RHI custom render node

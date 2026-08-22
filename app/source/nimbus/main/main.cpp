@@ -13,12 +13,24 @@
 #include <QQmlContext>
 #include <QQmlError>
 #include <QQuickWindow>
+#include <QSurfaceFormat>
 
 static const std::string logPrefix_ = "main";
 
 int main(int argc, char* argv[])
 {
    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+
+   // Without multisampling, RadarSweepLayer's per-gate triangles (many of them sub-pixel-sized at
+   // typical zoom levels) get raw point-sampled by the rasterizer, producing a speckled/mottled
+   // look instead of solid filled wedges - confirmed by a real launch against live KEAX data
+   // (docs/ROADMAP.md §7 Phase 1 slice 3). Matches the legacy app's own fix for the same problem
+   // (scwx-qt/source/scwx/qt/map/map_widget.cpp: `surfaceFormat.setSamples(4)`). Must be set
+   // before QGuiApplication creates any window/GL context, so this has to run before the
+   // QGuiApplication constructor below, not later via QQuickWindow::setFormat() on the QML window.
+   QSurfaceFormat surfaceFormat = QSurfaceFormat::defaultFormat();
+   surfaceFormat.setSamples(4);
+   QSurfaceFormat::setDefaultFormat(surfaceFormat);
 
    QGuiApplication app(argc, argv);
    QGuiApplication::setApplicationName("Nimbus");

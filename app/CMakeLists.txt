@@ -10,6 +10,7 @@ qt_standard_project_setup(REQUIRES 6.5)
 # surfaces at final link time. find_package(Boost) also doesn't create globally-visible imported
 # targets, so it must be called again here even though wxdata.cmake already called it.
 find_package(Boost REQUIRED COMPONENTS timer json)
+find_package(GeographicLib REQUIRED)
 find_package(glm REQUIRED)
 
 qt_add_executable(nimbus-app
@@ -22,10 +23,14 @@ qt_add_executable(nimbus-app
     source/nimbus/data/radar_site_database.hpp
     source/nimbus/products/radar_product_status.cpp
     source/nimbus/products/radar_product_status.hpp
-    source/nimbus/render/radar_site_marker_layer.cpp
-    source/nimbus/render/radar_site_marker_layer.hpp
+    source/nimbus/products/radar_sweep_product.cpp
+    source/nimbus/products/radar_sweep_product.hpp
+    source/nimbus/render/radar_sweep_layer.cpp
+    source/nimbus/render/radar_sweep_layer.hpp
     source/nimbus/render/radar_layer_controller.cpp
     source/nimbus/render/radar_layer_controller.hpp
+    source/nimbus/util/geodesic.cpp
+    source/nimbus/util/geodesic.hpp
     $<$<PLATFORM_ID:Windows>:res/branding/app.rc>
 )
 
@@ -42,8 +47,9 @@ qt_add_qml_module(nimbus-app
     RESOURCES
         res/branding/nimbus-icon.png
         res/config/radar_sites.json
-        res/gl/site_marker.vert
-        res/gl/site_marker.frag
+        res/gl/radar.vert
+        res/gl/radar.frag
+        res/palettes/wct/DR.pal
 )
 
 set_target_properties(nimbus-app PROPERTIES
@@ -60,6 +66,7 @@ target_link_libraries(nimbus-app PRIVATE
     wxdata
     Boost::timer
     Boost::json
+    GeographicLib::GeographicLib
     glm::glm-header-only
     QMapLibre::Core
 )

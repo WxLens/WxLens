@@ -22,6 +22,8 @@ map renderer):
 | [cmake-conan](https://github.com/conan-io/cmake-conan) | [MIT License](https://spdx.org/licenses/MIT.html) |
 | [cpr](https://github.com/libcpr/cpr) | [MIT License](https://spdx.org/licenses/MIT.html) |
 | [Date](https://github.com/HowardHinnant/date) | [MIT License](https://spdx.org/licenses/MIT.html) |
+| [GeographicLib](https://geographiclib.sourceforge.io/) | [MIT License](https://spdx.org/licenses/MIT.html) | WGS84 geodesic direct problem, radar radial/gate geo-positioning (`nimbus::util::GeodesicDirect`) |
+| [glm](https://github.com/g-truc/glm) | [MIT License](https://spdx.org/licenses/MIT.html) | MVP-matrix construction shared by every MapLibre custom layer |
 | [GoogleTest](https://google.github.io/googletest/) | [BSD 3-Clause "New" or "Revised" License](https://spdx.org/licenses/BSD-3-Clause.html) |
 | [HSLuv](https://www.hsluv.org/) | [MIT License](https://spdx.org/licenses/MIT.html) |
 | [libxml2](http://xmlsoft.org/) | [MIT License](https://spdx.org/licenses/MIT.html) |
@@ -65,5 +67,5 @@ Nimbus bundles the following assets:
 
 | Source | License | Notes |
 | ------ | ------- | ----- |
-| [NOAA's Weather and Climate Toolkit](https://www.ncdc.noaa.gov/wct/) | Public Domain | Default Color Tables (planned - carried forward via `wxdata`'s `res/palettes/wct/`, not yet copied into `app/res/`) |
+| [NOAA's Weather and Climate Toolkit](https://www.ncdc.noaa.gov/wct/) | Public Domain | Default Color Tables - `app/res/palettes/wct/DR.pal` (reflectivity) copied unmodified from `scwx-qt/res/palettes/wct/`; more products' defaults follow as they're wired up |
 | [Supercell Wx](https://github.com/dpaulat/supercell-wx) `scwx-qt/res/config/radar_sites.json` | [MIT License](https://spdx.org/licenses/MIT.html) | Radar site location/elevation/time-zone data, compiled from public NOAA/NWS sources — copied unmodified into `app/res/config/`, used by `nimbus::data::FindRadarSite` |
