@@ -86,8 +86,22 @@ install already (confirmed during Phase 0).
   which.
 - `maplibre-native-qt/` (+ its nested `vendor/maplibre-native`) — the map rendering engine. Use its
   `src/quick` (`QMapLibre::Quick`, QML type `MapLibre`, BSD-2-Clause) integration, **not**
-  `src/location` (QtLocation plugin, LGPL/GPL) or `src/widgets`. See ADR 0004.
+  `src/location` (QtLocation plugin, LGPL/GPL) or `src/widgets`. Needs real bug/missing-API
+  fixes applied as tracked patches (see below) to build and work correctly under Nimbus's
+  `add_subdirectory` consumption — see ADR 0004, including its "Slice 3 findings" section.
 - `cmake-conan/` — the Conan 2 CMake provider glue.
+
+### Vendored-dependency patches (`external/patches/`)
+`external/maplibre-native-qt` needed real fixes/additions this repo can't make upstream directly
+(a build-breaking CMake bug, a missing custom-layer API, a black-screen rendering bug — see ADR
+0004). Rather than hand-editing the vendored source, each fix is a tracked `.patch` file under
+`external/patches/`, applied idempotently at CMake configure time by
+`nimbus_apply_mln_qt_patch()` in `external/maplibre-native-qt.cmake` (checks
+`git apply --check --reverse` first, so re-configuring is safe and `external/` stays pristine in
+git). If a future submodule bump breaks one of these patches, that function's `FATAL_ERROR`
+will say so at configure time — reconcile the patch against the new upstream source, don't just
+delete it. Follow this same pattern for any other vendored-dependency fix that isn't a Nimbus-side
+bug.
 
 ### License discipline
 MIT project license. No GPL dependencies. LGPL only as dynamically-linked shared libraries. Any

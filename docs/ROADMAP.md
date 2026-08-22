@@ -1184,6 +1184,71 @@ delivered as the 13 slices above rather than one monolithic build.
   expand to full NEXRAD Level 2 + Level 3 product coverage. The data now flowing from this slice
   (`Ar2vFile`/elevation scans) is exactly what that renderer will consume.
 
+**Status as of 2026-08-22 — Slice 3 in progress: custom-layer rendering seam proven, real radar
+sweep rendering not yet built.** Per §0.2's "prove the rendering seam early" rule, this pass
+proved the MapLibre *custom layer* rendering mechanism end-to-end on a trivial case before
+attempting the full `view::RadarProductView`/`gl/draw/radar.*` port (~2000 lines across the
+vertex-geometry and shader logic) - that full port is still ahead, not done this pass. Hardcoded
+site switched from KTLX to KEAX (Pleasant Hill, MO / Kansas City) per user request; no
+architectural significance, just a different demo site.
+
+- `app/source/nimbus/render/radar_site_marker_layer.hpp/.cpp`
+  (`nimbus::render::RadarSiteMarkerLayer`): draws one fixed-size colored point at a hardcoded geo
+  coordinate via a real `QMapLibre::CustomLayerHostInterface` custom layer - proves registration,
+  GL context access, and the lat/lon-to-screen projection (ported unchanged from the legacy app's
+  `gl/radar.vert`, minus its `precision mediump float;` line - see below) all work through
+  Nimbus's actual QML-hosted map, not a synthetic test. Explicitly temporary/superseded once the
+  real radar sweep renderer exists, not extended in place.
+- `app/source/nimbus/render/radar_layer_controller.hpp/.cpp`
+  (`nimbus::render::RadarLayerController`): minimal QML-facing bridge, `Q_INVOKABLE
+  attachSiteMarker(QMapLibre::Map*, lat, lon)` called from `PaneHost.qml`'s `onStyleLoaded`.
+  Same temporary status as the marker layer.
+- **New dependency: glm 1.0.1** (Conan, MIT) - needed for the same MVP-matrix construction the
+  real radar shader will also need; added now rather than twice.
+- **Three more MapLibre Native Qt patches were required, on top of ADR 0004's original one** (full
+  technical detail in that ADR's "Slice 3 findings" section - summary here):
+  1. **Patch 0005** - `MapQuickItem` exposed no way to reach the underlying `QMapLibre::Map`,
+     which registering a custom layer requires. Adds `Q_INVOKABLE Map* mapLibreMap()` (a raw
+     QObject pointer, not the internal `shared_ptr` - crosses the QML plugin's DLL boundary
+     cleanly without extra metatype registration), plus `mapReady()` and `styleLoaded()` signals.
+     **Confirmed with the user before implementing** (same "flag before picking one" pattern as
+     ADR 0004's original CMake bug decision) - chose the tracked-patch approach over rebuilding
+     the map hosting in pure C++ around `QMapLibre::Core` directly.
+  2. **Register custom layers on `styleLoaded()`, not `mapReady()`.** Confirmed by testing:
+     `addCustomLayer()` calls made after the `Map` object exists but before its style finishes
+     loading are silently dropped. Matches the legacy app's own `MapWidget::mapChanged`, which
+     gates its equivalent `AddLayers()` call on `MapChangeDidFinishLoadingStyle` for the same
+     reason.
+  3. **Patch 0006 - a real, upstream bug**, found by live bisection with the user (disable the
+     custom layer entirely → map renders fine; re-enable with both `initialize()`/`render()`
+     reduced to complete no-ops → map still goes solid black): the Qt OpenGL backend's renderable
+     `bind()` (`src/core/rendering/opengl_renderer_backend.cpp`) unconditionally cleared the
+     framebuffer to opaque black. `bind()` isn't only called at frame start - mbgl's
+     `DrawableCustomLayerHostTweaker::execute()` also calls it *mid-frame*, immediately after
+     every custom layer's `render()`, to restore the FBO binding in case the host changed it. With
+     that clear in place, having *any* custom layer registered (regardless of what it draws)
+     wiped every layer mbgl had already drawn that frame, every frame. Root-caused by reading
+     `vendor/maplibre-native/src/mbgl/gfx/drawable_custom_layer_host_tweaker.cpp` and
+     `src/mbgl/gl/render_pass.cpp` - the latter already performs the correct pass-start clear
+     immediately after `bind()`, which is what every other platform backend's `bind()` (Android/
+     Linux/Windows GLX/EGL) already relies on instead of clearing itself. Fix: remove the clear
+     from `bind()`, keep the FBO rebind + viewport set. All three patches are documented as
+     upstream-candidate in ADR 0004; not filed upstream yet.
+  4. **Also found:** the legacy shader's `precision mediump float;` line (an ES-only convention)
+     is a hard syntax error on this desktop GL 3.3 core driver - omitted from Nimbus's copy. Flag
+     this when porting `gl/radar.frag` for real; don't carry that line over verbatim.
+- **Verified for real:** with all three patches applied, the orange marker renders at KEAX's
+  actual coordinates (confirmed against real Kansas City-area geography in a user screenshot),
+  the base map renders normally alongside it, and `nimbus-wxdata-test` still builds clean.
+- **Not verified this slice:** the actual radar sweep vertex/shader pipeline (not started - this
+  pass was entirely the custom-layer plumbing prerequisite), Level 3, sites other than KEAX,
+  Linux/macOS (these patches are platform-generic C++/GL fixes with no Windows-specific code, but
+  unverified on other platforms regardless).
+- **Next slice:** continue slice 3 - port `view::RadarProductView`'s vertex/color-table-LUT
+  generation and the real `gl/radar.vert`/`gl/radar.frag` shaders (§2's Critical Files list),
+  replacing `RadarSiteMarkerLayer` with the real radar sweep renderer now that the custom-layer
+  registration mechanism underneath it is proven and unblocked.
+
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
 **Scope:** a national/regional mosaic reflectivity (and optionally echo-tops/precip) layer as a

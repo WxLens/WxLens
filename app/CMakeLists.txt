@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(nimbus-app CXX)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick)
+find_package(Qt6 REQUIRED COMPONENTS Quick OpenGL)
 qt_standard_project_setup(REQUIRES 6.5)
 
 # Boost::timer/Boost::json are used by wxdata (boost::timer::cpu_timer in
@@ -10,6 +10,7 @@ qt_standard_project_setup(REQUIRES 6.5)
 # surfaces at final link time. find_package(Boost) also doesn't create globally-visible imported
 # targets, so it must be called again here even though wxdata.cmake already called it.
 find_package(Boost REQUIRED COMPONENTS timer json)
+find_package(glm REQUIRED)
 
 qt_add_executable(nimbus-app
     source/nimbus/main/main.cpp
@@ -21,6 +22,10 @@ qt_add_executable(nimbus-app
     source/nimbus/data/radar_site_database.hpp
     source/nimbus/products/radar_product_status.cpp
     source/nimbus/products/radar_product_status.hpp
+    source/nimbus/render/radar_site_marker_layer.cpp
+    source/nimbus/render/radar_site_marker_layer.hpp
+    source/nimbus/render/radar_layer_controller.cpp
+    source/nimbus/render/radar_layer_controller.hpp
     $<$<PLATFORM_ID:Windows>:res/branding/app.rc>
 )
 
@@ -37,6 +42,8 @@ qt_add_qml_module(nimbus-app
     RESOURCES
         res/branding/nimbus-icon.png
         res/config/radar_sites.json
+        res/gl/site_marker.vert
+        res/gl/site_marker.frag
 )
 
 set_target_properties(nimbus-app PROPERTIES
@@ -49,9 +56,12 @@ set_target_properties(nimbus-app PROPERTIES
 
 target_link_libraries(nimbus-app PRIVATE
     Qt6::Quick
+    Qt6::OpenGL
     wxdata
     Boost::timer
     Boost::json
+    glm::glm-header-only
+    QMapLibre::Core
 )
 
 # declarative_maplibre (docs/adr/0004-maplibre-qml-integration.md) is a Qt QML plugin - a

@@ -1,5 +1,7 @@
+#include <nimbus/data/radar_site_database.hpp>
 #include <nimbus/log/logger.hpp>
 #include <nimbus/products/radar_product_status.hpp>
+#include <nimbus/render/radar_layer_controller.hpp>
 
 #include <scwx/util/threads.hpp>
 
@@ -77,12 +79,29 @@ int main(int argc, char* argv[])
                            logger->error("QML warning: {}", w.toString().toStdString());
                         }
                      });
-   // Phase 1 slice 2: one hardcoded site, proving the data path end-to-end
-   // (docs/ROADMAP.md §7 Phase 1 slice 2). Superseded by PaneGridModel/PaneController once the
-   // pane grid exists (slice 4) - this context property is a deliberately temporary bridge, not
-   // the real Data Product layer.
-   nimbus::products::RadarProductStatus radarStatus {"KTLX"};
+   // Phase 1 slices 2-3: one hardcoded site, proving the data path and (trivial) render path
+   // end-to-end (docs/ROADMAP.md §7 Phase 1). Superseded by PaneGridModel/PaneController once
+   // the pane grid exists (slice 4) - these context properties/objects are deliberately
+   // temporary bridges, not the real Data Product layer.
+   static const std::string kRadarSite = "KEAX";
+
+   nimbus::products::RadarProductStatus radarStatus {kRadarSite};
    engine.rootContext()->setContextProperty("radarStatus", &radarStatus);
+
+   nimbus::render::RadarLayerController radarLayerController;
+   engine.rootContext()->setContextProperty("radarLayerController", &radarLayerController);
+
+   const auto radarSiteInfo = nimbus::data::FindRadarSite(kRadarSite);
+   if (radarSiteInfo.has_value())
+   {
+      engine.rootContext()->setContextProperty("radarSiteLatitude", radarSiteInfo->latitude);
+      engine.rootContext()->setContextProperty("radarSiteLongitude", radarSiteInfo->longitude);
+   }
+   else
+   {
+      logger->error("No site metadata found for {} - radar site marker will not be drawn",
+                    kRadarSite);
+   }
 
    engine.loadFromModule("Nimbus.App", "Main");
 

@@ -37,6 +37,21 @@ Rectangle {
         zoomLevel: 4
         coordinate: [39.8, -98.6] // CONUS center, matches the app's initial radar-viewer use case
 
+        // Phase 1 slice 3: registers the trivial custom-layer proof-of-concept
+        // (nimbus::render::RadarSiteMarkerLayer, docs/ROADMAP.md §7 Phase 1 slice 3). Must wait
+        // for styleLoaded, not just mapReady - addCustomLayer() calls made before the style has
+        // actually loaded are silently dropped (confirmed: matches the legacy app's own
+        // MapWidget::mapChanged, which gates its equivalent AddLayers() call the same way).
+        // mapLibreMap()/mapReady()/styleLoaded() are not upstream - see
+        // external/patches/0005-mln-qt-expose-map-object.patch.
+        onStyleLoaded: {
+            if (typeof radarLayerController !== "undefined" &&
+                typeof radarSiteLatitude !== "undefined") {
+                radarLayerController.attachSiteMarker(
+                    map.mapLibreMap(), radarSiteLatitude, radarSiteLongitude)
+            }
+        }
+
         PinchHandler {
             id: pinch
             target: null

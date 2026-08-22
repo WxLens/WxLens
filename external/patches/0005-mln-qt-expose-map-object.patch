@@ -1,0 +1,71 @@
+diff --git a/src/quick/plugins/map_quick_item.cpp b/src/quick/plugins/map_quick_item.cpp
+index e5aeb88..8f3571f 100644
+--- a/src/quick/plugins/map_quick_item.cpp
++++ b/src/quick/plugins/map_quick_item.cpp
+@@ -66,6 +66,12 @@ void MapQuickItem::setStyle(const QString &style) {
+     d->m_style = style;
+ }
+ 
++QMapLibre::Map* MapQuickItem::mapLibreMap() const {
++    Q_D(const MapQuickItem);
++
++    return d->m_map.get();
++}
++
+ double MapQuickItem::zoomLevel() const {
+     Q_D(const MapQuickItem);
+ 
+@@ -393,6 +399,9 @@ void MapQuickItem::onMapChanged(Map::MapChange change) {
+ 
+     if (change == Map::MapChangeDidFinishLoadingStyle || change == Map::MapChangeDidFailLoadingMap) {
+         d->m_styleLoaded = true;
++        if (change == Map::MapChangeDidFinishLoadingStyle) {
++            Q_EMIT styleLoaded();
++        }
+     } else if (change == Map::MapChangeWillStartLoadingMap) {
+         d->m_styleLoaded = false;
+         d->m_styleChanges.clear();
+@@ -448,6 +457,7 @@ void MapQuickItemPrivate::initialize() {
+         std::ranges::move(changes, std::back_inserter(m_styleChanges));
+     }
+ 
++    Q_EMIT q->mapReady();
+     q->update();
+ }
+ 
+diff --git a/src/quick/plugins/map_quick_item.hpp b/src/quick/plugins/map_quick_item.hpp
+index d98d604..6f1131e 100644
+--- a/src/quick/plugins/map_quick_item.hpp
++++ b/src/quick/plugins/map_quick_item.hpp
+@@ -48,6 +48,15 @@ public:
+     void setCoordinate(const QVariantList &coordinate);
+     Q_INVOKABLE void setCoordinateFromPixel(const QPointF &pixel);
+ 
++    // Not upstream: exposes the underlying core Map so a host application can register its own
++    // CustomLayerHostInterface layers (e.g. a radar renderer) - see Nimbus's
++    // docs/adr/0004-maplibre-qml-integration.md and external/patches/. Null until mapReady() has
++    // fired at least once. Q_INVOKABLE + a QObject-derived return type (Map is a QObject) so this
++    // is safely callable from C++ that only has this item as a QObject* obtained via QML (e.g.
++    // across the declarative_maplibre plugin's own DLL boundary, which a plain returned
++    // std::shared_ptr<Map> wouldn't survive without extra metatype plumbing).
++    Q_INVOKABLE QMapLibre::Map* mapLibreMap() const;
++
+     Q_INVOKABLE void pan(const QPointF &offset);
+     Q_INVOKABLE void scale(double scale, const QPointF &center);
+     Q_INVOKABLE void easeTo(const QVariantMap &camera, const QVariantMap &animation = QVariantMap());
+@@ -60,6 +69,15 @@ public:
+ signals:
+     void coordinateChanged();
+     void zoomLevelChanged();
++    // Not upstream: fires once the underlying Map (mapLibreMap()) has been constructed and is
++    // safe to call addCustomLayer() on. See mapLibreMap()'s comment.
++    void mapReady();
++    // Not upstream: fires on Map::MapChangeDidFinishLoadingStyle - addCustomLayer() calls made
++    // before this (even after mapReady()) are silently dropped, since there's no loaded style's
++    // layer list yet to insert into (confirmed against the legacy app's own
++    // MapWidget::mapChanged, which gates its AddLayers() on this exact same event). Wait for
++    // this, not just mapReady(), before registering a custom layer.
++    void styleLoaded();
+ 
+ protected:
+     void componentComplete() override;

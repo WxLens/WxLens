@@ -1,0 +1,31 @@
+diff --git a/src/core/rendering/opengl_renderer_backend.cpp b/src/core/rendering/opengl_renderer_backend.cpp
+index cbf523e..a598467 100644
+--- a/src/core/rendering/opengl_renderer_backend.cpp
++++ b/src/core/rendering/opengl_renderer_backend.cpp
+@@ -27,18 +27,14 @@ public:
+         backend.restoreFramebufferBinding();
+         backend.setViewport(0, 0, backend.getSize());
+ 
+-        // Clear to prevent artifacts - scissor disable needed to ensure full clear
+-        const QOpenGLContext *glContext = QOpenGLContext::currentContext();
+-        if (glContext != nullptr) {
+-            QOpenGLFunctions *gl = glContext->functions();
+-
+-            // Disable scissor test to ensure full framebuffer is cleared
+-            gl->glDisable(GL_SCISSOR_TEST);
+-
+-            // Clear the framebuffer
+-            gl->glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+-            gl->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+-        }
++        // No clear here (upstream had a clear-to-black "to prevent artifacts"): bind() is not
++        // only called at render-pass start - DrawableCustomLayerHostTweaker::execute() calls it
++        // MID-FRAME after every style CustomLayer renders, so clearing here erases everything
++        // drawn before the custom layer (whole map renders black whenever any custom layer is
++        // present). At pass start the clear is redundant anyway: mbgl::gl::RenderPass's
++        // constructor immediately follows this bind() with its own state-tracked
++        // scissor-disable + clear (src/mbgl/gl/render_pass.cpp), which is what every other
++        // platform backend relies on - none of them clear in bind() either.
+     }
+ 
+ private:

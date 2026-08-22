@@ -184,3 +184,47 @@ build (option 2).
   (that's a later Phase 1 settings item).
 - Build verification: see `docs/ROADMAP.md` Phase 1 slice 1 status for the actual
   configure/build/launch results.
+
+## Slice 3 findings (2026-08-22): custom-layer registration mechanics and a black-screen bug
+
+Three more discoveries while wiring the first custom layer (the Phase 1 slice 3 rendering-seam
+proof), each now a tracked patch under `external/patches/` applied by the same configure-time
+mechanism (generalized into `nimbus_apply_mln_qt_patch()` in `external/maplibre-native-qt.cmake`):
+
+1. **Patch 0005 — `MapQuickItem` exposes no path to the core `Map`.** The QML item keeps its
+   `QMapLibre::Map` entirely private, so an app can't call `Map::addCustomLayer`. Patch adds
+   `Q_INVOKABLE QMapLibre::Map* mapLibreMap()` (raw QObject pointer, not the internal
+   shared_ptr, so it's callable across the QML plugin DLL boundary without metatype plumbing),
+   a `mapReady()` signal (Map constructed), and a `styleLoaded()` signal
+   (`MapChangeDidFinishLoadingStyle`).
+2. **Register custom layers on `styleLoaded()`, not `mapReady()`.** `addCustomLayer()` calls
+   made after Map construction but before the style finishes loading are silently dropped —
+   there's no loaded style to insert the layer into. The legacy app's `MapWidget::mapChanged`
+   gates its own `AddLayers()` on `MapChangeDidFinishLoadingStyle` for exactly this reason;
+   `app/qml/Panes/PaneHost.qml` now does the same via `onStyleLoaded`.
+3. **Patch 0006 — the Qt OpenGL backend cleared the framebuffer inside renderable `bind()`,
+   blacking out the whole map whenever ANY custom layer exists.** Root-caused by bisection
+   (base map fine with no layer registered; black even with a completely no-op
+   `initialize()`/`render()`): mbgl's `DrawableCustomLayerHostTweaker::execute()` calls the
+   default renderable's `bind()` MID-FRAME after every custom layer renders (to restore the
+   FBO in case the host changed it), and `QtOpenGLRenderableResource::bind()`
+   (`src/core/rendering/opengl_renderer_backend.cpp`) did an unconditional
+   clear-to-opaque-black there — erasing everything mbgl had already drawn that frame. The
+   clear was redundant at its intended point anyway: `mbgl::gl::RenderPass`'s constructor
+   performs the proper state-tracked scissor-disable + clear immediately after `bind()`
+   (`vendor/maplibre-native/src/mbgl/gl/render_pass.cpp`), which is what every other platform
+   backend relies on — none of them clear in `bind()`. Patch removes the clear, keeping the
+   FBO rebind + viewport set. If frame artifacts ever appear after a future submodule bump,
+   re-check this area rather than reintroducing an unconditional clear.
+
+All three are candidates for upstreaming to `maplibre/maplibre-native-qt` (0006 especially — it
+breaks every custom-layer user of the Quick path, not just Nimbus); not filed yet, tracked here
+so it isn't lost.
+
+Additional context that matters for the actual radar-sweep port (slice 3's main work, still
+ahead): the vendored core uses the **drawables** renderer architecture — a custom layer's
+`render()` runs via `DrawableCustomLayerHostTweaker` inside the translucent pass, with
+`gl::Context::resetState()` called before it (clean GL state each call) and
+`context.setDirtyState()` after (mbgl re-assumes nothing about GL state the host may have
+changed). So a custom layer host does NOT need to restore mbgl's state itself beyond not
+breaking the FBO — but defensive unbinding (VAO/program) stays cheap and harmless.
