@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+# NOTE (Phase 0, 2026-08-21): this workflow has not been run on GitHub Actions yet - it was
+# written by mirroring external/legacy-supercell-wx/.github/workflows/ci.yml's proven pattern, but
+# has only been sanity-checked locally (conan/cmake steps match tools/setup-*.bat), not executed
+# in CI. Treat the first real run as the actual verification, and expect to iterate.
+#
+# Only Windows VS2026 and one Linux GCC target are covered so far, matching what's been verified
+# locally (docs/ROADMAP.md Phase 0 status note) - the roadmap's "green on Windows/Linux/macOS"
+# goal is not fully met yet; macOS and additional Linux compiler variants are follow-up work.
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows_vs2026_x64
+            os: windows-2025-vs2026
+            build_type: Release
+            qt_version: 6.11.1
+            qt_arch_aqt: win64_msvc2022_64
+            qt_arch_dir: msvc2022_64
+            conan_profile: nimbus-windows_vs2026_x64
+            artifact_suffix: windows-vs2026-x64
+          - name: linux_gcc-14_x64
+            os: ubuntu-24.04
+            build_type: Release
+            env_cc: gcc-14
+            env_cxx: g++-14
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            conan_profile: nimbus-linux_gcc-14
+            artifact_suffix: linux-gcc-14-x64
+            compiler_packages: g++-14
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      # Only the submodules Nimbus actually builds are initialized - see
+      # docs/adr/0002-wxdata-reuse-strategy.md and docs/adr/0004-maplibre-qml-integration.md for
+      # why these are the ones needed (and why the rest of external/legacy-supercell-wx's own
+      # nested submodules are deliberately skipped).
+      - name: Initialize required submodules
+        run: |
+          git submodule update --init --depth 1 -- \
+            external/legacy-supercell-wx \
+            external/aws-sdk-cpp \
+            external/date \
+            external/units \
+            external/hsluv-c \
+            external/maplibre-native-qt \
+            external/cmake-conan
+          git -C external/aws-sdk-cpp submodule update --init --depth 1
+          git -C external/maplibre-native-qt submodule update --init --depth 1 -- vendor/maplibre-native
+          git -C external/legacy-supercell-wx submodule update --init --depth 1 -- test/data
+
+      - name: Install Linux compiler
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.compiler_packages }} ninja-build
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ matrix.qt_version }}
+          arch: ${{ matrix.qt_arch_aqt }}
+          modules: 'qtshadertools'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Conan
+        run: pip install conan
+
+      - name: Install Conan profile
+        run: conan config install ./tools/conan/profiles/${{ matrix.conan_profile }} -tf profiles
+
+      - name: Conan install
+        env:
+          CC: ${{ matrix.env_cc }}
+          CXX: ${{ matrix.env_cxx }}
+        run: |
+          conan install . --remote conancenter --build missing \
+            --profile:all ${{ matrix.conan_profile }} \
+            --settings:all build_type=${{ matrix.build_type }} \
+            --output-folder build/conan
+
+      - name: CMake configure
+        env:
+          CC: ${{ matrix.env_cc }}
+          CXX: ${{ matrix.env_cxx }}
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}/../.." \
+            -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=external/cmake-conan/conan_provider.cmake \
+            -DCONAN_HOST_PROFILE=${{ matrix.conan_profile }} \
+            -DCONAN_BUILD_PROFILE=${{ matrix.conan_profile }}
+
+      - name: Build
+        run: cmake --build build --target nimbus-app nimbus-wxdata-test
+
+      - name: Test (wxdata suite)
+        working-directory: build
+        run: ctest --output-on-failure -R nimbus-wxdata-test

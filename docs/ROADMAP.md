@@ -891,16 +891,38 @@ linked and building, and agent-legible docs in place.
 `wxdata` linked with its test suite passing in the new repo's CI; `AGENTS.md`/`CLAUDE.md`/
 `docs/adr/` in place; CI matrix green on Windows/Linux/macOS.
 **Key technical work:**
-- Resolve `wxdata` reuse mechanics (§3.1) — Option A first.
-- Stand up `CMakeLists.txt`/`CMakePresets.json`/`conanfile.py`/`tools/` by copying and adapting
-  the current repo's build tooling; add `qtdeclarative`, `qtquickcontrols2`, `qtshadertools` to
-  the Qt module list.
-- Confirm MapLibre Native Qt's QML-item support (§1) — factual check, not a design call.
-- Write `AGENTS.md`/`CLAUDE.md` for the new repo (§3.3), even as short stubs — unblocks every
-  later agent from re-deriving structure.
-- Wire up `util::Logger` with per-subsystem sinks (§3.4).
-- Decide TOML vs. JSON for config storage (pick one) and stub `settings/` (§3.2).
-- App is named **Nimbus** (repo `nimbus/`, C++ namespace `nimbus`, see §9 Q1/Q3 — resolved).
+- [x] Resolve `wxdata` reuse mechanics (§3.1) — Option A, done. See `docs/adr/0002-wxdata-reuse-strategy.md`:
+  `external/legacy-supercell-wx/` (shallow submodule), only `wxdata/` built; discovered along the
+  way that `wxdata` also needs `aws-sdk-cpp`/`date`/`units`/`hsluv-c` vendored (not pure-Conan as
+  originally assumed) — those four are now vendored at Nimbus's own `external/` too.
+- [x] Stand up `CMakeLists.txt`/`CMakePresets.json`/`conanfile.py`/`tools/` by copying and adapting
+  the current repo's build tooling. Presets currently cover `windows-vs2026-x64` (verified against
+  the local dev machine) and a `linux-gcc14` template (not yet verified on real Linux hardware —
+  follow-up item, not done tonight).
+- [x] Confirm MapLibre Native Qt's QML-item support (§1) — **resolved, see
+  `docs/adr/0004-maplibre-qml-integration.md`**: it exposes a genuine `QQuickItem` (`src/quick`,
+  BSD-2-Clause, no `QtLocation` dependency), no `QQuickWidget` fallback needed. Nimbus vendors the
+  upstream `maplibre/maplibre-native-qt` (library version 4.0.0) at `external/maplibre-native-qt`,
+  not the `dpaulat` Supercell-Wx-specific fork.
+- [x] Write `AGENTS.md`/`CLAUDE.md` for the new repo (§3.3) — done, not stubs, reasonably complete.
+- [ ] Wire up `util::Logger` with per-subsystem sinks (§3.4) — **not done yet**; `main.cpp` calls
+  `Logger::Initialize()`/`Logger::Create()` but no file sink or per-subsystem convention is wired
+  up yet. Next concrete step for whoever picks this up.
+- [x] Decide TOML vs. JSON for config storage — **TOML**, see
+  `docs/adr/0003-config-storage-format.md`. `settings/` itself is still an empty directory —
+  implementing the wrapper is Phase 1 work (§7 Phase 1 doesn't need it until pane-layout/theme
+  persistence), not Phase 0's.
+- [x] App is named **Nimbus** (repo `nimbus/`, C++ namespace `nimbus`, see §9 Q1/Q3 — resolved).
+
+**Status as of 2026-08-21 (first overnight pass):** directory scaffold, all vendored submodules,
+build tooling, and docs are in place; `docs/adr/0001`-`0004` written. `nimbus-app` (empty QML
+shell, no MapLibre item wired in yet — that's explicitly the next slice, see ADR 0004's
+Consequences) and `nimbus-wxdata-test` (the wxdata-only slice of the legacy GTest suite,
+referenced from `external/legacy-supercell-wx/test/` rather than duplicated) are wired into the
+build. **Conan install / CMake configure / actual compilation had not finished verifying by the
+time this pass ended** — treat "builds green" as unconfirmed until someone runs it end-to-end and
+updates this line. CI workflow (`.github/workflows/ci.yml`) has **not** been written yet — remains
+open work.
 **Size:** M.
 
 ### Phase 0.5 — Capability & interaction-taxonomy audit
@@ -923,6 +945,12 @@ second-class add-ons later. Cross-check §4's tool list (pan/zoom/measure/probe/
 already covered; cross-section/time-series/vertical-profile are not yet designed — note them as
 Phase 3+ candidates once soundings/model data exist) and §4.6's product taxonomy against what
 this audit finds.
+**Status:** [x] Done — see `docs/capability-matrix.md`. Conclusion: no changes needed to §4's
+architecture; the three gaps found (cross-section, time series, vertical profile) all depend on
+Phase 3 data sources that don't exist yet, so they're correctly deferred rather than accidentally
+precluded. One forward note for whoever designs the Phase 3 sounding/model Data Sources: revisit
+whether a Data Product needs "sampled across time" or "sampled across a spatial cross-section" as
+first-class query shapes.
 **Size:** S.
 
 ### Phase 1 — Single-site modernized radar UI (near-term, executable phase)
@@ -1107,9 +1135,10 @@ config/data-model choices don't accidentally preclude it later.
    narrower reader) — needs a license + binary-footprint review at kickoff, per §0.
 8. **Phase 5 hosting/auth approach**, whenever the multi-user stretch goal is greenlit —
    explicitly not to be decided now, listed only so it isn't lost.
-9. **MapLibre Native Qt's current QML-item support** in the exact vendored version — a factual
-   verification task for Phase 0, not a design decision, but Phase 0 can't fully close without
-   the answer.
+9. ~~MapLibre Native Qt's current QML-item support~~ — **RESOLVED, see
+   `docs/adr/0004-maplibre-qml-integration.md`**: confirmed genuine `QQuickItem` support via
+   `src/quick` (BSD-2-Clause), no `QQuickWidget` fallback needed. Nimbus uses the `Quick` module
+   (QML type `MapLibre`), not the `Location` (QtLocation, LGPL/GPL) or `Widgets` module.
 
 ---
 
