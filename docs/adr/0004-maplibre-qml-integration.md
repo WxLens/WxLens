@@ -217,9 +217,18 @@ mechanism (generalized into `nimbus_apply_mln_qt_patch()` in `external/maplibre-
    FBO rebind + viewport set. If frame artifacts ever appear after a future submodule bump,
    re-check this area rather than reintroducing an unconditional clear.
 
-All three are candidates for upstreaming to `maplibre/maplibre-native-qt` (0006 especially — it
-breaks every custom-layer user of the Quick path, not just Nimbus); not filed yet, tracked here
-so it isn't lost.
+**Upstream status (filed 2026-08-23).** All of these were reported to
+`maplibre/maplibre-native-qt`. Check these before touching a patch or bumping the submodule — if
+one is fixed upstream, drop the corresponding patch rather than carrying it forever:
+
+| Nimbus patch / finding | Upstream | Notes |
+| --- | --- | --- |
+| 0004 (CMake `CMAKE_SOURCE_DIR`) | [#304](https://github.com/maplibre/maplibre-native-qt/issues/304) | New issue |
+| 0005 (no way to reach the core `Map`) | [#296](https://github.com/maplibre/maplibre-native-qt/issues/296) | Commented on an existing feature request — another user had independently hit the same wall |
+| 0006 (mid-frame framebuffer clear) | [#296](https://github.com/maplibre/maplibre-native-qt/issues/296) | Same thread: that reporter had hit the black framebuffer too, so the root cause went there rather than into a new issue |
+| 0007 (signals connected too late) | [#303](https://github.com/maplibre/maplibre-native-qt/issues/303) | New issue, includes the suggested fix |
+| Teardown crash in `~Context` (not patched) | [#302](https://github.com/maplibre/maplibre-native-qt/issues/302) | New issue |
+| Teardown hang in `~Thread<MainResourceLoaderThread>` (not patched) | [#285](https://github.com/maplibre/maplibre-native-qt/issues/285) | Commented on an existing report with our thread stacks; it had no diagnosis |
 
 ## Slice 4 finding (2026-08-22): a lost-signal race that only bites the *second* map
 
