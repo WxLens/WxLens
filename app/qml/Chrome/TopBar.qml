@@ -30,7 +30,11 @@ Rectangle {
 
     Text {
         anchors.centerIn: parent
-        text: radarStatus.siteId + " — " + radarStatus.statusText
+        // radarStatus is a context property torn down before this item on application exit, so it
+        // has to be null-checked or closing the app throws a TypeError here.
+        text: (radarStatus !== null && radarStatus !== undefined)
+            ? radarStatus.siteId + " — " + radarStatus.statusText
+            : ""
         color: "#7b8794"
         font.pixelSize: 13
     }

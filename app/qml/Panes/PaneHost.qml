@@ -19,6 +19,13 @@ Rectangle {
     // The nimbus::panes::PaneController this pane renders.
     required property var paneController
 
+    // Shrinking the grid destroys PaneControllers while their delegates are still being torn
+    // down, so QML sees `paneController` go null for a moment and every binding/handler below
+    // must tolerate it. Without this guard the teardown throws a burst of
+    // "TypeError: Cannot read property ... of null" on every grid shrink.
+    readonly property bool hasController: paneController !== null &&
+                                          paneController !== undefined
+
     // Whether to show the per-pane identification label (only useful once the grid has more than
     // one pane). Passed in rather than read from a global so this item stays self-contained.
     property bool showLabel: false
@@ -46,6 +53,9 @@ Rectangle {
         // write-back would silently break after the first user pan. Slice 5's sync will drive the
         // other direction explicitly, from PaneController's cameraChanged.
         Component.onCompleted: {
+            if (!root.hasController) {
+                return
+            }
             map.zoomLevel = root.paneController.zoom
             map.coordinate = [root.paneController.centerLatitude,
                               root.paneController.centerLongitude]
@@ -57,10 +67,17 @@ Rectangle {
         // with sync itself. MapQuickItem exposes only `coordinate` and `zoomLevel`; bearing/pitch
         // have no QML property to observe yet, so PaneController's stay at their defaults.
         onCoordinateChanged: {
+            if (!root.hasController) {
+                return
+            }
             root.paneController.centerLatitude = map.coordinate[0]
             root.paneController.centerLongitude = map.coordinate[1]
         }
-        onZoomLevelChanged: root.paneController.zoom = map.zoomLevel
+        onZoomLevelChanged: {
+            if (root.hasController) {
+                root.paneController.zoom = map.zoomLevel
+            }
+        }
 
         // Registers this pane's Visualization Layer(s). Must wait for styleLoaded, not just
         // mapReady - addCustomLayer() calls made before the style has actually loaded are
@@ -68,7 +85,11 @@ Rectangle {
         // gates its equivalent AddLayers() call the same way). mapLibreMap()/mapReady()/
         // styleLoaded() are not upstream - see
         // external/patches/0005-mln-qt-expose-map-object.patch.
-        onStyleLoaded: root.paneController.attachLayers(map.mapLibreMap())
+        onStyleLoaded: {
+            if (root.hasController) {
+                root.paneController.attachLayers(map.mapLibreMap())
+            }
+        }
 
         PinchHandler {
             id: pinch
@@ -104,7 +125,9 @@ Rectangle {
         anchors.top: parent.top
         anchors.margins: 6
         visible: root.showLabel
-        text: root.paneController.sourceKey + " " + root.paneController.productName
+        text: root.hasController
+            ? root.paneController.sourceKey + " " + root.paneController.productName
+            : ""
         font.pixelSize: 11
         color: "#c8d0d8"
         style: Text.Outline

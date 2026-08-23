@@ -42,7 +42,10 @@ Rectangle {
                 border.color: active ? "#4a7ab0" : "#2f3742"
                 border.width: 1
 
+                // paneGridModel is a context property torn down before this item on application
+                // exit, so it has to be null-checked or every close throws TypeErrors here.
                 readonly property bool active:
+                    paneGridModel !== null && paneGridModel !== undefined &&
                     paneGridModel.gridWidth === modelData.w &&
                     paneGridModel.gridHeight === modelData.h
 

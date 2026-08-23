@@ -10,6 +10,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <QOpenGLContext>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
 
@@ -44,6 +45,31 @@ public:
        product_ {std::move(product)}
    {
    }
+
+   ~Impl()
+   {
+      // ~QOpenGLShaderProgram deletes the GL program object, so like every other GL call it needs
+      // the owning context to be current, and mbgl can destroy a custom layer host during Map
+      // teardown - after the context is gone. deinitialize() guards the same hazard but is not
+      // guaranteed to have run while a context was still current, so the destructor cannot rely
+      // on it.
+      //
+      // NOTE: this is hardening against genuine undefined behaviour, *not* the fix for the
+      // shutdown crash tracked in docs/ROADMAP.md - that crash was proven to happen with no
+      // custom layer registered at all, so it does not originate here.
+      if (QOpenGLContext::currentContext() == nullptr)
+      {
+         // Deliberately leaked: the context that owned these is gone, and it reclaimed the
+         // underlying GL objects when it was destroyed. The process is exiting anyway.
+         (void) shaderProgram_.release();
+         (void) gl_.release();
+      }
+   }
+
+   Impl(const Impl&)            = delete;
+   Impl& operator=(const Impl&) = delete;
+   Impl(Impl&&)                 = delete;
+   Impl& operator=(Impl&&)      = delete;
 
    void UploadSweep(QOpenGLFunctions_3_3_Core*                gl,
                     const std::shared_ptr<const products::SweepData>& sweep);
@@ -184,8 +210,10 @@ void RadarSweepLayer::initialize()
 
 void RadarSweepLayer::render(const QMapLibre::CustomLayerRenderParameters& params)
 {
-   if (!p->shaderProgram_ || !p->shaderProgram_->isLinked() || !p->gl_)
+   if (!p->shaderProgram_ || !p->shaderProgram_->isLinked() || !p->gl_ ||
+       QOpenGLContext::currentContext() == nullptr)
    {
+      // See deinitialize() for why a missing current context has to be checked, not assumed.
       return;
    }
 
@@ -256,6 +284,22 @@ void RadarSweepLayer::render(const QMapLibre::CustomLayerRenderParameters& param
 void RadarSweepLayer::deinitialize()
 {
    logger_->debug("deinitialize()");
+
+   // Every QOpenGLFunctions_3_3_Core entry point dereferences a function-pointer table resolved
+   // against the context that was current during initializeOpenGLFunctions(); calling one with no
+   // current context is undefined. A layer can be torn down in exactly that state when its map is
+   // destroyed along with the QML item that owned the context. QOpenGLShaderProgram's destructor
+   // has the same requirement. (Hardening only - see ~Impl's note: this is not the cause of the
+   // shutdown crash tracked in docs/ROADMAP.md.)
+   if (QOpenGLContext::currentContext() == nullptr)
+   {
+      logger_->warn("deinitialize() with no current GL context - leaking GPU resources rather "
+                    "than crashing; the context's own teardown reclaims them");
+      // Deliberately leaked, not deleted: releasing them needs the context that is already gone.
+      (void) p->shaderProgram_.release();
+      p->gl_.reset();
+      return;
+   }
 
    if (p->gl_)
    {

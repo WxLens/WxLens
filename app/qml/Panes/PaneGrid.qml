@@ -11,8 +11,12 @@ Item {
     // The nimbus::panes::PaneGridModel backing this grid.
     required property var model
 
-    readonly property int columns: Math.max(1, root.model.gridWidth)
-    readonly property int rows: Math.max(1, root.model.gridHeight)
+    // `model` is a context property that QML tears down before this item during application exit,
+    // so these must tolerate it going null rather than throwing a burst of TypeErrors on close.
+    readonly property bool hasModel: root.model !== null && root.model !== undefined
+
+    readonly property int columns: root.hasModel ? Math.max(1, root.model.gridWidth) : 1
+    readonly property int rows: root.hasModel ? Math.max(1, root.model.gridHeight) : 1
     readonly property int gutter: 2
 
     Repeater {

@@ -1367,7 +1367,43 @@ special case.
   `Map`'s own signals.
 - **Verified for real, not just built:** launched, confirmed 1×1 renders KEAX centered on the site,
   then switched to 2×2 and confirmed all four panes independently registered layers and rendered
-  radar (log + screenshot), with pane 0 keeping its camera across the resize.
+  radar (log + screenshot), with pane 0 keeping its camera across the resize. Separately stress-
+  tested 13 consecutive grid resizes including repeated 3×3 → 1×1 shrinks: no crash, no QML errors.
+- **Fixed during slice 4, found by a user-reported crash:** shrinking the grid destroys
+  PaneControllers while their QML delegates are still tearing down, so `paneController` goes null
+  for a moment. Every binding and handler in `PaneHost.qml` dereferenced it unguarded, throwing a
+  burst of `TypeError: Cannot read property ... of null` on **every** shrink. Now guarded behind a
+  `hasController` check (verified: 0 TypeErrors across the 13-resize stress test).
+
+> **OPEN DEFECT — crash on application exit (not slice-4-specific, predates it).**
+> `nimbus-app.exe` access-violates (`0xc0000005`) inside `Qt6Gui.dll` at a consistent fault offset
+> when the window is closed. **The window closes first, so this is an exit-path crash, not a
+> data-loss or in-session failure** - but it is real and must not be shipped.
+>
+> Established by controlled A/B runs (each with its own event-log baseline, since a stale event
+> from a prior run is an easy false positive here):
+> - Untouched 1×1 grid, closed immediately → crashes. **Not** caused by resizing.
+> - Radar custom layer disabled entirely (`attachLayers` short-circuited) → **still crashes.**
+>   So Nimbus's own `RadarSweepLayer` is not the cause.
+> - No `MapLibre` item instantiated at all → **clean exit, no crash event.**
+>
+> So it is MapLibre Native Qt's own teardown, and it would have been present since slice 1's bare
+> map pane. Two candidate fixes were tried and **both failed, and were reverted** rather than kept
+> as unverified changes: (a) guarding/leaking our layer's GL objects when no context is current
+> (kept only as hardening, with comments saying so - it is not the fix), and (b) calling
+> `Map::destroyRenderer()` from `TextureNodeOpenGL`'s destructor while the context is still
+> current. Note (b)'s underlying observation still stands and is a genuine lead: `render()` calls
+> `createRenderer()` but **nothing in the Quick module ever calls the existing
+> `Map::destroyRenderer()`**, so mbgl's renderer is destroyed with the `Map` rather than at a
+> point where a GL context is guaranteed current.
+>
+> **Blocked on tooling, not ideas:** this machine has no debugger (no VS, no cdb/WinDbg), no Qt
+> PDBs, and the Release build produces no PDB for `nimbus-app` either, so the fault offset cannot
+> be resolved to a symbol. Minidumps *are* being written to
+> `%LOCALAPPDATA%\CrashDumps\nimbus-app.exe.*.dmp`. Next step is to make the crash legible rather
+> than keep guessing: enable PDB generation for Release (`/Zi` + `/DEBUG`), and/or install a
+> DbgHelp-based unhandled-exception handler that logs a module+offset backtrace through the
+> existing logger. Do that before attempting another blind fix.
 
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
