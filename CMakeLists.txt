@@ -28,6 +28,20 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBOOST_ALL_NO_LIB")
 
+# Emit PDBs for optimized Release builds too, so a crash in the field resolves to real function
+# names and line numbers instead of a bare module+offset. Without this, a Release fault address is
+# unattributable on a machine with no debugger installed - which is exactly the wall the Phase 1
+# slice 4 exit-path crash investigation hit (docs/ROADMAP.md). /Zi only *records* symbols; it does
+# not disable optimization, so the shipped binary stays a real Release build. /DEBUG must be paired
+# with /OPT:REF /OPT:ICF because /DEBUG otherwise silently turns both off, which would bloat the
+# binary and change codegen relative to a plain Release build.
+if (MSVC)
+    add_compile_options($<$<CONFIG:Release>:/Zi>)
+    add_link_options($<$<CONFIG:Release>:/DEBUG>
+                     $<$<CONFIG:Release>:/OPT:REF>
+                     $<$<CONFIG:Release>:/OPT:ICF>)
+endif()
+
 set(NIMBUS_DIR ${PROJECT_SOURCE_DIR})
 set(NIMBUS_VERSION "0.1.0")
 

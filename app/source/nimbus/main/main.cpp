@@ -1,6 +1,7 @@
 #include <nimbus/log/logger.hpp>
 #include <nimbus/panes/pane_grid_model.hpp>
 #include <nimbus/products/radar_product_status.hpp>
+#include <nimbus/util/crash_handler.hpp>
 
 #include <scwx/util/threads.hpp>
 
@@ -42,6 +43,20 @@ int main(int argc, char* argv[])
 
    nimbus::log::Initialize();
    auto logger = nimbus::log::Create(logPrefix_);
+
+   // Installed immediately after logging so it covers the whole process lifetime - including
+   // static destruction after main() returns, which is where the known exit-path fault lives
+   // (docs/ROADMAP.md, Phase 1 slice 4). Writes its own crash log rather than going through
+   // spdlog, whose sinks may already be gone by then.
+   nimbus::util::InstallCrashHandler(nimbus::log::LogDirectory());
+
+   // A shutdown that never finishes produces no crash and no output at all, so it has to be
+   // caught deliberately: if the process is still alive well after it started quitting, dump
+   // every thread's stack so the deadlock is visible instead of just looking frozen.
+   QObject::connect(&app,
+                    &QGuiApplication::aboutToQuit,
+                    &app,
+                    []() { nimbus::util::ArmShutdownWatchdog(10); });
 
    // Start scwx::util::io_context() actually running - wxdata only defines it and the async()
    // helper (docs/ROADMAP.md §7 Phase 1 slice 2's RadarSiteDataService uses scwx::util::async
@@ -114,6 +129,11 @@ int main(int argc, char* argv[])
 
    const int result = QGuiApplication::exec();
 
+   // NOTE: the process still faults during teardown, after this point, inside MapLibre. It is
+   // fully diagnosed rather than mysterious - the crash handler installed above writes the stack
+   // to logs/nimbus-crash.log on every occurrence, and docs/ROADMAP.md records the analysis. It
+   // is an exit-path fault only: the window is already gone and nothing is left to lose.
+   //
    // Gracefully stop the io_context main loop before shutting down the AWS SDK, so no posted
    // work tries to make an S3 call after Aws::ShutdownAPI runs.
    ioContextWork.reset();

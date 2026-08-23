@@ -3,6 +3,8 @@
 #include <nimbus/products/radar_sweep_product.hpp>
 #include <nimbus/render/radar_sweep_layer.hpp>
 
+#include <QQmlEngine>
+
 namespace nimbus
 {
 namespace panes
@@ -195,6 +197,15 @@ void PaneController::attachLayers(QMapLibre::Map* map)
       logger_->error("Pane {} attachLayers called with a null Map", p->paneId_);
       return;
    }
+
+   // Qt gives JavaScript ownership to any QObject returned from a Q_INVOKABLE, so QML's garbage
+   // collector considers itself responsible for the Map that MapQuickItem::mapLibreMap() handed
+   // us - even though a std::unique_ptr inside MapQuickItem already owns it. At engine teardown
+   // the collector deletes it, running mbgl::gl::Context::~Context with no GL context current,
+   // which faults dereferencing QOpenGLContext::currentContext(). Claiming C++ ownership here
+   // tells QML to keep its hands off. Must precede every early return below: the ownership
+   // transfer already happened when QML evaluated mapLibreMap(), not when we use the result.
+   QQmlEngine::setObjectOwnership(map, QQmlEngine::CppOwnership);
 
    // The one place that dispatches on product kind - see products::ProductDescriptor's comment.
    if (p->radarProduct_ == nullptr)

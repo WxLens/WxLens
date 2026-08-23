@@ -15,6 +15,12 @@ namespace log
  */
 void Initialize();
 
+/**
+ * The directory Initialize() writes log files into. Also where the crash handler
+ * (nimbus::util::InstallCrashHandler) puts its crash log, so both live together.
+ */
+std::string LogDirectory();
+
 std::shared_ptr<spdlog::logger> Create(const std::string& subsystemName);
 
 } // namespace log

@@ -8,15 +8,26 @@ namespace nimbus
 namespace log
 {
 
+namespace
+{
+QString LogDirectoryPath()
+{
+   return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/logs";
+}
+} // namespace
+
 void Initialize()
 {
-   scwx::util::Logger::Initialize();
-
-   const QString logDir =
-      QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/logs";
+   const QString logDir = LogDirectoryPath();
    QDir().mkpath(logDir);
 
+   scwx::util::Logger::Initialize();
    scwx::util::Logger::AddFileSink((logDir + "/nimbus.log").toStdString());
+}
+
+std::string LogDirectory()
+{
+   return QDir::toNativeSeparators(LogDirectoryPath()).toStdString();
 }
 
 std::shared_ptr<spdlog::logger> Create(const std::string& subsystemName)

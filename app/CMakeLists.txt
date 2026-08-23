@@ -32,6 +32,8 @@ qt_add_executable(nimbus-app
     source/nimbus/products/radar_sweep_product.hpp
     source/nimbus/render/radar_sweep_layer.cpp
     source/nimbus/render/radar_sweep_layer.hpp
+    source/nimbus/util/crash_handler.cpp
+    source/nimbus/util/crash_handler.hpp
     source/nimbus/util/geodesic.cpp
     source/nimbus/util/geodesic.hpp
     $<$<PLATFORM_ID:Windows>:res/branding/app.rc>
@@ -73,6 +75,9 @@ target_link_libraries(nimbus-app PRIVATE
     GeographicLib::GeographicLib
     glm::glm-header-only
     QMapLibre::Core
+    # DbgHelp backs nimbus::util::InstallCrashHandler's symbolized stack walk. It ships with
+    # Windows itself, so this adds a link dependency, not a redistributable.
+    $<$<PLATFORM_ID:Windows>:dbghelp>
 )
 
 # declarative_maplibre (docs/adr/0004-maplibre-qml-integration.md) is a Qt QML plugin - a
