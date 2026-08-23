@@ -1,5 +1,6 @@
 #include <nimbus/log/logger.hpp>
 #include <nimbus/objects/map_object_store.hpp>
+#include <nimbus/objects/measurement_controller.hpp>
 #include <nimbus/objects/object_tool_controller.hpp>
 #include <nimbus/panes/pane_grid_model.hpp>
 #include <nimbus/products/radar_product_status.hpp>
@@ -128,6 +129,9 @@ int main(int argc, char* argv[])
 
    nimbus::objects::ObjectToolController objectTools;
    engine.rootContext()->setContextProperty("objectTools", &objectTools);
+
+   nimbus::objects::MeasurementController measurementTool;
+   engine.rootContext()->setContextProperty("measurementTool", &measurementTool);
 
    engine.loadFromModule("Nimbus.App", "Main");
 

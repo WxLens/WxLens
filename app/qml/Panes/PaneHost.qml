@@ -34,6 +34,15 @@ Rectangle {
     // notification from being reported back as user input. See the Connections block below.
     property bool applyingSync: false
 
+    // Which interaction, if any, is currently claiming clicks on this pane. Measurement takes
+    // precedence so the two tool families can never both act on one click.
+    readonly property bool measuringActive:
+        typeof measurementTool !== "undefined" && measurementTool !== null &&
+        measurementTool.mode !== 0
+    readonly property bool placementActive:
+        !measuringActive && typeof objectTools !== "undefined" && objectTools !== null &&
+        objectTools.activeTool !== 0
+
     readonly property bool darkMode: true
     readonly property string mapStyle: darkMode
         ? "https://tiles.openfreemap.org/styles/dark"
@@ -159,20 +168,101 @@ Rectangle {
         visible: root.hasController
     }
 
-    // Object placement. Only active while a tool is selected in the side rail, so ordinary
-    // panning is never intercepted - the map's own handlers keep the gesture otherwise.
+    // The in-progress measurement (docs/ROADMAP.md §4.4). Drawn separately from MapObjectsLayer
+    // because it is tier-1 Temporary state that never enters the store - it belongs to the tool,
+    // not to the map.
+    MeasurementLayer {
+        id: measurementLayer
+        anchors.fill: parent
+        paneController: root.paneController
+        controller: typeof measurementTool !== "undefined" ? measurementTool : null
+        cameraTick: objectsLayer.cameraTick
+        visible: root.hasController
+    }
+
+    // Object placement and measurement. Only active while a tool is selected in the side rail, so
+    // ordinary panning is never intercepted - the map's own handlers keep the gesture otherwise.
     MouseArea {
         anchors.fill: parent
-        enabled: root.hasController && typeof objectTools !== "undefined" &&
-                 objectTools.activeTool !== 0
-        acceptedButtons: Qt.LeftButton
+        enabled: root.hasController && (root.placementActive || root.measuringActive)
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        hoverEnabled: root.measuringActive
 
         onClicked: (mouse) => {
             const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
             if (geo.length !== 2) {
                 return
             }
+
+            if (root.measuringActive) {
+                if (mouse.button === Qt.RightButton) {
+                    // Right-click ends a measurement: pins it if it has enough vertices,
+                    // otherwise just clears the attempt.
+                    if (measurementTool.active) {
+                        measurementTool.commit(root.paneController, objectTools.scopeKind)
+                    }
+                    measurementTool.cancel()
+                    return
+                }
+                measurementTool.addPoint(geo[0], geo[1], root.paneController)
+                return
+            }
+
             objectTools.placeAt(geo[0], geo[1], root.paneController)
+        }
+
+        // Live rubber-band while measuring.
+        onPositionChanged: (mouse) => {
+            if (!root.measuringActive || !measurementTool.active) {
+                return
+            }
+            const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
+            if (geo.length === 2) {
+                measurementTool.updateCursor(geo[0], geo[1])
+            }
+        }
+    }
+
+    // Measurement readout. Progressive disclosure per §4.4/§5.3: the one-line result is always
+    // visible while measuring; per-segment detail is available but not forced on the user.
+    Rectangle {
+        visible: root.measuringActive && measurementTool.readout !== ""
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 22
+        width: readoutColumn.width + 20
+        height: readoutColumn.height + 12
+        radius: 4
+        color: "#0d1116e6"
+        border.color: "#2f3742"
+        border.width: 1
+
+        Column {
+            id: readoutColumn
+            anchors.centerIn: parent
+            spacing: 2
+
+            Text {
+                text: root.measuringActive ? measurementTool.readout : ""
+                color: "#dce6f2"
+                font.pixelSize: 12
+            }
+
+            Text {
+                visible: root.measuringActive && measurementTool.segments.length > 1
+                text: root.measuringActive && measurementTool.segments.length > 0
+                    ? "last leg " + measurementTool.formatDistance(
+                        measurementTool.segments[measurementTool.segments.length - 1].distanceMeters)
+                    : ""
+                color: "#8d99a8"
+                font.pixelSize: 10
+            }
+
+            Text {
+                text: "click to add · right-click to finish"
+                color: "#5f6b7a"
+                font.pixelSize: 9
+            }
         }
     }
 

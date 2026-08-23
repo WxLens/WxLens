@@ -20,11 +20,12 @@ Q_NAMESPACE
  */
 enum class MapObjectType
 {
-   Marker,        ///< a single point of interest
-   Line,          ///< open polyline (freehand drawing or straight segments)
-   Polygon,       ///< closed area
-   RangeRing,     ///< circle of a fixed ground radius about a centre
-   TextAnnotation ///< a label anchored to a point
+   Marker,         ///< a single point of interest
+   Line,           ///< open polyline (freehand drawing or straight segments)
+   Polygon,        ///< closed area
+   RangeRing,      ///< circle of a fixed ground radius about a centre
+   TextAnnotation, ///< a label anchored to a point
+   Measurement     ///< a pinned measurement path; geometry is its vertices in order
 };
 Q_ENUM_NS(MapObjectType)
 

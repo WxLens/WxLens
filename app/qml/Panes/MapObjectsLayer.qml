@@ -64,6 +64,55 @@ Item {
             // 0 = Marker, 3 = RangeRing (nimbus::objects::MapObjectType)
             readonly property bool isMarker: objectType === 0
             readonly property bool isRangeRing: objectType === 3
+            // 1 = Line, 5 = Measurement: both draw as a projected polyline through their vertices.
+            readonly property bool isPath: objectType === 1 || objectType === 5
+
+            readonly property var pathPixels: {
+                if (!isPath) {
+                    return []
+                }
+                root.cameraTick
+                var pts = []
+                for (var i = 0; i < modelData.latitudes.length; ++i) {
+                    pts.push(root.paneController.pixelForCoordinate(modelData.latitudes[i],
+                                                                    modelData.longitudes[i]))
+                }
+                return pts
+            }
+
+            Shape {
+                visible: objectItem.isPath
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
+
+                ShapePath {
+                    strokeColor: objectItem.modelData.color
+                    strokeWidth: 2
+                    fillColor: "transparent"
+
+                    PathPolyline {
+                        path: objectItem.pathPixels
+                    }
+                }
+            }
+
+            // Vertex handles, so a pinned measurement's endpoints stay identifiable against busy
+            // reflectivity rather than disappearing into it.
+            Repeater {
+                model: objectItem.isPath ? objectItem.pathPixels : []
+
+                delegate: Rectangle {
+                    required property var modelData
+                    x: modelData.x - 3
+                    y: modelData.y - 3
+                    width: 6
+                    height: 6
+                    radius: 3
+                    color: objectItem.modelData.color
+                    border.color: "#101418"
+                    border.width: 1
+                }
+            }
 
             // A range ring is a true geodesic circle: sample points at a fixed ground distance
             // and project each one, rather than drawing a screen-space circle around the centre.
@@ -116,10 +165,17 @@ Item {
                 border.width: 2
             }
 
+            // Paths label at their final vertex, where the user finished, rather than at the
+            // start where the label would sit under the rest of the line.
+            readonly property point labelPixel:
+                objectItem.isPath && objectItem.pathPixels.length > 0
+                    ? objectItem.pathPixels[objectItem.pathPixels.length - 1]
+                    : objectItem.anchorPixel
+
             Text {
                 visible: objectItem.modelData.label !== ""
-                x: objectItem.anchorPixel.x + 10
-                y: objectItem.anchorPixel.y - 8
+                x: objectItem.labelPixel.x + 10
+                y: objectItem.labelPixel.y - 8
                 text: objectItem.modelData.label
                 color: "#e8edf2"
                 font.pixelSize: 11

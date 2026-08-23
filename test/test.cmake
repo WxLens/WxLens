@@ -106,6 +106,7 @@ set(NIMBUS_APP_SRC ${NIMBUS_DIR}/app/source/nimbus)
 add_executable(nimbus-app-test
     source/nimbus/app_test_main.cpp
     source/nimbus/objects/map_object_scope.test.cpp
+    source/nimbus/objects/measurement.test.cpp
     source/nimbus/panes/pane_sync.test.cpp
 
     ${NIMBUS_APP_SRC}/data/radar_site_data_service.cpp
@@ -113,6 +114,7 @@ add_executable(nimbus-app-test
     ${NIMBUS_APP_SRC}/log/logger.cpp
     ${NIMBUS_APP_SRC}/objects/map_object.hpp
     ${NIMBUS_APP_SRC}/objects/map_object_store.cpp
+    ${NIMBUS_APP_SRC}/objects/measurement_controller.cpp
     ${NIMBUS_APP_SRC}/objects/object_tool_controller.cpp
     ${NIMBUS_APP_SRC}/panes/pane_controller.cpp
     ${NIMBUS_APP_SRC}/panes/pane_grid_model.cpp

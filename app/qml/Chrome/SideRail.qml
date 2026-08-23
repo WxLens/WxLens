@@ -57,8 +57,15 @@ Rectangle {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: objectTools.activeTool =
-                        parent.active ? 0 : parent.modelData.tool
+                    onClicked: {
+                        if (parent.active) {
+                            objectTools.activeTool = 0
+                        } else {
+                            // Only one tool family may claim clicks at a time.
+                            measurementTool.mode = 0
+                            objectTools.activeTool = parent.modelData.tool
+                        }
+                    }
                 }
             }
         }
@@ -94,6 +101,57 @@ Rectangle {
                     const order = [0, 1, 3]
                     const next = (order.indexOf(objectTools.scopeKind) + 1) % order.length
                     objectTools.scopeKind = order[next]
+                }
+            }
+        }
+
+        Rectangle {
+            width: 32
+            height: 1
+            color: "#2a3138"
+        }
+
+        // Measurement modes (§4.4). Selecting one disarms the object tools, since both act on
+        // clicks in a pane.
+        Repeater {
+            model: [
+                { label: "↔", mode: 1, hint: "Point to point" },
+                { label: "◄", mode: 2, hint: "Radar to point" },
+                { label: "⋯", mode: 3, hint: "Path" }
+            ]
+
+            delegate: Rectangle {
+                required property var modelData
+
+                width: 32
+                height: 32
+                radius: 6
+                color: active ? "#3a3520" : "#20262e"
+                border.color: active ? "#b0a04a" : "#2f3742"
+                border.width: 1
+
+                readonly property bool active:
+                    typeof measurementTool !== "undefined" &&
+                    measurementTool.mode === modelData.mode
+
+                Text {
+                    anchors.centerIn: parent
+                    text: parent.modelData.label
+                    color: parent.active ? "#f2e9b0" : "#8d99a8"
+                    font.pixelSize: 14
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (parent.active) {
+                            measurementTool.mode = 0
+                        } else {
+                            objectTools.activeTool = 0
+                            measurementTool.mode = parent.modelData.mode
+                        }
+                    }
                 }
             }
         }

@@ -1541,6 +1541,47 @@ rather than reproducing the split.
 - **Next slice:** slice 7, the measurement framework (§4.4) - point-to-point, radar-to-point and
   multi-segment path, built on this slice's object infrastructure and `util::GeodesicInverse`.
 
+**Status as of 2026-08-23 — Slice 7 complete: the measurement framework.** §4.4's three modes,
+built on slice 6's object infrastructure rather than as a radar-only utility.
+
+- `objects/measurement_controller.*`: one geometry model behind all modes - an ordered vertex list
+  with per-segment distance/bearing and a running total. **All geometry uses real WGS84 geodesics**
+  (`util::GeodesicInverse`), never flat pixel math, so results hold at any zoom or projection.
+  A flat approximation would still return plausible numbers, which is exactly why the tests pin
+  the values against known distances rather than merely checking for non-zero.
+- **Modes:** Point→Point; Radar→Point, where the origin is supplied automatically from the pane's
+  own source location (that automatic origin is what makes it a distinct named mode rather than
+  Point→Point with extra steps, and it reads out as range/azimuth); and multi-segment Path with a
+  running total.
+- **Tier 1 is honoured throughout (§4.3):** an in-progress measurement lives entirely in the
+  controller, updates live with the cursor, and never touches `MapObjectStore`. Only right-click
+  commits it as a Pinned `Measurement` object. The live cursor vertex is deliberately excluded
+  from what gets pinned - it is where the pointer happens to be, not something the user chose.
+  `qml/Panes/MeasurementLayer.qml` draws it dashed, separate from `MapObjectsLayer`, precisely
+  because it is not a stored object.
+- Bearings are converted to compass angles [0, 360) for display; `GeodesicInverse` returns
+  [-180, 180), which reads wrong as a bearing.
+- Distances show km and miles together until the unit-settings surface exists (§4.4 defers the
+  *preference*, not the measurement). Showing both beats silently picking one.
+- Selecting a measurement mode disarms the object tools and vice versa, so the two families can
+  never both act on one click.
+- **Verified:** 16 new measurement tests (43 total in `nimbus-app-test`), then end-to-end in the
+  running app - live rubber-band with midpoint distance, commit to a pinned green measurement, and
+  the pinned line staying geographically anchored across a zoom-out. Zero QML warnings.
+- **Observed, not fixed:** on this run the basemap rendered white until a scroll forced a repaint,
+  with radar and objects drawing correctly over it - only the basemap layer was missing. This is
+  the same intermittent "blank until interaction" behaviour first noted in slice 2 and was not
+  introduced here, but a white flash is user-visible and it now has a second sighting. Worth
+  root-causing rather than continuing to treat as tile latency.
+- **Not built this slice:** the "Point info" readout (§4.4's fourth mode - lat/lon plus
+  range/azimuth from the pane's site), editing or deleting a pinned measurement, and unit
+  preferences. Beam-height interrogation (§4.7) is deliberately slice 8's work, and
+  `GetRadarBeamAltititude`'s `height` parameter must be verified against real site metadata before
+  wiring - §4.7 forbids approximating it.
+- **Next slice:** slice 8, radar geometry - beam-height interrogation extending Radar→Point, being
+  careful to keep beam-centre MSL and terrain-relative AGL distinct and to say "terrain data
+  unavailable" rather than implying an AGL figure without a real DEM.
+
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
 **Scope:** a national/regional mosaic reflectivity (and optionally echo-tops/precip) layer as a
