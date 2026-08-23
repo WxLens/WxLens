@@ -7,8 +7,10 @@
 
 #include <QMapLibre/Map>
 #include <QObject>
+#include <QPointF>
 #include <QString>
 #include <QVariant>
+#include <QVariantList>
 
 namespace nimbus
 {
@@ -114,6 +116,35 @@ public:
     * docs/adr/0004-maplibre-qml-integration.md's slice 3 findings).
     */
    Q_INVOKABLE void attachLayers(QMapLibre::Map* map);
+
+   /**
+    * Geographic -> screen projection for this pane's map, so the QML object overlay can position
+    * geo-anchored objects (docs/ROADMAP.md §4.3 requires objects be stored in coordinates, never
+    * screen space - this is where that gets turned into pixels, per pane, at draw time).
+    *
+    * Returns (-1, -1) before the map exists. Wrapping QMapLibre::Map's own projection rather than
+    * exposing the Map to QML keeps the ownership hazard documented in attachLayers contained to
+    * one place.
+    */
+   Q_INVOKABLE QPointF pixelForCoordinate(double latitude, double longitude) const;
+
+   /** Screen -> geographic, for placing objects where the user clicked. */
+   Q_INVOKABLE QVariantList coordinateForPixel(double x, double y) const;
+
+   /** Ground distance in metres between two coordinates, using real geodesic math. */
+   Q_INVOKABLE double distanceMeters(double latitude1,
+                                     double longitude1,
+                                     double latitude2,
+                                     double longitude2) const;
+
+   /**
+    * A coordinate at `bearingDegrees` and `distanceMeters` from a point. Used to build range-ring
+    * geometry as a true geodesic circle rather than a screen-space ellipse.
+    */
+   Q_INVOKABLE QVariantList coordinateAtOffset(double latitude,
+                                               double longitude,
+                                               double bearingDegrees,
+                                               double distanceMeters) const;
 
 signals:
    void productChanged();

@@ -1475,6 +1475,56 @@ special case.
   the sync groups built here, so `SyncGroup(channel, groupId)` scoping now has something real to
   resolve against.
 
+**Status as of 2026-08-23 — Slice 6 complete: unified map objects with scope resolution.** §4.3's
+one object family and one store, replacing the legacy app's parallel marker/annotation systems
+rather than reproducing the split.
+
+- `objects/map_object.hpp`: `MapObject` (geometry always in degrees, never screen space),
+  `MapObjectType`, `MapObjectLifecycle`, and `MapObjectScope`.
+- `objects/map_object_store.*`: the single `QAbstractListModel`-backed store. **Scope resolution
+  lives here, not in the view** - whether an object belongs in a pane is a property of the object
+  and that pane's state, not of how it is drawn.
+- **`SyncGroup` scope is where slice 5 pays off:** "show this on my linked panes" resolves against
+  the existing sync groups instead of needing its own sharing mechanism. The group is captured at
+  creation (`originGroupId`), so an object stays with the group it was shared into even if its
+  author later leaves - the alternative would make shared objects vanish from other panes for no
+  visible reason.
+- **Lifecycle tier 1 is enforced, not merely documented:** `MapObjectStore::Add` rejects
+  `Temporary` objects outright. That is what actually keeps probing the map from littering it.
+  Tier 3 (`Saved`) exists in the enum but does not persist yet - it needs the structured config
+  store (§3.2), and inventing a second storage mechanism here would have to be undone later.
+- `objects/object_tool_controller.*`: active tool, scope for new objects, ring radius. Placement
+  rules live in C++ so QML stays presentation-only.
+- `qml/Panes/MapObjectsLayer.qml`: the User Analysis Layer, above the radar rendering and
+  independent of it. **Rendered as Qt Quick items rather than a GL custom layer** - a handful of
+  vector shapes with text labels per pane, where Qt Quick gives crisp text, hit testing and
+  styling for free and the radar shader machinery would buy nothing. If object counts ever reach
+  the thousands (dense placefiles), this is the piece to move to GL; the store and scope
+  resolution behind it would not change.
+- Range rings are **true geodesic circles** - 72 points sampled at a fixed ground distance and
+  projected individually. A screen-space circle would be visibly wrong away from the equator,
+  since Mercator stretches north-south with latitude.
+- `PaneController` gained projection helpers (`pixelForCoordinate`, `coordinateForPixel`,
+  `distanceMeters`, `coordinateAtOffset`) wrapping the map's own projection, which also keeps the
+  `Q_INVOKABLE`-ownership hazard contained to `attachLayers`. `util::GeodesicInverse` was added
+  alongside the existing `GeodesicDirect`, as that header anticipated - slice 7's measurement work
+  should reuse both rather than reinventing them.
+- **Verified for real:** 14 new tests (27 total in `nimbus-app-test`) covering tier-1 rejection,
+  geometry validation, every scope kind, the author-leaves-group case, `SameLocation` tolerance,
+  filtering, post-creation scope changes, and revision bumping. Then end-to-end in the running
+  app: markers and a range ring placed through the actual UI render correctly over live KEAX
+  reflectivity, with zero QML warnings.
+- **Tooling note for future agents:** screen-scraping verification (`CopyFromScreen`) is
+  unreliable here - it captures whatever is composited on top, and twice produced screenshots of
+  unrelated windows. **Use `PrintWindow` with `PW_RENDERFULLCONTENT`**, which captures the
+  window's own surface even when occluded, and check `GetForegroundWindow()` before synthesizing
+  any input.
+- **Not built this slice:** Line/Polygon/TextAnnotation object types (declared in the enum,
+  no tool or renderer yet), object selection/editing/deletion from the map, and `Saved`
+  persistence. `SameLocation` scope resolves correctly but has no UI to select it.
+- **Next slice:** slice 7, the measurement framework (§4.4) - point-to-point, radar-to-point and
+  multi-segment path, built on this slice's object infrastructure and `util::GeodesicInverse`.
+
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
 **Scope:** a national/regional mosaic reflectivity (and optionally echo-tops/precip) layer as a

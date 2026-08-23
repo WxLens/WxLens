@@ -24,6 +24,86 @@ Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 12
 
+        // Object tools (§4.3). Selecting one arms placement in every pane; clicking a pane then
+        // commits a Pinned object there. Selecting the same tool again disarms it, so the map is
+        // never left in a state where an ordinary click creates something unexpected.
+        Repeater {
+            model: [
+                { label: "●", tool: 1, hint: "Marker" },
+                { label: "◎", tool: 2, hint: "Range ring" }
+            ]
+
+            delegate: Rectangle {
+                required property var modelData
+
+                width: 32
+                height: 32
+                radius: 6
+                color: active ? "#3a2f1e" : "#20262e"
+                border.color: active ? "#b08a4a" : "#2f3742"
+                border.width: 1
+
+                readonly property bool active:
+                    typeof objectTools !== "undefined" &&
+                    objectTools.activeTool === modelData.tool
+
+                Text {
+                    anchors.centerIn: parent
+                    text: parent.modelData.label
+                    color: parent.active ? "#f2dcb0" : "#8d99a8"
+                    font.pixelSize: 14
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: objectTools.activeTool =
+                        parent.active ? 0 : parent.modelData.tool
+                }
+            }
+        }
+
+        // Scope for newly placed objects (§4.3): current pane, the pane's sync group, or all
+        // panes. Placed next to the tools because it changes what placing one *means*.
+        Rectangle {
+            width: 32
+            height: 32
+            radius: 6
+            color: "#20262e"
+            border.color: "#2f3742"
+            border.width: 1
+            visible: typeof objectTools !== "undefined" && objectTools.activeTool !== 0
+
+            // MapObjectScopeKind: 0 CurrentPaneOnly, 1 SyncGroup, 3 AllPanes. SameLocation (2) is
+            // omitted here only because it needs no explicit choice to be useful yet.
+            readonly property var labels: ["1", "G", "", "A"]
+
+            Text {
+                anchors.centerIn: parent
+                text: typeof objectTools !== "undefined"
+                    ? parent.labels[objectTools.scopeKind] : ""
+                color: "#8d99a8"
+                font.pixelSize: 13
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                // Cycles CurrentPaneOnly -> SyncGroup -> AllPanes, skipping SameLocation.
+                onClicked: {
+                    const order = [0, 1, 3]
+                    const next = (order.indexOf(objectTools.scopeKind) + 1) % order.length
+                    objectTools.scopeKind = order[next]
+                }
+            }
+        }
+
+        Rectangle {
+            width: 32
+            height: 1
+            color: "#2a3138"
+        }
+
         Repeater {
             model: [
                 { label: "1", w: 1, h: 1 },

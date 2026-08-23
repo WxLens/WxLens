@@ -29,5 +29,21 @@ std::pair<double, double> GeodesicDirect(double latitude,
                                          double azimuthDegrees,
                                          double distanceMeters);
 
+struct GeodesicInverseResult
+{
+   double distanceMeters {0.0};
+   double azimuthDegrees {0.0}; ///< forward azimuth at point 1, degrees clockwise from north
+};
+
+/**
+ * WGS84 geodesic inverse problem: distance and forward azimuth between two points. Real geodesic
+ * math, never flat screen-pixel distance, so results stay correct at any zoom or projection
+ * (docs/ROADMAP.md §4.4). Used for range rings today and the measurement tool next.
+ */
+GeodesicInverseResult GeodesicInverse(double latitude1,
+                                      double longitude1,
+                                      double latitude2,
+                                      double longitude2);
+
 } // namespace util
 } // namespace nimbus

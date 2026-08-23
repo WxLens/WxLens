@@ -3,8 +3,11 @@
 #include <nimbus/products/radar_sweep_product.hpp>
 #include <nimbus/render/radar_sweep_layer.hpp>
 
+#include <nimbus/util/geodesic.hpp>
+
 #include <map>
 
+#include <QPointer>
 #include <QQmlEngine>
 
 namespace nimbus
@@ -39,6 +42,10 @@ public:
    std::map<SyncChannel, SyncGroupId> syncGroups_;
 
    std::shared_ptr<products::RadarSweepProduct> radarProduct_ {nullptr};
+
+   // Borrowed, not owned: MapQuickItem's unique_ptr owns this. Cleared when the map goes away so
+   // the projection helpers cannot outlive it.
+   QPointer<QMapLibre::Map> map_ {nullptr};
 
    double centerLatitude_ {kFallbackLatitude};
    double centerLongitude_ {kFallbackLongitude};
@@ -188,6 +195,43 @@ void PaneController::setPitch(double value)
    p->pitch_ = value;
    Q_EMIT cameraChanged();
    Q_EMIT channelChanged(SyncChannel::Pitch, ChangeOrigin::UserInput);
+}
+
+QPointF PaneController::pixelForCoordinate(double latitude, double longitude) const
+{
+   if (p->map_.isNull())
+   {
+      return {-1.0, -1.0};
+   }
+   return p->map_->pixelForCoordinate({latitude, longitude});
+}
+
+QVariantList PaneController::coordinateForPixel(double x, double y) const
+{
+   if (p->map_.isNull())
+   {
+      return {};
+   }
+   const auto coordinate = p->map_->coordinateForPixel({x, y});
+   return QVariantList {coordinate.first, coordinate.second};
+}
+
+double PaneController::distanceMeters(double latitude1,
+                                      double longitude1,
+                                      double latitude2,
+                                      double longitude2) const
+{
+   return util::GeodesicInverse(latitude1, longitude1, latitude2, longitude2).distanceMeters;
+}
+
+QVariantList PaneController::coordinateAtOffset(double latitude,
+                                                double longitude,
+                                                double bearingDegrees,
+                                                double distanceMeters) const
+{
+   const auto [destLatitude, destLongitude] =
+      util::GeodesicDirect(latitude, longitude, bearingDegrees, distanceMeters);
+   return QVariantList {destLatitude, destLongitude};
 }
 
 int PaneController::syncGroup(SyncChannel channel) const
@@ -360,6 +404,9 @@ void PaneController::attachLayers(QMapLibre::Map* map)
    // tells QML to keep its hands off. Must precede every early return below: the ownership
    // transfer already happened when QML evaluated mapLibreMap(), not when we use the result.
    QQmlEngine::setObjectOwnership(map, QQmlEngine::CppOwnership);
+
+   // Kept for the projection helpers, which the QML object overlay needs on every frame.
+   p->map_ = map;
 
    // The one place that dispatches on product kind - see products::ProductDescriptor's comment.
    if (p->radarProduct_ == nullptr)

@@ -145,6 +145,32 @@ Rectangle {
         }
     }
 
+    // The User Analysis Layer (§4.3), above the map and its radar rendering but below the pane
+    // chrome, so objects never obscure the controls.
+    MapObjectsLayer {
+        anchors.fill: parent
+        paneController: root.paneController
+        objectStore: typeof mapObjectStore !== "undefined" ? mapObjectStore : null
+        visible: root.hasController
+    }
+
+    // Object placement. Only active while a tool is selected in the side rail, so ordinary
+    // panning is never intercepted - the map's own handlers keep the gesture otherwise.
+    MouseArea {
+        anchors.fill: parent
+        enabled: root.hasController && typeof objectTools !== "undefined" &&
+                 objectTools.activeTool !== 0
+        acceptedButtons: Qt.LeftButton
+
+        onClicked: (mouse) => {
+            const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
+            if (geo.length !== 2) {
+                return
+            }
+            objectTools.placeAt(geo[0], geo[1], root.paneController)
+        }
+    }
+
     // Quick sync control (docs/ROADMAP.md §4.5): linking must be reachable without opening
     // Settings. Cycles this pane through camera-link groups A and B and back to independent.
     // Deliberately minimal - it drives the general per-channel model underneath, which supports

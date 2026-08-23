@@ -1,4 +1,6 @@
 #include <nimbus/log/logger.hpp>
+#include <nimbus/objects/map_object_store.hpp>
+#include <nimbus/objects/object_tool_controller.hpp>
 #include <nimbus/panes/pane_grid_model.hpp>
 #include <nimbus/products/radar_product_status.hpp>
 #include <nimbus/util/crash_handler.hpp>
@@ -118,6 +120,14 @@ int main(int argc, char* argv[])
    // own doc comment) that predates the grid and is superseded by per-pane chrome, not extended.
    nimbus::products::RadarProductStatus radarStatus {kDefaultRadarSite};
    engine.rootContext()->setContextProperty("radarStatus", &radarStatus);
+
+   // The unified map-object store and its placement tools (docs/ROADMAP.md §4.3). The store is a
+   // process-wide singleton because objects are scoped across panes, not owned by one.
+   engine.rootContext()->setContextProperty("mapObjectStore",
+                                            &nimbus::objects::MapObjectStore::Instance());
+
+   nimbus::objects::ObjectToolController objectTools;
+   engine.rootContext()->setContextProperty("objectTools", &objectTools);
 
    engine.loadFromModule("Nimbus.App", "Main");
 

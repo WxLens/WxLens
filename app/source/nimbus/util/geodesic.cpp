@@ -21,5 +21,24 @@ std::pair<double, double> GeodesicDirect(double latitude,
    return {destLatitude, destLongitude};
 }
 
+GeodesicInverseResult GeodesicInverse(double latitude1,
+                                      double longitude1,
+                                      double latitude2,
+                                      double longitude2)
+{
+   GeodesicInverseResult result {};
+   double                reverseAzimuth = 0.0;
+
+   GeographicLib::Geodesic::WGS84().Inverse(latitude1,
+                                            longitude1,
+                                            latitude2,
+                                            longitude2,
+                                            result.distanceMeters,
+                                            result.azimuthDegrees,
+                                            reverseAzimuth);
+
+   return result;
+}
+
 } // namespace util
 } // namespace nimbus

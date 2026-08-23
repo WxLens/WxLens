@@ -21,6 +21,11 @@ qt_add_executable(nimbus-app
     source/nimbus/data/radar_site_data_service.hpp
     source/nimbus/data/radar_site_database.cpp
     source/nimbus/data/radar_site_database.hpp
+    source/nimbus/objects/map_object.hpp
+    source/nimbus/objects/map_object_store.cpp
+    source/nimbus/objects/map_object_store.hpp
+    source/nimbus/objects/object_tool_controller.cpp
+    source/nimbus/objects/object_tool_controller.hpp
     source/nimbus/panes/pane_controller.cpp
     source/nimbus/panes/pane_controller.hpp
     source/nimbus/panes/pane_grid_model.cpp
@@ -49,6 +54,7 @@ qt_add_qml_module(nimbus-app
         qml/Main.qml
         qml/Chrome/TopBar.qml
         qml/Chrome/SideRail.qml
+        qml/Panes/MapObjectsLayer.qml
         qml/Panes/PaneGrid.qml
         qml/Panes/PaneHost.qml
     RESOURCES
