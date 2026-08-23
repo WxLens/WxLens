@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nimbus/panes/sync_types.hpp>
+
 #include <memory>
 
 #include <QAbstractListModel>
@@ -28,6 +30,12 @@ class PaneGridModel : public QAbstractListModel
    Q_PROPERTY(int gridWidth READ gridWidth NOTIFY gridSizeChanged)
    Q_PROPERTY(int gridHeight READ gridHeight NOTIFY gridSizeChanged)
 
+   // Bumped whenever any pane's group membership changes. Group state is queried through methods
+   // (it is per-pane and per-channel, so it does not reduce to one property), and QML cannot tell
+   // when a method's result goes stale - so a binding that calls cameraSyncGroup() references
+   // this property as well to know when to re-evaluate.
+   Q_PROPERTY(int syncRevision READ syncRevision NOTIFY syncRevisionChanged)
+
 public:
    enum Roles
    {
@@ -44,6 +52,7 @@ public:
 
    [[nodiscard]] int gridWidth() const;
    [[nodiscard]] int gridHeight() const;
+   [[nodiscard]] int syncRevision() const;
 
    [[nodiscard]] int rowCount(const QModelIndex& parent = QModelIndex()) const override;
    [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
@@ -51,13 +60,39 @@ public:
 
    Q_INVOKABLE void setGridSize(int width, int height);
 
+   /**
+    * One-shot: copies one channel's current value from one pane to another, without creating any
+    * ongoing group membership. This is the "match this pane's view to that one" action, kept
+    * deliberately distinct from joining a group (docs/ROADMAP.md §4.1) - conflating them is
+    * exactly what makes link behaviour feel unpredictable.
+    */
+   Q_INVOKABLE void copyChannel(int fromPaneId, int toPaneId, nimbus::panes::SyncChannel channel);
+
+   /**
+    * Convenience for pane chrome: puts a pane in (or removes it from) `groupId` on all camera
+    * channels at once. The underlying model stays per-channel - this is UI sugar over it, not a
+    * second mechanism.
+    */
+   Q_INVOKABLE void setCameraSyncGroup(int paneId, int groupId);
+
+   /** Whether every camera channel of this pane is in `groupId`, for UI state. */
+   Q_INVOKABLE int cameraSyncGroup(int paneId) const;
+
    /** The default radar site new panes are created with, until pane chrome can set it (§4.5). */
    void setDefaultSourceKey(const QString& sourceKey);
 
 signals:
    void gridSizeChanged();
+   void syncRevisionChanged();
 
 private:
+   /**
+    * The sync coordinator (docs/ROADMAP.md §4.1-4.2). Fans a channel change out to every other
+    * pane sharing that channel's group. Lives here rather than in PaneController so that panes
+    * never need to know about each other.
+    */
+   void PropagateChannel(PaneController* source, SyncChannel channel, ChangeOrigin origin);
+
    class Impl;
    std::unique_ptr<Impl> p;
 };

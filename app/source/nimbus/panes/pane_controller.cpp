@@ -3,6 +3,8 @@
 #include <nimbus/products/radar_sweep_product.hpp>
 #include <nimbus/render/radar_sweep_layer.hpp>
 
+#include <map>
+
 #include <QQmlEngine>
 
 namespace nimbus
@@ -33,6 +35,8 @@ public:
 
    int                         paneId_;
    products::ProductDescriptor descriptor_;
+
+   std::map<SyncChannel, SyncGroupId> syncGroups_;
 
    std::shared_ptr<products::RadarSweepProduct> radarProduct_ {nullptr};
 
@@ -103,6 +107,7 @@ void PaneController::setSourceKey(const QString& sourceKey)
    p->RebindProduct();
 
    Q_EMIT productChanged();
+   Q_EMIT channelChanged(SyncChannel::RadarSite, ChangeOrigin::UserInput);
 }
 
 double PaneController::homeLatitude() const
@@ -140,24 +145,16 @@ double PaneController::pitch() const
    return p->pitch_;
 }
 
-void PaneController::setCenterLatitude(double value)
+void PaneController::setCenter(double latitude, double longitude)
 {
-   if (p->centerLatitude_ == value)
+   if (p->centerLatitude_ == latitude && p->centerLongitude_ == longitude)
    {
       return;
    }
-   p->centerLatitude_ = value;
+   p->centerLatitude_  = latitude;
+   p->centerLongitude_ = longitude;
    Q_EMIT cameraChanged();
-}
-
-void PaneController::setCenterLongitude(double value)
-{
-   if (p->centerLongitude_ == value)
-   {
-      return;
-   }
-   p->centerLongitude_ = value;
-   Q_EMIT cameraChanged();
+   Q_EMIT channelChanged(SyncChannel::Location, ChangeOrigin::UserInput);
 }
 
 void PaneController::setZoom(double value)
@@ -168,6 +165,7 @@ void PaneController::setZoom(double value)
    }
    p->zoom_ = value;
    Q_EMIT cameraChanged();
+   Q_EMIT channelChanged(SyncChannel::Zoom, ChangeOrigin::UserInput);
 }
 
 void PaneController::setBearing(double value)
@@ -178,6 +176,7 @@ void PaneController::setBearing(double value)
    }
    p->bearing_ = value;
    Q_EMIT cameraChanged();
+   Q_EMIT channelChanged(SyncChannel::Bearing, ChangeOrigin::UserInput);
 }
 
 void PaneController::setPitch(double value)
@@ -188,6 +187,161 @@ void PaneController::setPitch(double value)
    }
    p->pitch_ = value;
    Q_EMIT cameraChanged();
+   Q_EMIT channelChanged(SyncChannel::Pitch, ChangeOrigin::UserInput);
+}
+
+int PaneController::syncGroup(SyncChannel channel) const
+{
+   const auto it = p->syncGroups_.find(channel);
+   return (it != p->syncGroups_.end()) ? it->second : kNoSyncGroup;
+}
+
+void PaneController::setSyncGroup(SyncChannel channel, int groupId)
+{
+   if (syncGroup(channel) == groupId)
+   {
+      return;
+   }
+
+   if (groupId == kNoSyncGroup)
+   {
+      p->syncGroups_.erase(channel);
+   }
+   else
+   {
+      p->syncGroups_[channel] = groupId;
+   }
+
+   Q_EMIT syncGroupsChanged();
+}
+
+QVariant PaneController::channelValue(SyncChannel channel) const
+{
+   switch (channel)
+   {
+   case SyncChannel::Location:
+      // One channel, one value: a two-element list keeps latitude and longitude inseparable, so
+      // a partially-applied coordinate can never be propagated.
+      return QVariantList {p->centerLatitude_, p->centerLongitude_};
+   case SyncChannel::Zoom:
+      return p->zoom_;
+   case SyncChannel::Bearing:
+      return p->bearing_;
+   case SyncChannel::Pitch:
+      return p->pitch_;
+   case SyncChannel::RadarSite:
+      return p->descriptor_.sourceKey;
+   case SyncChannel::Product:
+      return p->descriptor_.product;
+
+   case SyncChannel::Time:
+   case SyncChannel::Animation:
+   case SyncChannel::Cursor:
+   case SyncChannel::SelectedStorm:
+   case SyncChannel::Palette:
+   default:
+      // Declared but not yet backed by state - see SyncChannel's comment. An invalid QVariant
+      // makes the coordinator skip the channel rather than propagating a meaningless value.
+      return {};
+   }
+}
+
+void PaneController::applyChannelValue(SyncChannel     channel,
+                                       const QVariant& value,
+                                       ChangeOrigin    origin)
+{
+   if (!value.isValid())
+   {
+      return;
+   }
+
+   bool changed = false;
+
+   switch (channel)
+   {
+   case SyncChannel::Location:
+   {
+      const QVariantList coordinate = value.toList();
+      if (coordinate.size() != 2)
+      {
+         return;
+      }
+      const double latitude  = coordinate[0].toDouble();
+      const double longitude = coordinate[1].toDouble();
+      if (p->centerLatitude_ != latitude || p->centerLongitude_ != longitude)
+      {
+         p->centerLatitude_  = latitude;
+         p->centerLongitude_ = longitude;
+         changed             = true;
+      }
+      break;
+   }
+
+   case SyncChannel::Zoom:
+      if (p->zoom_ != value.toDouble())
+      {
+         p->zoom_ = value.toDouble();
+         changed  = true;
+      }
+      break;
+
+   case SyncChannel::Bearing:
+      if (p->bearing_ != value.toDouble())
+      {
+         p->bearing_ = value.toDouble();
+         changed     = true;
+      }
+      break;
+
+   case SyncChannel::Pitch:
+      if (p->pitch_ != value.toDouble())
+      {
+         p->pitch_ = value.toDouble();
+         changed   = true;
+      }
+      break;
+
+   case SyncChannel::RadarSite:
+      if (p->descriptor_.sourceKey != value.toString())
+      {
+         p->descriptor_.sourceKey = value.toString();
+         p->RebindProduct();
+         Q_EMIT productChanged();
+         changed = true;
+      }
+      break;
+
+   case SyncChannel::Product:
+      if (p->descriptor_.product != value.toString())
+      {
+         p->descriptor_.product = value.toString();
+         Q_EMIT productChanged();
+         changed = true;
+      }
+      break;
+
+   default:
+      return;
+   }
+
+   if (!changed)
+   {
+      return;
+   }
+
+   if (channel == SyncChannel::Location || channel == SyncChannel::Zoom ||
+       channel == SyncChannel::Bearing || channel == SyncChannel::Pitch)
+   {
+      Q_EMIT cameraChanged();
+
+      // Separate from cameraChanged so the view can distinguish "your own gesture moved this"
+      // from "sync moved this" - only the latter should be pushed back into the map.
+      Q_EMIT cameraSynced();
+   }
+
+   // Re-emitted with the incoming origin (not UserInput), which is what stops the coordinator
+   // from fanning it straight back out - see ChangeOrigin.
+   Q_EMIT channelChanged(channel, origin);
 }
 
 void PaneController::attachLayers(QMapLibre::Map* map)

@@ -25,6 +25,7 @@ qt_add_executable(nimbus-app
     source/nimbus/panes/pane_controller.hpp
     source/nimbus/panes/pane_grid_model.cpp
     source/nimbus/panes/pane_grid_model.hpp
+    source/nimbus/panes/sync_types.hpp
     source/nimbus/products/product_descriptor.hpp
     source/nimbus/products/radar_product_status.cpp
     source/nimbus/products/radar_product_status.hpp

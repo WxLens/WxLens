@@ -30,6 +30,10 @@ Rectangle {
     // one pane). Passed in rather than read from a global so this item stays self-contained.
     property bool showLabel: false
 
+    // Set while applying an incoming synced camera, to stop the map's resulting change
+    // notification from being reported back as user input. See the Connections block below.
+    property bool applyingSync: false
+
     readonly property bool darkMode: true
     readonly property string mapStyle: darkMode
         ? "https://tiles.openfreemap.org/styles/dark"
@@ -67,15 +71,38 @@ Rectangle {
         // with sync itself. MapQuickItem exposes only `coordinate` and `zoomLevel`; bearing/pitch
         // have no QML property to observe yet, so PaneController's stay at their defaults.
         onCoordinateChanged: {
-            if (!root.hasController) {
+            if (!root.hasController || root.applyingSync) {
                 return
             }
-            root.paneController.centerLatitude = map.coordinate[0]
-            root.paneController.centerLongitude = map.coordinate[1]
+            root.paneController.setCenter(map.coordinate[0], map.coordinate[1])
         }
         onZoomLevelChanged: {
-            if (root.hasController) {
+            if (root.hasController && !root.applyingSync) {
                 root.paneController.zoom = map.zoomLevel
+            }
+        }
+
+        // The other direction: when this pane's camera is changed by the sync coordinator, move
+        // the map to match. Bound to cameraSynced, NOT cameraChanged - cameraChanged also fires
+        // for this pane's own gestures, and re-applying the controller's camera during a local
+        // gesture fights it. Zoom-about-cursor shifts the centre as part of zooming, so snapping
+        // the centre back mid-gesture turned wheel-zoom into a sideways slide whose direction
+        // depended on cursor position. applyingSync then suppresses the write-back above, so an
+        // applied sync is not reported straight back as though the user had panned here.
+        Connections {
+            target: root.hasController ? root.paneController : null
+
+            function onCameraSynced() {
+                root.applyingSync = true
+                if (map.zoomLevel !== root.paneController.zoom) {
+                    map.zoomLevel = root.paneController.zoom
+                }
+                if (map.coordinate[0] !== root.paneController.centerLatitude ||
+                    map.coordinate[1] !== root.paneController.centerLongitude) {
+                    map.coordinate = [root.paneController.centerLatitude,
+                                      root.paneController.centerLongitude]
+                }
+                root.applyingSync = false
             }
         }
 
@@ -118,8 +145,57 @@ Rectangle {
         }
     }
 
-    // Minimal per-pane identification while the grid has more than one pane. Real pane chrome
-    // (site/product pickers, the quick sync controls of §4.5) lands with slice 5.
+    // Quick sync control (docs/ROADMAP.md §4.5): linking must be reachable without opening
+    // Settings. Cycles this pane through camera-link groups A and B and back to independent.
+    // Deliberately minimal - it drives the general per-channel model underneath, which supports
+    // combinations (e.g. shared location with independent zoom) this control does not yet expose.
+    Row {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: 6
+        spacing: 4
+        visible: root.showLabel
+
+        Rectangle {
+            width: 62
+            height: 22
+            radius: 4
+            color: linked ? "#2b3a4d" : "#1a1f26"
+            border.color: linked ? "#4a7ab0" : "#2f3742"
+            border.width: 1
+            opacity: 0.92
+
+            // Referencing syncRevision is what makes this binding re-evaluate: group membership
+            // is read through a method, which QML cannot track for staleness on its own.
+            readonly property int group:
+                root.hasController && typeof paneGridModel !== "undefined"
+                    ? (paneGridModel.syncRevision,
+                       paneGridModel.cameraSyncGroup(root.paneController.paneId))
+                    : 0
+            readonly property bool linked: group !== 0
+
+            Text {
+                anchors.centerIn: parent
+                text: parent.linked
+                    ? "Link " + String.fromCharCode(64 + parent.group)
+                    : "Unlinked"
+                color: parent.linked ? "#dce6f2" : "#8d99a8"
+                font.pixelSize: 10
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                // none -> A -> B -> none. Two groups is enough to demonstrate that groups are
+                // independent of one another, which one group alone would not show.
+                onClicked: paneGridModel.setCameraSyncGroup(
+                    root.paneController.paneId, (parent.group + 1) % 3)
+            }
+        }
+    }
+
+    // Minimal per-pane identification while the grid has more than one pane. Full pane chrome
+    // (site/product pickers) still lands later.
     Text {
         anchors.left: parent.left
         anchors.top: parent.top

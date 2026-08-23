@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nimbus/panes/sync_types.hpp>
 #include <nimbus/products/product_descriptor.hpp>
 
 #include <memory>
@@ -7,6 +8,7 @@
 #include <QMapLibre/Map>
 #include <QObject>
 #include <QString>
+#include <QVariant>
 
 namespace nimbus
 {
@@ -18,11 +20,9 @@ namespace panes
  * (a products::ProductDescriptor - never a `radarSite` field, per §4.6's audit note) and its own
  * camera state, both fully independent of every other pane.
  *
- * **No synchronization here yet.** Per-channel sync (§4.1-4.2) is slice 5; this slice
- * deliberately builds the multi-pane structure with every pane independent, so sync layers on top
- * of a working grid instead of being designed against a single-pane special case. The camera
- * properties below exist now precisely because slice 5 and the persistence schema (§4.6) both
- * need the pane - not the QML item - to be where camera state lives.
+ * Holds its own per-channel sync group membership (§4.1). A pane knows only which groups it
+ * belongs to, never which other panes exist - fanning a change out to grouped panes is
+ * PaneGridModel's job, so panes stay independent of one another by construction.
  */
 class PaneController : public QObject
 {
@@ -40,9 +40,11 @@ class PaneController : public QObject
    Q_PROPERTY(double homeLatitude READ homeLatitude NOTIFY productChanged)
    Q_PROPERTY(double homeLongitude READ homeLongitude NOTIFY productChanged)
 
-   Q_PROPERTY(double centerLatitude READ centerLatitude WRITE setCenterLatitude NOTIFY cameraChanged)
-   Q_PROPERTY(
-      double centerLongitude READ centerLongitude WRITE setCenterLongitude NOTIFY cameraChanged)
+   // Location is read-only as a property and written through setCenter(): latitude and longitude
+   // are one channel, and setting them one at a time would fan a half-updated coordinate out to
+   // grouped panes.
+   Q_PROPERTY(double centerLatitude READ centerLatitude NOTIFY cameraChanged)
+   Q_PROPERTY(double centerLongitude READ centerLongitude NOTIFY cameraChanged)
    Q_PROPERTY(double zoom READ zoom WRITE setZoom NOTIFY cameraChanged)
    Q_PROPERTY(double bearing READ bearing WRITE setBearing NOTIFY cameraChanged)
    Q_PROPERTY(double pitch READ pitch WRITE setPitch NOTIFY cameraChanged)
@@ -74,11 +76,37 @@ public:
    [[nodiscard]] double bearing() const;
    [[nodiscard]] double pitch() const;
 
-   void setCenterLatitude(double value);
-   void setCenterLongitude(double value);
+   /**
+    * Sets the Location channel atomically. Called from QML as the user pans, so it is treated as
+    * UserInput and is the one path that fans out to grouped panes.
+    */
+   Q_INVOKABLE void setCenter(double latitude, double longitude);
+
    void setZoom(double value);
    void setBearing(double value);
    void setPitch(double value);
+
+   /** This pane's group on `channel`, or kNoSyncGroup when independent on it. */
+   Q_INVOKABLE int syncGroup(nimbus::panes::SyncChannel channel) const;
+
+   /**
+    * Joins (or, with kNoSyncGroup, leaves) a group on one channel. Joining does not itself copy
+    * any value across - panes converge on the next change to that channel. Use
+    * PaneGridModel::copyChannel for the distinct "match this pane to that one now" action
+    * (§4.1's persistent-link vs. one-shot-apply distinction).
+    */
+   Q_INVOKABLE void setSyncGroup(nimbus::panes::SyncChannel channel, int groupId);
+
+   /** Current value of `channel`, or an invalid QVariant for channels with no state yet. */
+   [[nodiscard]] QVariant channelValue(nimbus::panes::SyncChannel channel) const;
+
+   /**
+    * Applies an incoming value from the sync coordinator. Origin is recorded so the resulting
+    * change does not fan out again (§4.2).
+    */
+   void applyChannelValue(nimbus::panes::SyncChannel channel,
+                          const QVariant&            value,
+                          nimbus::panes::ChangeOrigin origin);
 
    /**
     * Registers this pane's Visualization Layer(s) on its map. Called from QML once the map's
@@ -90,6 +118,23 @@ public:
 signals:
    void productChanged();
    void cameraChanged();
+   void syncGroupsChanged();
+
+   /**
+    * Emitted only when a camera channel was changed by something other than this pane's own user
+    * input - i.e. by the sync coordinator. The view must follow the map for its own gestures, not
+    * the other way round: re-applying the controller's camera during a local gesture fights it.
+    * Zoom-about-cursor moves the centre as part of zooming, so a handler that snaps the centre
+    * back mid-gesture turns a zoom into a slide. (Observed as exactly that, and this signal
+    * exists to keep the two directions separable.)
+    */
+   void cameraSynced();
+
+   /**
+    * Emitted whenever a channel's value changes, tagged with where the change came from.
+    * PaneGridModel listens and fans out only UserInput changes.
+    */
+   void channelChanged(nimbus::panes::SyncChannel channel, nimbus::panes::ChangeOrigin origin);
 
 private:
    class Impl;

@@ -4,6 +4,7 @@
 #include <nimbus/products/product_descriptor.hpp>
 
 #include <algorithm>
+#include <array>
 #include <vector>
 
 namespace nimbus
@@ -19,6 +20,11 @@ namespace
 // Matches §4.6's "1x1 through 3x3(+)" - the cap is a guard against a runaway resize, not a
 // statement that larger grids are architecturally special. Raise it when the UI can drive it.
 constexpr int kMaxGridDimension = 4;
+
+// What "link the camera" means in the pane chrome. Bearing and Pitch are included so a future
+// rotation control is grouped correctly the day it exists, without revisiting this.
+constexpr std::array<SyncChannel, 4> kCameraChannels {
+   SyncChannel::Location, SyncChannel::Zoom, SyncChannel::Bearing, SyncChannel::Pitch};
 } // namespace
 
 class PaneGridModel::Impl
@@ -29,6 +35,7 @@ public:
 
    QString defaultSourceKey_ {};
    int     nextPaneId_ {0};
+   int     syncRevision_ {0};
 
    std::vector<std::unique_ptr<PaneController>> panes_;
 };
@@ -48,6 +55,11 @@ int PaneGridModel::gridWidth() const
 int PaneGridModel::gridHeight() const
 {
    return p->gridHeight_;
+}
+
+int PaneGridModel::syncRevision() const
+{
+   return p->syncRevision_;
 }
 
 int PaneGridModel::rowCount(const QModelIndex& parent) const
@@ -122,6 +134,13 @@ void PaneGridModel::setGridSize(int width, int height)
          // No QObject parent: the unique_ptr owns this. Setting a parent too would give Qt's
          // parent-child cleanup a second claim on the same object.
          p->panes_.push_back(std::make_unique<PaneController>(p->nextPaneId_++, descriptor));
+
+         PaneController* pane = p->panes_.back().get();
+         connect(pane,
+                 &PaneController::channelChanged,
+                 this,
+                 [this, pane](SyncChannel channel, ChangeOrigin origin)
+                 { PropagateChannel(pane, channel, origin); });
       }
       endInsertRows();
    }
@@ -133,6 +152,129 @@ void PaneGridModel::setGridSize(int width, int height)
       p->panes_.resize(desired);
       endRemoveRows();
    }
+}
+
+void PaneGridModel::PropagateChannel(PaneController* source,
+                                     SyncChannel     channel,
+                                     ChangeOrigin    origin)
+{
+   // §4.2: only a genuine user interaction fans out. An incoming sync re-emits with
+   // ProgrammaticSync, which lands here and stops - that is what prevents two grouped panes from
+   // bouncing a value between them forever.
+   if (origin != ChangeOrigin::UserInput)
+   {
+      return;
+   }
+
+   const SyncGroupId group = source->syncGroup(channel);
+   if (group == kNoSyncGroup)
+   {
+      return;
+   }
+
+   const QVariant value = source->channelValue(channel);
+   if (!value.isValid())
+   {
+      return;
+   }
+
+   for (const auto& pane : p->panes_)
+   {
+      if (pane.get() == source || pane->syncGroup(channel) != group)
+      {
+         continue;
+      }
+
+      pane->applyChannelValue(channel, value, ChangeOrigin::ProgrammaticSync);
+   }
+}
+
+void PaneGridModel::copyChannel(int fromPaneId, int toPaneId, SyncChannel channel)
+{
+   PaneController* from = nullptr;
+   PaneController* to   = nullptr;
+
+   for (const auto& pane : p->panes_)
+   {
+      if (pane->paneId() == fromPaneId)
+      {
+         from = pane.get();
+      }
+      if (pane->paneId() == toPaneId)
+      {
+         to = pane.get();
+      }
+   }
+
+   if (from == nullptr || to == nullptr || from == to)
+   {
+      return;
+   }
+
+   // ProgrammaticSync, so a one-shot copy never cascades into the target's own groups - the user
+   // asked to match one pane to another, not to re-broadcast from the target.
+   to->applyChannelValue(channel, from->channelValue(channel), ChangeOrigin::ProgrammaticSync);
+}
+
+void PaneGridModel::setCameraSyncGroup(int paneId, int groupId)
+{
+   for (const auto& pane : p->panes_)
+   {
+      if (pane->paneId() != paneId)
+      {
+         continue;
+      }
+
+      for (const SyncChannel channel : kCameraChannels)
+      {
+         pane->setSyncGroup(channel, groupId);
+      }
+
+      logger_->info("Pane {} camera sync group set to {}", paneId, groupId);
+
+      ++p->syncRevision_;
+      Q_EMIT syncRevisionChanged();
+
+      // Joining a group does not retroactively move anything (§4.1) - panes converge on the next
+      // change. Adopting the group's current view immediately is the friendlier behaviour here,
+      // so a newly linked pane matches what it just joined instead of staying put until the user
+      // happens to pan. Done as an explicit one-shot copy from an existing member, which is
+      // exactly the distinction §4.1 asks to keep visible.
+      if (groupId != kNoSyncGroup)
+      {
+         for (const auto& other : p->panes_)
+         {
+            if (other.get() == pane.get() ||
+                other->syncGroup(SyncChannel::Location) != groupId)
+            {
+               continue;
+            }
+
+            for (const SyncChannel channel : kCameraChannels)
+            {
+               pane->applyChannelValue(
+                  channel, other->channelValue(channel), ChangeOrigin::ProgrammaticSync);
+            }
+            break;
+         }
+      }
+
+      return;
+   }
+}
+
+int PaneGridModel::cameraSyncGroup(int paneId) const
+{
+   for (const auto& pane : p->panes_)
+   {
+      if (pane->paneId() == paneId)
+      {
+         // Location is the representative channel: setCameraSyncGroup always moves the whole set
+         // together, so any one of them answers for the group as a whole.
+         return pane->syncGroup(SyncChannel::Location);
+      }
+   }
+   return kNoSyncGroup;
 }
 
 } // namespace panes

@@ -1405,6 +1405,76 @@ special case.
 > DbgHelp-based unhandled-exception handler that logs a module+offset backtrace through the
 > existing logger. Do that before attempting another blind fix.
 
+> **Update (2026-08-23): done, and it paid for itself immediately.** Release builds now emit PDBs
+> (`/Zi` with `/DEBUG /OPT:REF /OPT:ICF`, so codegen stays a real Release build), and
+> `app/source/nimbus/util/crash_handler.*` installs a DbgHelp/StackWalk64 unhandled-exception
+> handler writing a symbolized backtrace to `logs/nimbus-crash.log`, plus an all-thread dump armed
+> on `aboutToQuit` for hangs (a deadlock produces no crash and no output otherwise). It writes
+> with plain Win32 calls, not spdlog, since the fault happens after the logger's sinks may be gone.
+>
+> The first stack it produced identified a bug of **ours**, not upstream: patch 0005's
+> `mapLibreMap()` is a `Q_INVOKABLE`, and Qt gives *JavaScript ownership* to any QObject returned
+> from one, so QML's garbage collector was deleting a `Map` that `MapQuickItem`'s `unique_ptr`
+> already owned. Fixed with `QQmlEngine::setObjectOwnership(map, CppOwnership)` in
+> `PaneController::attachLayers`; confirmed by the stack moving from `QV4::MemoryManager::sweep`
+> to `~MapQuickItem`. **Watch for this on any future `Q_INVOKABLE` returning a borrowed QObject.**
+>
+> Underneath it are two genuine upstream teardown defects, now diagnosed and filed (see ADR 0004's
+> upstream table): `mbgl::gl::Context::~Context` calls GL with no current context
+> ([#302](https://github.com/maplibre/maplibre-native-qt/issues/302)), and behind *that*,
+> `~Thread<MainResourceLoaderThread>` blocks forever on a worker parked in `QEventLoop::exec`
+> ([#285](https://github.com/maplibre/maplibre-native-qt/issues/285)). Both fix attempts were
+> reverted: calling `destroyRenderer()` from the render thread trades the crash for an indefinite
+> hang (worse for users), and leaking the QML engine changes nothing because `QGuiApplication`
+> tears the window down itself. **Net behaviour is unchanged** - still a fault after the window
+> closes, with nothing left to lose - but it is now auto-logged with a full stack instead of
+> opaque. A real fix belongs upstream.
+
+**Status as of 2026-08-23 — Slice 5 complete: per-channel synchronization.** The sync model from
+§4.1-4.2, layered onto slice 4's grid. There is deliberately no global "linked" flag anywhere.
+
+- `panes/sync_types.hpp`: `SyncChannel` (all eleven channels from §4.1 declared up front, so the
+  enum is not renumbered later when persisted layouts would care), `ChangeOrigin`, `SyncGroupId`.
+  Channels with no backing state yet (`Time`, `Animation`, `Cursor`, `SelectedStorm`, `Palette`)
+  return an invalid `QVariant`, which makes the coordinator skip them rather than propagate
+  nonsense - the plumbing exists, the data does not.
+- `PaneController` holds only *its own* per-channel group membership and never learns that other
+  panes exist. Fan-out lives in `PaneGridModel::PropagateChannel`, so panes stay independent by
+  construction.
+- **Feedback prevention (§4.2)** is origin-based, not flag-based: only `ChangeOrigin::UserInput`
+  fans out; an applied sync re-emits as `ProgrammaticSync` and stops there.
+- `Location` is one channel carrying a lat/lon pair, so a half-updated coordinate can never
+  propagate. This is why `centerLatitude`/`centerLongitude` are read-only properties written
+  through `setCenter()`.
+- Persistent link vs. one-shot apply are kept distinct per §4.1: `setSyncGroup` joins a group,
+  `PaneGridModel::copyChannel` copies a value once and creates no ongoing relationship.
+- Per-pane "Unlinked / Link A / Link B" control in the pane chrome (§4.5's "reachable without
+  opening Settings"). Two groups, not one, so the UI actually demonstrates that groups are
+  independent of each other.
+- **New test target `nimbus-app-test`** (`test/source/nimbus/`, per this roadmap's "test the C++
+  models independently of QML" rule) with 13 tests covering per-channel independence, group
+  propagation, cross-group isolation, the no-echo guard, one-shot copy, leaving a group, and
+  groups surviving a resize. It compiles the app's sources directly; **if that source list grows
+  much further, split the app into a static library + thin `main()` and link that from both
+  targets** rather than extending the list.
+- **A regression this slice caused and fixed, worth remembering:** the first version pushed the
+  controller's camera back into the map on every `cameraChanged`, including the pane's own
+  gestures. Zoom-about-cursor moves the centre as part of zooming, so snapping the centre back
+  mid-gesture turned wheel-zoom into a sideways/diagonal slide whose direction depended on cursor
+  position (found by the user, not by the tests - the tests exercise the model, not the QML
+  binding). Fixed with a separate `cameraSynced` signal emitted *only* for coordinator-driven
+  changes. **The view follows the map for local input; sync follows the map. Never re-apply a
+  pane's own camera to itself.**
+- **Not verified this slice:** the QML link control end-to-end under automation. An attempt to
+  drive it with synthetic clicks landed in an unrelated window that had focus and was discarded
+  rather than reported as passing; the model itself is covered by the unit tests, and the control
+  was confirmed manually by the user. `Bearing`/`Pitch` are grouped and propagated but no QML
+  property exposes them yet (see slice 4's note), so they are untested in practice.
+- **Next slice:** slice 6, `MapObjectStore`/`MapObjectsLayer` with scope resolution (§4.3) -
+  markers/drawings/range rings and the temporary/pinned/saved lifecycle. Scope resolution consumes
+  the sync groups built here, so `SyncGroup(channel, groupId)` scoping now has something real to
+  resolve against.
+
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
 **Scope:** a national/regional mosaic reflectivity (and optionally echo-tops/precip) layer as a

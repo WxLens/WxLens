@@ -88,3 +88,61 @@ target_link_libraries(nimbus-wxdata-test GTest::gtest
                                          Boost::json)
 
 gtest_discover_tests(nimbus-wxdata-test)
+
+# ---------------------------------------------------------------------------------------------
+# nimbus-app-test: Nimbus's own C++ model classes, tested independently of QML (docs/ROADMAP.md).
+# Separate target from nimbus-wxdata-test because these need Qt, while the wxdata suite is
+# deliberately Qt-free.
+#
+# The app's sources are compiled into this target rather than linked, since nimbus-app is an
+# executable. If that source list grows much further, the app should be split into a static
+# library plus a thin main() and both targets should link that instead.
+find_package(Qt6 REQUIRED COMPONENTS Core Quick OpenGL Qml)
+find_package(GeographicLib REQUIRED)
+find_package(glm REQUIRED)
+
+set(NIMBUS_APP_SRC ${NIMBUS_DIR}/app/source/nimbus)
+
+add_executable(nimbus-app-test
+    source/nimbus/app_test_main.cpp
+    source/nimbus/panes/pane_sync.test.cpp
+
+    ${NIMBUS_APP_SRC}/data/radar_site_data_service.cpp
+    ${NIMBUS_APP_SRC}/data/radar_site_database.cpp
+    ${NIMBUS_APP_SRC}/log/logger.cpp
+    ${NIMBUS_APP_SRC}/panes/pane_controller.cpp
+    ${NIMBUS_APP_SRC}/panes/pane_grid_model.cpp
+    ${NIMBUS_APP_SRC}/panes/sync_types.hpp
+    ${NIMBUS_APP_SRC}/products/radar_sweep_product.cpp
+    ${NIMBUS_APP_SRC}/render/radar_sweep_layer.cpp
+    ${NIMBUS_APP_SRC}/util/geodesic.cpp
+    ${CMAKE_FILES})
+
+set_target_properties(nimbus-app-test PROPERTIES CXX_STANDARD 20
+                                                 CXX_STANDARD_REQUIRED ON
+                                                 CXX_EXTENSIONS OFF
+                                                 AUTOMOC ON)
+
+target_include_directories(nimbus-app-test PRIVATE ${GTest_INCLUDE_DIRS}
+                                                   ${NIMBUS_DIR}/app/source)
+
+if (MSVC)
+    set_target_properties(nimbus-app-test PROPERTIES LINK_FLAGS "/ignore:4099")
+    # Same NOMINMAX requirement as nimbus-app - see app/CMakeLists.txt for the failure mode.
+    target_compile_options(nimbus-app-test PRIVATE -DNOMINMAX)
+    target_compile_options(nimbus-app-test PRIVATE "/MP")
+endif()
+
+target_link_libraries(nimbus-app-test GTest::gtest
+                                      Qt6::Core
+                                      Qt6::Qml
+                                      Qt6::Quick
+                                      Qt6::OpenGL
+                                      wxdata
+                                      Boost::timer
+                                      Boost::json
+                                      GeographicLib::GeographicLib
+                                      glm::glm-header-only
+                                      QMapLibre::Core)
+
+gtest_discover_tests(nimbus-app-test)
