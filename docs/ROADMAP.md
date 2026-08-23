@@ -1514,11 +1514,27 @@ rather than reproducing the split.
   filtering, post-creation scope changes, and revision bumping. Then end-to-end in the running
   app: markers and a range ring placed through the actual UI render correctly over live KEAX
   reflectivity, with zero QML warnings.
-- **Tooling note for future agents:** screen-scraping verification (`CopyFromScreen`) is
-  unreliable here - it captures whatever is composited on top, and twice produced screenshots of
-  unrelated windows. **Use `PrintWindow` with `PW_RENDERFULLCONTENT`**, which captures the
-  window's own surface even when occluded, and check `GetForegroundWindow()` before synthesizing
-  any input.
+- **A bug the tests could not catch, found by the user:** objects initially stuck to their
+  original *screen pixel* and slid across the map while panning/zooming. `pixelForCoordinate` is
+  a method call, so a QML binding cannot know its result went stale; the ring geometry and the
+  object list already read a `cameraTick` counter to force re-evaluation, but the marker anchor
+  binding did not. Fixed, and `PaneHost` now bumps that tick from the map's own
+  `coordinate`/`zoomLevel` signals as well, so objects also re-project when a *synced* pane is
+  moved by another pane (where the controller write-back is deliberately suppressed).
+  **Every projected value in `MapObjectsLayer.qml` needs that dependency** - it is the easiest
+  thing to forget when adding a new object type.
+- **Tooling notes for future agents (both cost real time this slice):**
+  1. Screen-scraping with `CopyFromScreen` is unreliable - it captures whatever is composited on
+     top, and twice produced screenshots of unrelated windows. **Use `PrintWindow` with
+     `PW_RENDERFULLCONTENT`**, which captures the window's own surface even when occluded, and
+     check `GetForegroundWindow()` before synthesizing input (Windows often refuses
+     `SetForegroundWindow` from a background process; the `AttachThreadInput` dance works).
+  2. **PowerShell is DPI-unaware, so `GetWindowRect`/`GetClientRect`/`SetCursorPos` speak
+     *virtualized* coordinates, while `PrintWindow` renders at *physical* scale.** On this 125%
+     display those differ by 1.25x, and mixing them made correct rendering look like a
+     placement bug - it was investigated as a real defect before the arithmetic reconciled
+     exactly (expected image (488.75, 317.5) vs measured (488.5, 317.5)). When a measured offset
+     looks like a clean scale factor, suspect the measurement before the code.
 - **Not built this slice:** Line/Polygon/TextAnnotation object types (declared in the enum,
   no tool or renderer yet), object selection/editing/deletion from the map, and `Saved`
   persistence. `SameLocation` scope resolves correctly but has no UI to select it.

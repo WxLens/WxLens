@@ -114,7 +114,11 @@ int ObjectToolController::placeAt(double latitude, double longitude, panes::Pane
 
    if (id >= 0)
    {
-      logger_->info("Placed object {} from pane {}", id, pane->paneId());
+      logger_->info("Placed object {} from pane {} at {:.5f},{:.5f}",
+                    id,
+                    pane->paneId(),
+                    latitude,
+                    longitude);
       Q_EMIT objectPlaced(id);
    }
 

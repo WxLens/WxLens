@@ -71,12 +71,16 @@ Rectangle {
         // with sync itself. MapQuickItem exposes only `coordinate` and `zoomLevel`; bearing/pitch
         // have no QML property to observe yet, so PaneController's stay at their defaults.
         onCoordinateChanged: {
+            // Tick first and unconditionally: geo-anchored objects must re-project on every map
+            // movement, including one applied by sync (when the write-back below is suppressed).
+            objectsLayer.cameraTick++
             if (!root.hasController || root.applyingSync) {
                 return
             }
             root.paneController.setCenter(map.coordinate[0], map.coordinate[1])
         }
         onZoomLevelChanged: {
+            objectsLayer.cameraTick++
             if (root.hasController && !root.applyingSync) {
                 root.paneController.zoom = map.zoomLevel
             }
@@ -148,6 +152,7 @@ Rectangle {
     // The User Analysis Layer (§4.3), above the map and its radar rendering but below the pane
     // chrome, so objects never obscure the controls.
     MapObjectsLayer {
+        id: objectsLayer
         anchors.fill: parent
         paneController: root.paneController
         objectStore: typeof mapObjectStore !== "undefined" ? mapObjectStore : null

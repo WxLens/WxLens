@@ -49,9 +49,17 @@ Item {
             anchors.fill: parent
 
             readonly property int objectType: modelData.objectType
-            readonly property point anchorPixel:
-                root.paneController.pixelForCoordinate(modelData.latitudes[0],
-                                                       modelData.longitudes[0])
+
+            // Reading cameraTick is what re-projects this on every camera change. Without it the
+            // binding evaluates once and the object sticks to its original *pixel*, drifting
+            // across the map as you pan and zoom - pixelForCoordinate is a method call, and QML
+            // cannot know its result went stale. Every projected value in this file needs the
+            // same dependency.
+            readonly property point anchorPixel: {
+                root.cameraTick
+                return root.paneController.pixelForCoordinate(modelData.latitudes[0],
+                                                              modelData.longitudes[0])
+            }
 
             // 0 = Marker, 3 = RangeRing (nimbus::objects::MapObjectType)
             readonly property bool isMarker: objectType === 0
