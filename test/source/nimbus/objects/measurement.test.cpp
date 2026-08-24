@@ -9,6 +9,7 @@
 #include <nimbus/panes/pane_controller.hpp>
 #include <nimbus/panes/pane_grid_model.hpp>
 #include <nimbus/util/geodesic.hpp>
+#include <nimbus/util/unit_format.hpp>
 
 #include <cmath>
 
@@ -264,6 +265,32 @@ TEST_F(MeasurementTest, DistanceFormattingShowsBothUnits)
    EXPECT_TRUE(text.contains(QStringLiteral("km")));
    EXPECT_TRUE(text.contains(QStringLiteral("mi")));
    EXPECT_TRUE(text.contains(QStringLiteral("1.00")));
+}
+
+TEST_F(MeasurementTest, UnitChangeRefreshesLiveAndPinnedMeasurementLabels)
+{
+   util::SetDistanceUnitPreference(util::DistanceUnitPreference::Metric);
+
+   measurement_.setMode(static_cast<int>(Mode::PointToPoint));
+   measurement_.addPoint(35.0, -97.0, Pane(0));
+   measurement_.addPoint(36.0, -97.0, Pane(0));
+   ASSERT_TRUE(measurement_.readout().contains(QStringLiteral("km")));
+   ASSERT_FALSE(measurement_.readout().contains(QStringLiteral("mi")));
+
+   const int id = measurement_.commit(Pane(0), static_cast<int>(MapObjectScopeKind::AllPanes));
+   ASSERT_GT(id, 0);
+
+   util::SetDistanceUnitPreference(util::DistanceUnitPreference::Imperial);
+   measurement_.refreshFormatting();
+   store_.refreshFormatting();
+
+   const QVariantList objects = store_.objectsForPane(Pane(0));
+   ASSERT_EQ(objects.size(), 1);
+   const QString label = objects.first().toMap()[QStringLiteral("label")].toString();
+   EXPECT_TRUE(label.contains(QStringLiteral("mi")));
+   EXPECT_FALSE(label.contains(QStringLiteral("km")));
+
+   util::SetDistanceUnitPreference(util::DistanceUnitPreference::Both);
 }
 
 } // namespace nimbus::objects::test

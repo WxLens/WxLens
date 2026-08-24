@@ -473,11 +473,13 @@ public:
    explicit Impl(RadarSweepProduct* self,
                  const std::string& radarSite,
                  double             siteLatitude,
-                 double             siteLongitude) :
+                 double             siteLongitude,
+                 double             siteAltitudeMslMeters) :
        self_ {self},
        radarSite_ {radarSite},
        siteLatitude_ {siteLatitude},
        siteLongitude_ {siteLongitude},
+       siteAltitudeMslMeters_ {siteAltitudeMslMeters},
        colorTable_ {LoadBundledColorTable()}
    {
    }
@@ -489,11 +491,17 @@ public:
    std::string radarSite_;
    double      siteLatitude_;
    double      siteLongitude_;
+   double      siteAltitudeMslMeters_;
 
    std::shared_ptr<scwx::common::ColorTable> colorTable_;
 
    mutable std::mutex               dataMutex_;
    std::shared_ptr<const SweepData> data_;
+
+   /// The tilt of the cut `data_` was built from. Guarded by dataMutex_ alongside data_, because
+   /// the two must never be read out of step: an altitude computed from one sweep's range and a
+   /// different sweep's elevation angle is a number that describes nothing.
+   std::optional<double> elevationAngleDegrees_ {};
 };
 
 void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
@@ -502,8 +510,11 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
    logger_->debug("Computing sweep for {}", radarSite_);
 
    // Lowest elevation cut, latest available scan in this volume (an empty time_point means "no
-   // constraint, take the newest" - see Ar2vFile::GetElevationScan). The actual elevation cut and
-   // the volume's full list of cuts aren't needed yet - elevation selection is slice 4+ work.
+   // constraint, take the newest" - see Ar2vFile::GetElevationScan). Which cut is *selected* is
+   // still fixed here; the volume's full list of cuts is what elevation selection (slice 4+) will
+   // need. `elevationCut` is the tilt this volume actually answered with, and slice 8's beam
+   // geometry reports it rather than assuming the nominal 0.5°: a VCP's lowest cut is not always
+   // 0.5°, and §4.7 forbids presenting a guessed angle as the radar's own.
    [[maybe_unused]] auto [elevationScan, elevationCut, elevationCuts] = file->GetElevationScan(
       DataBlockType::MomentRef, 0.0f, std::chrono::system_clock::time_point {});
 
@@ -525,7 +536,8 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
 
    {
       std::scoped_lock lock {dataMutex_};
-      data_ = std::move(sweepData);
+      data_                  = std::move(sweepData);
+      elevationAngleDegrees_ = elevationCut;
    }
 
    Q_EMIT self_->SweepUpdated();
@@ -534,8 +546,11 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
 RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
                                      double             siteLatitude,
                                      double             siteLongitude,
+                                     double             siteAltitudeMslMeters,
                                      QObject*           parent) :
-    QObject(parent), p {std::make_unique<Impl>(this, radarSite, siteLatitude, siteLongitude)}
+    QObject(parent),
+    p {std::make_unique<Impl>(
+       this, radarSite, siteLatitude, siteLongitude, siteAltitudeMslMeters)}
 {
    auto service = nimbus::data::RadarSiteDataService::Instance(radarSite);
 
@@ -576,7 +591,7 @@ std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(const std::string
    if (inserted)
    {
       it->second = std::make_shared<RadarSweepProduct>(
-         radarSite, siteInfo->latitude, siteInfo->longitude);
+         radarSite, siteInfo->latitude, siteInfo->longitude, siteInfo->altitudeMslMeters);
    }
    return it->second;
 }
@@ -594,6 +609,17 @@ double RadarSweepProduct::site_latitude() const
 double RadarSweepProduct::site_longitude() const
 {
    return p->siteLongitude_;
+}
+
+double RadarSweepProduct::site_altitude_msl_meters() const
+{
+   return p->siteAltitudeMslMeters_;
+}
+
+std::optional<double> RadarSweepProduct::elevation_angle_degrees() const
+{
+   std::scoped_lock lock {p->dataMutex_};
+   return p->elevationAngleDegrees_;
 }
 
 std::shared_ptr<const SweepData> RadarSweepProduct::sweep_data() const

@@ -10,6 +10,10 @@ Rectangle {
     height: 48
     color: "#181d24"
 
+    // The plain "open Settings" route. §4.5's deep-links are the other direction and come from
+    // the individual quick controls, not from here.
+    signal settingsRequested()
+
     Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
@@ -26,6 +30,29 @@ Rectangle {
         color: "#e8edf2"
         font.pixelSize: 16
         font.bold: true
+    }
+
+    Item {
+        width: 28
+        height: 28
+        anchors.right: parent.right
+        anchors.rightMargin: 12
+        anchors.verticalCenter: parent.verticalCenter
+
+        Text {
+            anchors.centerIn: parent
+            text: "⚙"
+            color: settingsArea.containsMouse ? "#e8edf2" : "#7b8794"
+            font.pixelSize: 16
+        }
+
+        MouseArea {
+            id: settingsArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.settingsRequested()
+        }
     }
 
     Text {

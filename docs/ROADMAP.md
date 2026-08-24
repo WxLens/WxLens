@@ -644,6 +644,16 @@ as an unrelated, globally-scoped system. The new app unifies both into one `MapO
   to a saved pane-layout/workspace. Only tier (2) and (3) ever populate the `MapObjectStore`;
   tier (1) is pure UI state local to whatever tool is active. This keeps the map from filling up
   with clutter every time someone probes a location, per the explicit ask.
+- **Default scope is a user setting, not a hardcoded constant.** The competing apps genuinely
+  disagree here, and both are right for their users: RadarOmega draws on the one pane you drew
+  in, while RadarScope shows the drawing across the group — which is the better default for the
+  common analysis case, because it puts the same annotation over reflectivity *and* velocity
+  *and* whatever else the group is showing, so you can see how the feature you outlined looks in
+  each product at once. Other users find objects crossing panes actively unwanted. So the default
+  belongs in the structured config store (§3.2), settable **per object kind** — drawings,
+  measurements, markers and range rings do not have to share one answer — with the per-object
+  scope control (§4.5) overriding it for a single object. Do not bake `CurrentPaneOnly` in as a
+  constant; read it from settings with `CurrentPaneOnly` as the shipped default.
 
 ### 4.4 Measurement as a reusable interaction framework
 
@@ -651,14 +661,44 @@ Not limited to radar-site-to-click; the measurement tool supports several explic
 built on `util::geographic_lib`'s already-existing WGS84 geodesic math (`GetDistance`, `GetAngle`,
 `GetCoordinate` — confirmed Qt-free and directly reusable, see §2):
 
-- **Point → Point:** click A, click B. Shows distance, forward bearing (`GetAngle(a,b)`), reverse
-  bearing (`GetAngle(b,a)`), and both coordinates.
-- **Radar → Point:** explicitly preserved as a named mode — radar site coordinate as point A
-  (already known per-site), clicked point as B, displayed as range/azimuth. This generalizes
-  what `radar_coordinate_table.cpp`'s range/azimuth grid already computes implicitly into an
-  explicit, user-facing tool.
+- **Distance/bearing (one tool, not two modes):** click A, click B. Shows distance, forward
+  bearing (`GetAngle(a,b)`), reverse bearing (`GetAngle(b,a)`), and both coordinates. Radar →
+  point is **not** a separate mode: the radar site is a snap target (below), so starting a
+  measurement near the site produces the radar-relative measurement automatically. Splitting
+  these into two buttons forces the user to pick a mode before they know which one they want,
+  and the underlying operation — a WGS84 geodesic between two coordinates — is identical either
+  way. The *readout* adapts to what was snapped: with A on a radar site, display range/azimuth
+  in the radar-native framing `radar_coordinate_table.cpp` already computes implicitly;
+  otherwise display plain distance/bearing. Same tool, context-aware result — this is §5.3's
+  progressive disclosure applied to measurement.
+- **Snap targets (magnetic endpoints):** measurement endpoints snap to meaningful points when
+  clicked or dragged within a tolerance. Implement this as a **snap-target registry**, not a
+  radar special case, because the same behavior is wanted for several point populations: the
+  pane's radar site (and other in-view sites), saved places (§4.9), existing `MapObject`
+  vertices and centers, and later storm-track points. Three requirements that are easy to get
+  wrong and expensive to retrofit:
+  - **Tolerance is screen-space, not geographic.** A fixed-kilometer radius is enormous at
+    continental zoom and invisible when zoomed into a single storm. Snap within N *pixels*,
+    converted to a geographic tolerance per-frame from the pane's current scale.
+  - **Snapping must be visible before it commits.** Highlight the target and show the endpoint
+    jump to it while dragging. A silent coordinate rewrite reads as a bug, not a feature.
+  - **User-configurable, and suppressible.** Tolerance lives in the structured config store
+    (§3.2) — expose it as off/subtle/strong rather than raw pixel entry, per §5.3 — and a held
+    modifier key places a point exactly, suppressing snap for one placement without a trip to
+    settings. Both are standard in CAD and vector-drawing tools for the same reason: a magnet
+    with no escape hatch becomes an obstacle the moment someone wants the point they actually
+    clicked.
 - **Multi-point path:** extend the existing `MapAnnotationMeasure{a,b}` payload into a path
   payload (`points: vector<Coordinate>`) with per-segment distance/bearing and a running total.
+- **Which gesture starts a measurement is a user preference** (added 2026-08-24 from user
+  feedback). Slice 7 shipped press-drag-release *and* click-then-click-again simultaneously, on
+  the reasoning that neither habit should be punished. That is a sound default but a poor
+  mandate: with both live, a click that does not move leaves a measurement half-started and
+  waiting, so a stray click on the map arms something the user did not intend and the next click
+  lands somewhere they were not aiming. Offer three values in the config store (§3.2) - drag
+  only, click-click only, or both - defaulting to both. Note this preference only became
+  *evaluable* once the drag path actually worked; see slice 8's grab-steal defect, which made
+  click-click look like the only supported gesture.
 - **Point info:** a clicked point yields lat/lon, range/azimuth from the pane's currently
   selected radar site, and — once Phase 3's data layers exist — whatever satellite/model value
   is present at that point; Phase 1 delivers the radar-relative info only, with the tool designed
@@ -678,6 +718,17 @@ successor to `map_pane_context_menu.cpp`): link to another pane, unlink, match l
 camera, copy view to another pane, make independent, follow another pane. Advanced/less-common
 configuration (custom channel combinations, naming a group) can live in a settings surface, but
 the common actions must not require opening it.
+
+**Every quick control links to the setting that governs its default.** The rule above gets you
+from Settings to the pane; this is the other direction, and it is the half that is usually
+missing. A quick control changes one object, one pane, one time — the moment a user finds
+themselves setting it the same way repeatedly, what they actually want is to change the default,
+and they should not have to go hunting through a settings tree to find where that lives. So each
+inline control (scope, sync, units, product defaults) carries an affordance that opens the
+settings surface **already scrolled to and highlighting the specific section** that sets its
+default — not the top of Settings, and not a general "Preferences" page. This implies settings
+sections need stable addressable ids from the start, so a control can deep-link to one; retrofitting
+addressability onto a settings tree built without it is the expensive way to get here.
 
 ### 4.6 Pane/data-service architecture underneath the sync model
 
@@ -756,6 +807,16 @@ capability.
 - **Progressive disclosure:** the default measurement UI shows the simple range/azimuth/distance
   readout; the fuller radar-geometry breakdown lives in an expandable "Radar Geometry" section so
   the common case stays uncluttered (ties into §5.3).
+- **Which rows the breakdown shows is a user setting, not a fixed list** (added 2026-08-24 from
+  user feedback on the slice-8 readout). Collapsing the section behind a disclosure header
+  declutters the *pane*; it does nothing about the seven rows inside it, and a user who only ever
+  wants beam-centre MSL should not have to read past six other lines to find it. So the visible
+  row set lives in the structured config store (§3.2) as a per-row toggle, defaulting to all on.
+  **One constraint is not negotiable and must be enforced in the settings UI itself:** the terrain
+  and beam-height-AGL rows default to *visible*, because this section's own rule is that the app
+  must say "terrain data unavailable" rather than let a reader assume the MSL figure is an AGL
+  one. Letting a user hide them after they have been told is fine; shipping them hidden is the
+  silent omission this section exists to prevent.
 
 ### 4.8 Acceptance criteria for this architecture
 
@@ -773,6 +834,45 @@ shows range/azimuth/elevation-angle/beam-center-MSL live while dragging, without
 permanent object until explicitly pinned; (17) beam-center AGL is never displayed as if
 authoritative when no real terrain data backs it; (18) a pinned measurement can be promoted to a
 saved, persistent object independent of the temporary-probe interaction that created it.
+
+### 4.9 Saved places (personal locations) — a distinct population from analysis objects
+
+§4.3 unifies markers, drawings and measurements into one `MapObject` family, which is correct as
+*architecture*. But it flattens two populations users think about completely differently, and
+slice 6 shipped only the first:
+
+- **Analysis objects** — drawn during an event, about a storm, mostly session-lifetime, scoped to
+  a pane or a sync group. "Circle this couplet." These are what §4.3's temporary → pinned tiers
+  describe, and what the slice 6/7 tools currently produce.
+- **Saved places** — durable personal context with nothing to do with the current storm, wanted
+  in *every* session: home, family, friends, the kids' school, work. Nobody should have to
+  re-place these, and they belong on every pane by default, because the question they answer
+  ("where is this relative to people I care about?") does not change when the product on screen
+  changes.
+
+One store and one object family still serves both — do not build a parallel system, that is the
+exact mistake §4.3 exists to undo. What differs is defaults, lifecycle, and management surface:
+
+- Saved places are **always tier-3 (saved)** — created persistent, never session-only.
+- Their **default scope is `AllPanes`**, not the `CurrentPaneOnly` default §4.3 sets for drawings.
+- They need a **management surface** analysis scribbles do not: a searchable list, rename/edit/
+  delete, and import/export (same shareable-plain-file rationale as `.pal` and themes,
+  §5.1/§5.2) so places move between machines or get handed to someone else.
+
+**Groups with color coding.** Places want a taxonomy, not just a per-object color swatch: the ask
+is to color-code *family* vs. *friends* vs. *work*, which means a named group carries a color and
+its members inherit it, so recoloring a group recolors everything in it. Support both a group
+color and a per-place override, and let groups do double duty as:
+
+- **visibility toggles** — "show family only" during an event affecting one area, without
+  deleting anything;
+- **snap-target sets** for §4.4's magnetic endpoints, so "measure from my house to the hook echo"
+  is a two-click operation.
+
+A reusable color-picker control is a prerequisite. Slice 9's palette editor builds one for `.pal`
+stops, so this work follows it and reuses that component — but note the *widget* is shared while
+the *systems* stay separate per §0's rule: `.pal` palettes, UI themes, and place colors are three
+independent things that happen to need the same picker.
 
 ---
 
@@ -839,6 +939,59 @@ distance/bearing) with an expandable section for the professional depth (e.g. fu
 geometry) — apply this same pattern anywhere else the app has a simple/advanced split (palette
 editing, pane sync configuration, settings). Never achieve "approachable" by removing
 professional capability; achieve it by not surfacing it until asked for.
+
+### 5.4 Primary control surface placement — bottom, not the left rail
+
+Slice 1 put tools in a left `SideRail.qml` as a direct successor to
+`radar_toolbox_rail_widget.cpp`. That inheritance is not a reason to keep it. The user's stated
+preference — and the stronger ergonomic argument — is a **bottom-centered control cluster**, with
+the left edge reserved for what side rails are genuinely good at: navigation and settings entry
+points, not frequently-hit tools.
+
+Reasons this is more than taste:
+
+- **A left rail taxes every pane column; a bottom bar taxes the layout once.** In a 3×3 grid the
+  rail's width comes out of the whole grid's horizontal budget, and radar panes are what gets
+  squeezed. On a 16:9 display horizontal space is already the scarcer axis.
+- **Bottom-center is a shorter trip from the map.** The pointer spends its time over imagery in
+  the middle of the screen; the bottom edge is nearer that resting position than the far-left
+  edge, and unlike a left-edge trip the distance does not grow as the window gets wider.
+- **It is where the rest of the bottom furniture is going anyway.** Archive/time controls
+  (slice 11) are conventionally a bottom scrubber, and playback and tools belong in the same
+  reachable zone.
+
+**Design the bottom as one zone, not two independent bars.** The time scrubber and the tool
+cluster both want the bottom edge; discovering that after building one of them is how you end up
+with two stacked bars eating a third of the window. Lay out both before either ships.
+
+**Floating vs. docked is a real trade, and the resolution is a setting.** A floating cluster
+(inset above the bottom edge, map running full-bleed underneath) looks modern and costs no
+layout space, but it *occludes* part of the bottom-center pane — which in a 3×3 grid is a real
+pane, not dead space — and it gives up edge targeting: a screen edge stops the pointer for you,
+while a floating bar has to be aimed at. A docked bar inverts both. Ship floating as the default
+per the user's preference, with idle fade to limit the occlusion cost, and make dock-to-bottom a
+setting rather than relitigating it.
+
+### 5.5 Iconography — layout glyphs, not numerals
+
+Slice 1 labels controls with text characters standing in for icons: `1`/`2`/`4`/`9` for grid
+sizes, `↔`/`◄`/`⋯` for measurement modes, `1`/`G`/`A` for object scope. These are placeholders
+and must not survive the UI pass.
+
+The grid-size labels are not merely ugly — they are **less expressive than the model behind
+them**. `PaneGridModel` takes a width *and* a height, but a single numeral cannot distinguish
+1×2 from 2×1, so a vertical two-pane split is currently unreachable from the UI even though the
+model supports it. A glyph showing the actual arrangement (the split-pane idiom used by tiling
+window managers, terminal multiplexers, and video editors) closes a functional gap, not just an
+aesthetic one, and scales to asymmetric layouts no numeral can name.
+
+Likewise, measurement should read as a **ruler**. The current arrow glyphs say "direction" where
+the tool means "measure."
+
+Per §5.2's trade-dress discipline the icon set is original artwork. Treat it as one deliverable
+covering layout glyphs, tool icons, and scope indicators together, so the set is coherent rather
+than accumulated one control at a time. The user is supplying reference sketches for the layout
+glyphs (§9).
 
 ---
 
@@ -1016,8 +1169,9 @@ product switching, live + archived data. This is the phase meant to ship real us
   *behavior*, not code).
 - Placefile overlay support (reuse `wxdata/gr/placefile.cpp` unmodified; port rendering
   behavior).
-- Settings UI (product defaults, unit preferences, map provider choice) backed by the new
-  structured config format.
+- Settings UI (product defaults, unit preferences, map provider choice, per-object-kind default
+  scope per §4.3) backed by the new structured config format, with addressable sections so the
+  inline quick controls can deep-link into it (§4.5).
 - Structured logging live throughout, not bolted on after.
 **Implementation approach — small, independently verifiable vertical slices, not one giant
 build:** Phase 1's *architecture* (§4-§5) is designed complete up front, but an AI coding agent
@@ -1055,6 +1209,42 @@ next starts:
 13. **Multi-pane polish + acceptance validation** — quick sync/object controls in chrome (§4.5),
     UI/UX pass checked against RadarOmega/RadarScope for layout-density inspiration only, then
     validate the whole phase against §4.8's acceptance criteria.
+
+**Added 2026-08-23 from user feedback on the slice-7 shell.** These are numbered after 13 only
+because renumbering breaks cross-references; each names where it actually belongs in the
+sequence, and none of them is a tail-end nice-to-have:
+
+14. **Unified measurement + snap targets** (§4.4) — collapse the separate Point→Point and
+    Radar→Point modes into one tool backed by a screen-space snap-target registry (radar sites,
+    saved places, existing object vertices), with configurable tolerance and a suppress modifier.
+    **Runs with or immediately after slice 8**, which is already inside the measurement and
+    radar-geometry code; the saved-places snap source lights up when slice 15 lands.
+15. **Saved places** (§4.9) — persistent personal locations with color-coded groups, a
+    management surface, and import/export. **Runs after slice 9** so it reuses that slice's color
+    picker. Extends slice 6's `MapObjectStore`; does not add a parallel store.
+16. **Control surface relocation** (§5.4, §5.5) — move the primary tool cluster from the left
+    rail to a bottom-centered floating bar, with the original icon set replacing the placeholder
+    numerals and arrows. **Runs with slice 11** so the time scrubber and tool cluster are laid
+    out as one bottom zone, and **after slice 10** so it is built against `ThemeManager` roles
+    rather than inheriting the hardcoded hex literals now in `SideRail.qml`. The layout glyphs
+    also unlock 1×2/2×1 grid arrangements the numeral labels cannot express (§5.5).
+17. **Settings foundation** (§3.2, §4.5, ADR 0003) — the structured config store, typed
+    accessors, and the settings surface itself, with **addressable section ids from the first
+    commit** so inline quick controls can deep-link into the exact section that sets their
+    default. **Runs next, before slice 14.** This is a gap in the original sequence, not a new
+    idea: settings appears in Phase 1's scope list and is referenced by §3.2, §4.3, §4.4, §4.5,
+    §4.6, §4.7, §5.1, §5.2 and §5.4, but was never given a slice of its own, so every slice
+    since has deferred preferences into a layer nobody was scheduled to build. What is queued
+    behind it: per-object-kind default scope (§4.3, currently a hardcoded constant the roadmap
+    explicitly forbids), snap tolerance and its suppress modifier (§4.4 - **slice 14 cannot ship
+    without this**), unit preferences (§4.4, currently worked around by showing km *and* miles),
+    tier-3 `Saved` persistence (§4.3 - **slice 15 depends on it**), pane-layout/workspace
+    persistence (§4.6), active theme and palette selection (§5.1/§5.2), floating-vs-docked control
+    bar (§5.4), and the two preferences added 2026-08-24 above (geometry row visibility §4.7,
+    measurement gesture §4.4). §4.5 also warns that "retrofitting addressability onto a settings
+    tree built without it is the expensive way to get here" - and slices 5–8 have each shipped
+    inline controls already, so that debt is being taken on now and paid later either way. Doing
+    this before slice 14 stops the queue growing and unblocks 14 and 15 at the same time.
 
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
 structure, not a rigid contract — but keep the principle: each slice buildable and testable on
@@ -1582,6 +1772,169 @@ built on slice 6's object infrastructure rather than as a radar-only utility.
   careful to keep beam-centre MSL and terrain-relative AGL distinct and to say "terrain data
   unavailable" rather than implying an AGL figure without a real DEM.
 
+**Status as of 2026-08-24 — Slice 8 complete: radar geometry & beam-height interrogation.** §4.7's
+readout, built as a *probe of the pane's data source* rather than a radar feature bolted onto the
+measurement tool.
+
+- `util/radar_geometry.*`: the 4/3-effective-earth beam model ported from the legacy
+  `GetRadarBeamAltititude` (same constant, no units-library wrapping), plus `ProbeRadarBeam`, which
+  turns a site + tilt + target coordinate into the full breakdown. Qt-free and I/O-free, so the
+  whole thing is unit-testable without a network or a window - which is why the beam math has real
+  coverage while only the UI assembly relies on live verification.
+- **The seam is `PaneController::probeSourceAt(lat, lon)`, deliberately not `radarGeometryAt()`.**
+  §4.6 forbids radar-specific fields on `PaneController`, and §4.4's point-info tool wants "ask
+  this pane's source about this coordinate" as a general operation - a satellite or model pane
+  should answer the same call with its own fields. So it dispatches on product kind exactly as
+  `attachLayers` does, and the returned map's `kind` tells the caller what shape it got. Phase 2/3
+  providers plug into this rather than growing a parallel readout.
+- **The three terms §4.7 insists on are separate fields, not separate labels on one number:**
+  elevation *angle*, beam-centre *altitude* (MSL), and beam-centre height *above the radar* (ARL).
+  Beam-centre height above *ground* (AGL) is **absent from the struct entirely** - it cannot be
+  computed without a DEM, and a field that does not exist cannot be rendered as authoritative. The
+  UI shows "Terrain (MSL): terrain data unavailable" and "Beam height (AGL): requires terrain
+  data" as real rows rather than hiding them, because a reader who expects an AGL figure would
+  otherwise assume the MSL number *was* one.
+- **Two real metadata defects found and fixed, both of the "confidently wrong" kind §4.7 exists to
+  prevent:**
+  1. **`radar_sites.json`'s `elevation` is feet, and the loader stored it as `elevationMeters`.**
+     Nothing had read the field since slice 2, so nothing had noticed. Verified two ways before
+     changing it: the legacy loader reads the same field as `units::length::feet`
+     (`scwx-qt/config/radar_site.cpp`'s JSON branch), and the values only parse as feet - PAEC
+     (Nome, at sea level) reads 90, KMSX (Point Six Mountain, ~2.4 km) reads 7978. Now converted at
+     load and named `altitudeMslMeters`. `radar_site_database.test.cpp` pins both the conversion
+     and those two extremes so it cannot silently come back.
+  2. **The elevation angle was going to be assumed.** `RadarSweepProduct` was discarding the
+     `elevationCut` `GetElevationScan` already returns. It now keeps it and exposes it as
+     `std::optional<double>` - optional because "no sweep loaded" and "0.5°" are different answers,
+     a VCP's lowest cut is not always 0.5°, and defaulting would have the UI report a tilt the
+     radar never used. With no sweep the readout says "waiting for sweep data" and every figure
+     downstream of the angle stays unreported.
+- **Site altitude - what is known and what is not.** The bundled list does not record whether its
+  figure is ground level or the antenna on the tower, and a WSR-88D tower is tens of metres. That
+  offset is constant with range, so it shifts the whole profile rather than distorting it, and it
+  is documented in `radar_site_database.hpp` rather than smoothed over. **The authoritative fix is
+  already in the data we parse:** Message 31's volume data block carries site height (m MSL) and
+  feedhorn height (m AGL), and `wsr88d/rda/digital_radar_data_generic.cpp` reads both into private
+  members with no accessor. Adding those accessors is a wxdata change, so per AGENTS.md it belongs
+  upstream in the legacy repo, then the submodule pin advances - it is not a Nimbus-side edit.
+- `util/unit_format.*` now owns distance/altitude/bearing formatting, with
+  `MeasurementController::formatDistance` delegating to it. One implementation, because the range
+  the geometry panel reports and the distance the measurement reports are the same number, and the
+  two reading differently is a bug a user would spot before we did. It is also where §4.4's
+  deferred unit *preference* plugs in when the settings surface exists.
+- `qml/Panes/RadarGeometryPanel.qml` holds no geometry at all - every number *and* every
+  "unavailable" string comes from `probeSourceAt`, so the wording is tested rather than invented in
+  QML. Collapsed by default per §4.7/§5.3; expanding is what asks the fuller question.
+- `PaneController::sourceDataChanged` is new, and exists for the same reason `cameraTick` does:
+  `probeSourceAt` is a method call, so a QML binding cannot know its answer went stale when the
+  sweep finally loads. A readout left open across a data load would otherwise sit on "waiting for
+  sweep data" until the cursor next moved.
+- **Verified:** 17 new tests (60 total in `nimbus-app-test`, all passing) - the beam model pinned
+  against independently computed 4/3-earth values (0.5° at 100 km = 1461.5 m, and three more),
+  against the flat-earth ray it must exceed *and* by how much that gap grows with range, plus
+  compass-azimuth normalisation, the MSL/ARL separation, the no-elevation-angle path, and the site
+  altitude conversion. Then live in the running app against KEAX: Radar→Point measuring 80.2 km at
+  058.4° with the collapsed "Radar geometry" header present, zero QML warnings in the log.
+  The expanded panel was confirmed afterwards on a live KEAX measurement: all seven rows render,
+  and **the elevation angle read 0.48°, not 0.50°** - direct evidence for taking the real
+  `elevationCut` rather than assuming the nominal tilt.
+
+- **A press-and-drag defect this slice's verification missed, found by the user (now fixed).** The
+  measurement `MouseArea` took the press but the map's `DragHandler` - behind it, with default
+  `grabPermissions`, which include `CanTakeOverFromItems` - stole the exclusive grab the moment the
+  pointer crossed the drag threshold. So a press dropped the origin and then **panned the map**
+  instead of stretching the ruler, and because a stolen grab delivers `onCanceled` rather than
+  `onReleased`, the release half never ran and the measurement sat unfinished until the user
+  clicked again. Fixed with `preventStealing: true` (which sets `keepMouseGrab`, the flag a handler
+  checks before taking over) plus an `onCanceled` reset, so a legitimately lost grab cannot leave
+  `measureDragActive` stuck and make the next press reuse a stale origin. The Shift-to-pan escape
+  hatch is unaffected: it declines the press outright, so the map owns that gesture from the start
+  rather than halfway through it.
+- **The verification lesson, which matters more than the bug.** The slice was called verified after
+  exercising click-then-hover - the *fallback* path - and never exercising press-drag-release, the
+  primary gesture the code was written for. Both paths reach the same `updateCursor`, which is
+  exactly why testing one felt like testing both; what differs is only whether a button is held,
+  and a held button is the sole condition under which a pointer grab can be stolen. **When an
+  interaction has a primary gesture and a fallback, drive both - the fallback passing says nothing
+  about the primary.** Re-verified properly: mid-drag capture shows the band stretching while the
+  button is held, a basemap strip differs by 0 of 19500 pixels across the drag (proving no pan), and
+  release commits the pinned measurement in one gesture.
+- **Tooling note, and a second entry for slice 6's list:** `PrintWindow(PW_RENDERFULLCONTENT)`
+  paints the **whole window including its frame and title bar**, so sizing the capture bitmap from
+  `GetClientRect` silently clips the bottom rows. That looked exactly like a QML layout overflow -
+  the readout box appeared to spill its last line onto the map - and was investigated as a real
+  defect before a debug overlay showed the layout was correct all along. Size the bitmap from
+  `GetWindowRect`. Slice 6 already recorded "when a measured offset looks like a clean scale
+  factor, suspect the measurement before the code"; this is the same lesson with an offset instead
+  of a factor.
+- **Not built this slice:** beam top/bottom (vertical extent) - explicitly §8 backlog, though
+  nothing here assumes a thin ray: the elevation angle is a parameter, so top/bottom is two more
+  `BeamAltitudeMsl` calls at elevation ± half the beamwidth, not a rework. Also not built: terrain
+  (no DEM provider until Phase 3+), §4.4's standalone "Point info" mode (the probe it needs now
+  exists), and pinning a geometry interrogation as an object.
+- **Next slice:** slice 14, unified measurement + snap targets (§4.4) - it is scheduled to run with
+  or immediately after this slice, and this slice's `probeSourceAt` is what makes "the readout
+  adapts to what was snapped" cheap: a measurement whose origin snapped to a radar site can ask the
+  probe for range/azimuth framing instead of needing a separate Radar→Point mode.
+
+**Status as of 2026-08-24 — Slice 17 complete: the settings foundation.** §3.2's structured config
+store, ADR 0003's TOML backing, and §4.5's addressable sections - built out of order, ahead of
+slices 14–16, because it was never given a slice at all and everything else had been deferring
+preferences into it.
+
+- `settings/settings_store.*` - TOML under `QStandardPaths::AppConfigLocation`, one file per
+  category per ADR 0003. **Hand-editing is a supported workflow, and that drives the entire error
+  policy:** a wrong-typed value, an out-of-range number or a malformed file each fall back to the
+  default and log what was rejected, rather than crashing, clamping, or taking neighbouring
+  settings down with them. Two decisions worth keeping:
+  - **Out-of-range falls back rather than clamps.** Clamping turns a typo into a different
+    valid-looking setting the user never chose and cannot detect; falling back is at least
+    predictable and the log says why.
+  - **A file that fails to parse is never overwritten.** `Save()` skips it and returns false.
+    Writing our view of a file we could not read would destroy whatever the user was mid-edit,
+    which is a worse outcome than ignoring it for one session. Unknown keys survive a save too, so
+    a key from a newer build (or a note a user added) is not silently dropped.
+- `settings/app_settings.*` - the typed layer (§3.2's `settings_variable` pattern: validated
+  defaults + Qt-signal change notification). Writes persist immediately, because a setting that is
+  only in memory looks identical to one that stuck until the next launch.
+- **Section ids are a contract, not labels** (§4.5). That section warns that retrofitting
+  addressability is the expensive path, so ids exist from the first commit and are asserted
+  literally in tests: `measurement`, `objects`, `units`, `radar-geometry`. `SettingsDialog.openAt(id)`
+  is the primary entry point and plain `open()` is the degenerate case; an unknown id opens the
+  first section rather than a blank panel, so a stale deep-link degrades instead of breaking.
+- **Two deep-links are wired, to prove the mechanism rather than to be exhaustive**: the radar
+  -geometry readout's gear opens `radar-geometry`, and right-clicking the rail's scope control
+  opens `objects`. Every future quick control follows that pattern.
+- **Preferences wired this slice**, all from §4.3/§4.4/§4.7 rather than invented here:
+  - *Measurement gesture* (drag only / click-click / both, default both) - the user-requested one.
+  - *Radar-geometry row visibility* - the other user-requested one. **The §4.7 constraint is
+    enforced in the model, not left to the UI:** terrain and beam-height-AGL default to visible and
+    carry an explanatory note, because shipping them hidden is exactly the silent omission that
+    section exists to prevent. A test pins that default so it cannot regress quietly.
+  - *Default object scope* - §4.3 explicitly forbids the hardcoded constant that was there.
+    Wired in `main.cpp` rather than by giving `ObjectToolController` a settings dependency, so
+    `objects` stays independent of `settings` and the coupling direction is visible in one place.
+  - *Distance units* - retires slice 7's "show km **and** miles" stopgap. `util::unit_format` owns
+    formatting and settings *pushes* the preference into it, so `util` keeps no dependency on the
+    config store and stays usable from tests with no settings file.
+- **The row catalogue is one source of truth.** Each geometry row carries its id, label, note,
+  which `probeSourceAt` key it displays, and when it should render dimmed - so the settings
+  checklist and the readout cannot disagree about what rows exist, and the QML needs no id-to-key
+  mapping of its own.
+- **Verified:** 20 new tests (80 total in `nimbus-app-test`, all passing), covering the hand-edited
+  -file failure modes end to end (wrong type, out of range, malformed, unknown keys preserved,
+  malformed category not blocking healthy ones), persistence across a simulated relaunch, the
+  §4.7 default-visible constraint, section-id stability, and that the unit preference actually
+  changes what `FormatGroundDistance`/`FormatAltitude` return.
+- **Not built this slice:** snap tolerance (§4.4 - belongs to slice 14, and building it before that
+  slice needs it would be speculative), theme and palette selection (slices 9/10 own those),
+  pane-layout/workspace persistence (§4.6), and tier-3 `Saved` object persistence (slice 15). All
+  four now have a store to land in, which was the point.
+- **Next slice:** back to the numbered sequence - slice 14, unified measurement + snap targets,
+  which is now unblocked (its tolerance and suppress-modifier preferences have somewhere to live)
+  and which slice 8's `probeSourceAt` already serves: a measurement whose origin snapped to a radar
+  site can ask the probe for range/azimuth framing instead of needing a separate Radar→Point mode.
+
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
 **Scope:** a national/regional mosaic reflectivity (and optionally echo-tops/precip) layer as a
@@ -1697,6 +2050,15 @@ config/data-model choices don't accidentally preclude it later.
    `docs/adr/0004-maplibre-qml-integration.md`**: confirmed genuine `QQuickItem` support via
    `src/quick` (BSD-2-Clause), no `QQuickWidget` fallback needed. Nimbus uses the `Quick` module
    (QML type `MapLibre`), not the `Location` (QtLocation, LGPL/GPL) or `Widgets` module.
+
+10. **Grid-layout icon sketches** (§5.5) — the user is drawing reference glyphs for the pane-
+    layout buttons. Open until those arrive: whether the layout picker is a fixed preset row, or
+    a short preset row plus a custom rows×columns picker for arrangements the presets don't
+    cover.
+11. **Floating vs. docked default for the bottom control cluster** (§5.4) — shipping floating
+    per the user's preference, but the occlusion cost over the bottom-center pane in a 3×3 grid
+    is unmeasured. Revisit once slice 16 is usable with a real 3×3 layout rather than deciding
+    it from the mockup.
 
 ---
 

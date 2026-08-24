@@ -229,4 +229,45 @@ TEST_F(MapObjectScopeTest, RevisionAdvancesOnEveryMutation)
    EXPECT_GT(store_.revision(), afterScope);
 }
 
+// Deletion (docs/ROADMAP.md §4.3). Before this there was no way to take a committed object back
+// off the map at all, which made the pinned tier a one-way door.
+
+TEST_F(MapObjectScopeTest, RemovingObjectsInAPaneRespectsScope)
+{
+   // The point of a pane-scoped clear is that it clears *this pane*. An object belonging only to
+   // another pane must survive it, or "clear" quietly becomes "clear everything".
+   Pane(0)->setSyncGroup(panes::SyncChannel::Location, panes::kNoSyncGroup);
+   Pane(1)->setSyncGroup(panes::SyncChannel::Location, panes::kNoSyncGroup);
+
+   const int mine     = store_.Add(MakeMarker(Pane(0), MapObjectScopeKind::CurrentPaneOnly));
+   const int theirs   = store_.Add(MakeMarker(Pane(1), MapObjectScopeKind::CurrentPaneOnly));
+   const int everyone = store_.Add(MakeMarker(Pane(0), MapObjectScopeKind::AllPanes));
+
+   EXPECT_EQ(store_.removeObjectsInPane(Pane(0)), 2) << "own object plus the global one";
+
+   EXPECT_EQ(store_.Find(mine), nullptr);
+   EXPECT_EQ(store_.Find(everyone), nullptr);
+   EXPECT_NE(store_.Find(theirs), nullptr) << "another pane's object must not be swept up";
+}
+
+TEST_F(MapObjectScopeTest, RemovingObjectsInANullPaneIsANoOp)
+{
+   const int id = store_.Add(MakeMarker(Pane(0), MapObjectScopeKind::AllPanes));
+
+   EXPECT_EQ(store_.removeObjectsInPane(nullptr), 0);
+   EXPECT_NE(store_.Find(id), nullptr);
+}
+
+TEST_F(MapObjectScopeTest, HitTestingWithoutAMapNeverHits)
+{
+   // Without a map every coordinate projects to the same (-1, -1). Hit-testing that would report
+   // every object at once for a click near the pane's corner, so it has to decline instead. The
+   // real geometry is exercised against a live map in the app, not here.
+   store_.Add(MakeMarker(Pane(0), MapObjectScopeKind::AllPanes));
+
+   ASSERT_FALSE(Pane(0)->hasMap());
+   EXPECT_EQ(store_.objectAtPixel(Pane(0), -1.0, -1.0, 10.0), -1);
+   EXPECT_EQ(store_.objectAtPixel(nullptr, 0.0, 0.0, 10.0), -1);
+}
+
 } // namespace nimbus::objects::test

@@ -4,6 +4,8 @@
 #include <nimbus/objects/object_tool_controller.hpp>
 #include <nimbus/panes/pane_grid_model.hpp>
 #include <nimbus/products/radar_product_status.hpp>
+#include <nimbus/settings/app_settings.hpp>
+#include <nimbus/settings/settings_store.hpp>
 #include <nimbus/util/crash_handler.hpp>
 
 #include <scwx/util/threads.hpp>
@@ -127,10 +129,35 @@ int main(int argc, char* argv[])
    engine.rootContext()->setContextProperty("mapObjectStore",
                                             &nimbus::objects::MapObjectStore::Instance());
 
+   // The structured config store and its typed accessors (docs/ROADMAP.md §3.2, ADR 0003,
+   // slice 17). Constructed before the controllers that read defaults from it.
+   nimbus::settings::AppSettings appSettings {nimbus::settings::SettingsStore::Instance()};
+   engine.rootContext()->setContextProperty("appSettings", &appSettings);
+
    nimbus::objects::ObjectToolController objectTools;
+
+   // §4.3 forbids baking the default object scope in as a constant - the competing apps genuinely
+   // disagree about it and both are right for their users. Wired here rather than by giving
+   // ObjectToolController a settings dependency, so `objects` stays independent of `settings` and
+   // the direction of the coupling is visible in one place.
+   objectTools.setScopeKind(appSettings.defaultObjectScope());
+   QObject::connect(&appSettings,
+                    &nimbus::settings::AppSettings::defaultObjectScopeChanged,
+                    &objectTools,
+                    [&appSettings, &objectTools]()
+                    { objectTools.setScopeKind(appSettings.defaultObjectScope()); });
+
    engine.rootContext()->setContextProperty("objectTools", &objectTools);
 
    nimbus::objects::MeasurementController measurementTool;
+   QObject::connect(&appSettings,
+                    &nimbus::settings::AppSettings::distanceUnitsChanged,
+                    &measurementTool,
+                    &nimbus::objects::MeasurementController::refreshFormatting);
+   QObject::connect(&appSettings,
+                    &nimbus::settings::AppSettings::distanceUnitsChanged,
+                    &nimbus::objects::MapObjectStore::Instance(),
+                    &nimbus::objects::MapObjectStore::refreshFormatting);
    engine.rootContext()->setContextProperty("measurementTool", &measurementTool);
 
    engine.loadFromModule("Nimbus.App", "Main");

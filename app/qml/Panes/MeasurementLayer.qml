@@ -22,7 +22,11 @@ Item {
 
     readonly property bool ready:
         paneController !== null && paneController !== undefined &&
-        controller !== null && controller !== undefined
+        controller !== null && controller !== undefined &&
+        // Only the pane that owns the in-progress measurement draws it. The controller is shared
+        // by every pane, so without this check a measurement started in one pane was drawn in
+        // all of them, through cameras it was never picked against.
+        paneController.paneId === controller.activePaneId
 
     // Flat {lat, lon, ...} from the controller, including the live cursor vertex, projected here.
     readonly property var vertexPixels: {
@@ -36,6 +40,55 @@ Item {
             pts.push(paneController.pixelForCoordinate(flat[i], flat[i + 1]))
         }
         return pts
+    }
+
+    // Live range ring: a circle at the measured distance about the origin, so the range can be
+    // read off at any azimuth without having to hold the cursor exactly over the thing being
+    // measured. Only for a single segment - a ring about the start of a multi-leg path would
+    // describe a distance that path never had.
+    //
+    // Sampled as a true geodesic circle exactly as MapObjectsLayer draws a pinned range ring, not
+    // as a screen-space circle: Mercator stretches with latitude, so a pixel circle would be
+    // visibly wrong at wide zooms and away from the equator.
+    readonly property bool showRing: root.ready && root.vertexPixels.length === 2 &&
+                                     root.controller.segments.length === 1
+
+    readonly property var ringPixels: {
+        if (!root.showRing) {
+            return []
+        }
+        root.cameraTick
+        var flat = root.controller.points
+        var radius = root.controller.segments[0].distanceMeters
+        if (radius <= 0) {
+            return []
+        }
+        var pts = []
+        var steps = 72
+        for (var i = 0; i <= steps; ++i) {
+            var geo = root.paneController.coordinateAtOffset(
+                flat[0], flat[1], (360.0 / steps) * i, radius)
+            pts.push(root.paneController.pixelForCoordinate(geo[0], geo[1]))
+        }
+        return pts
+    }
+
+    Shape {
+        visible: root.showRing && root.ringPixels.length > 0
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+            strokeColor: "#99ffd166"
+            strokeWidth: 1.5
+            // A barely-there fill, so the ring reads as an area at a glance without washing out
+            // the reflectivity it is drawn over - the data underneath is the point of measuring.
+            fillColor: "#0fffd166"
+
+            PathPolyline {
+                path: root.ringPixels
+            }
+        }
     }
 
     Shape {
@@ -88,11 +141,25 @@ Item {
             visible: index + 1 < root.vertexPixels.length
             x: visible ? (root.vertexPixels[index].x + root.vertexPixels[index + 1].x) / 2 + 6 : 0
             y: visible ? (root.vertexPixels[index].y + root.vertexPixels[index + 1].y) / 2 - 8 : 0
-            text: root.ready ? root.controller.formatDistance(modelData.distanceMeters) : ""
+            // Distance and bearing together on a single-segment measurement. Splitting them
+            // across two places would mean looking twice to answer one question.
+            text: {
+                if (!root.ready) {
+                    return ""
+                }
+                const distance = root.controller.formatDistance(modelData.distanceMeters)
+                if (root.controller.segments.length > 1) {
+                    return distance
+                }
+                // Three digits, zero-padded: 048° rather than 48°, which is how a bearing is
+                // written everywhere else in meteorology.
+                const bearing = Math.round(modelData.bearingDegrees) % 360
+                return distance + "  ·  " + ("00" + bearing).slice(-3) + "°"
+            }
             color: "#ffd166"
             font.pixelSize: 10
             style: Text.Outline
-            styleColor: "#000000c0"
+            styleColor: "#c0000000"
         }
     }
 }

@@ -100,14 +100,20 @@ gtest_discover_tests(nimbus-wxdata-test)
 find_package(Qt6 REQUIRED COMPONENTS Core Quick OpenGL Qml)
 find_package(GeographicLib REQUIRED)
 find_package(glm REQUIRED)
+find_package(tomlplusplus REQUIRED)
 
 set(NIMBUS_APP_SRC ${NIMBUS_DIR}/app/source/nimbus)
 
 add_executable(nimbus-app-test
     source/nimbus/app_test_main.cpp
+    source/nimbus/data/radar_site_database.test.cpp
     source/nimbus/objects/map_object_scope.test.cpp
     source/nimbus/objects/measurement.test.cpp
     source/nimbus/panes/pane_sync.test.cpp
+    source/nimbus/panes/source_probe.test.cpp
+    source/nimbus/settings/settings_store.test.cpp
+    source/nimbus/settings/app_settings.test.cpp
+    source/nimbus/util/radar_geometry.test.cpp
 
     ${NIMBUS_APP_SRC}/data/radar_site_data_service.cpp
     ${NIMBUS_APP_SRC}/data/radar_site_database.cpp
@@ -121,8 +127,22 @@ add_executable(nimbus-app-test
     ${NIMBUS_APP_SRC}/panes/sync_types.hpp
     ${NIMBUS_APP_SRC}/products/radar_sweep_product.cpp
     ${NIMBUS_APP_SRC}/render/radar_sweep_layer.cpp
+    ${NIMBUS_APP_SRC}/settings/app_settings.cpp
+    ${NIMBUS_APP_SRC}/settings/settings_store.cpp
     ${NIMBUS_APP_SRC}/util/geodesic.cpp
+    ${NIMBUS_APP_SRC}/util/radar_geometry.cpp
+    ${NIMBUS_APP_SRC}/util/unit_format.cpp
     ${CMAKE_FILES})
+
+# radar_sites.json reaches the app through qt_add_qml_module's resources, which nimbus-app-test
+# does not get - and without it data::FindRadarSite returns nullopt for every site, so the whole
+# site-metadata path (including the feet -> metres conversion §4.7's beam geometry depends on)
+# would be untestable. Same resource path the app uses, so radar_site_database.cpp needs no
+# test-only branch.
+qt_add_resources(nimbus-app-test "nimbus-app-test-config"
+    PREFIX "/qt/qml/Nimbus/App/res/config"
+    BASE "${NIMBUS_DIR}/app/res/config"
+    FILES "${NIMBUS_DIR}/app/res/config/radar_sites.json")
 
 set_target_properties(nimbus-app-test PROPERTIES CXX_STANDARD 20
                                                  CXX_STANDARD_REQUIRED ON
@@ -149,6 +169,7 @@ target_link_libraries(nimbus-app-test GTest::gtest
                                       Boost::json
                                       GeographicLib::GeographicLib
                                       glm::glm-header-only
+                                      tomlplusplus::tomlplusplus
                                       QMapLibre::Core)
 
 gtest_discover_tests(nimbus-app-test)

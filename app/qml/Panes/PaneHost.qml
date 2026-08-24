@@ -34,6 +34,10 @@ Rectangle {
     // notification from being reported back as user input. See the Connections block below.
     property bool applyingSync: false
 
+    // A control inside this pane asked to open Settings at a specific section (§4.5). Forwarded
+    // rather than handled here: a pane does not own the settings surface, and several panes exist.
+    signal configureRequested(string sectionId)
+
     // Which interaction, if any, is currently claiming clicks on this pane. Measurement takes
     // precedence so the two tool families can never both act on one click.
     readonly property bool measuringActive:
@@ -180,6 +184,34 @@ Rectangle {
         visible: root.hasController
     }
 
+    // MeasurementController::Mode::Path. Path is the one mode that cannot be a drag: it has no
+    // fixed number of vertices, so it stays click-to-add with right-click to finish.
+    readonly property int measurementModePath: 3
+
+    // Press-drag-release measurement state. Drag is the primary gesture - every comparable tool
+    // measures that way, and click-then-click-again is the thing users coming from them trip
+    // over. Click-then-click still works: a press that does not move leaves the origin placed and
+    // waits for a second click, so neither habit is punished.
+    property bool  measureDragActive: false
+    property bool  measureOriginPlaced: false
+    property point measurePressPixel: Qt.point(0, 0)
+
+    // Below this, a press-release is a click, not a drag. Small enough not to swallow a genuine
+    // short measurement, large enough to absorb the hand tremor in an ordinary click.
+    readonly property int measureDragThreshold: 6
+
+    // settings::AppSettings::MeasurementGesture - 0 Both, 1 DragOnly, 2 ClickOnly (§4.4, slice
+    // 17). Both stays the default; the preference exists because with both live, a click that
+    // does not move leaves a measurement half-started, so a stray click arms something the user
+    // did not intend.
+    readonly property int measurementGesture:
+        (typeof appSettings !== "undefined" && appSettings !== null)
+            ? appSettings.measurementGesture : 0
+
+    readonly property int gestureBoth: 0
+    readonly property int gestureDragOnly: 1
+    readonly property int gestureClickOnly: 2
+
     // Object placement and measurement. Only active while a tool is selected in the side rail, so
     // ordinary panning is never intercepted - the map's own handlers keep the gesture otherwise.
     MouseArea {
@@ -187,6 +219,95 @@ Rectangle {
         enabled: root.hasController && (root.placementActive || root.measuringActive)
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: root.measuringActive
+
+        // **Required, not a tuning knob.** Taking the press is not enough to own the gesture: the
+        // map's DragHandler sits behind this item with default grabPermissions, which include
+        // CanTakeOverFromItems, so the moment the pointer crosses the drag threshold it steals the
+        // exclusive grab. The result was a measurement that dropped its origin and then panned the
+        // map instead of stretching - and because a stolen grab delivers onCanceled rather than
+        // onReleased, the release half never ran and the measurement sat unfinished until the user
+        // clicked again. preventStealing sets keepMouseGrab, which is what a handler checks before
+        // taking over.
+        //
+        // This does not cost the user panning while a tool is armed: the Shift escape hatch in
+        // onPressed declines the press outright, so the map gets the gesture from the start rather
+        // than halfway through it.
+        preventStealing: true
+
+        onPressed: (mouse) => {
+            if (!root.measuringActive || mouse.button !== Qt.LeftButton) {
+                return
+            }
+
+            // Shift hands the gesture back to the map so it pans. Without it, measuring something
+            // larger than the viewport would mean disarming the tool, scrolling, and re-arming -
+            // and losing the measurement in progress each time.
+            if (mouse.modifiers & Qt.ShiftModifier) {
+                mouse.accepted = false
+                return
+            }
+
+            if (measurementTool.mode === root.measurementModePath) {
+                return
+            }
+
+            root.measurePressPixel = Qt.point(mouse.x, mouse.y)
+            root.measureDragActive = true
+
+            // A press while something is already in progress is the second click of a
+            // click-then-click, not the start of a new measurement - don't discard the origin.
+            root.measureOriginPlaced = measurementTool.active
+            if (root.measureOriginPlaced) {
+                return
+            }
+
+            const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
+            if (geo.length === 2) {
+                measurementTool.beginDrag(geo[0], geo[1], root.paneController)
+            }
+        }
+
+        onReleased: (mouse) => {
+            if (!root.measureDragActive || mouse.button !== Qt.LeftButton) {
+                return
+            }
+            root.measureDragActive = false
+
+            const dx = mouse.x - root.measurePressPixel.x
+            const dy = mouse.y - root.measurePressPixel.y
+            const moved = Math.sqrt(dx * dx + dy * dy) >= root.measureDragThreshold
+
+            // What finishes a measurement depends on the gesture preference (§4.4):
+            //   ClickOnly - a drag counts only as the first click; a second press finishes it, so
+            //               releasing after dragging must not commit.
+            //   DragOnly  - a press that never moved is not a measurement at all. Discard it
+            //               rather than leaving an origin on the map waiting for a click the user
+            //               has told us they do not intend to make.
+            //   Both      - either one finishes it (the shipped default).
+            var finishes = false
+            if (root.measurementGesture === root.gestureClickOnly) {
+                finishes = root.measureOriginPlaced
+            } else if (root.measurementGesture === root.gestureDragOnly) {
+                if (!moved) {
+                    measurementTool.cancel()
+                    return
+                }
+                finishes = true
+            } else {
+                finishes = moved || root.measureOriginPlaced
+            }
+
+            if (!finishes) {
+                return
+            }
+
+            const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
+            if (geo.length === 2) {
+                measurementTool.addPoint(geo[0], geo[1], root.paneController)
+            }
+            measurementTool.commit(root.paneController, objectTools.scopeKind)
+            measurementTool.cancel()
+        }
 
         onClicked: (mouse) => {
             const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
@@ -204,14 +325,30 @@ Rectangle {
                     measurementTool.cancel()
                     return
                 }
-                measurementTool.addPoint(geo[0], geo[1], root.paneController)
+
+                // Only Path still adds vertices on click; the fixed-length modes are driven
+                // entirely from onPressed/onReleased above, and would otherwise add the far end
+                // twice.
+                if (measurementTool.mode === root.measurementModePath) {
+                    measurementTool.addPoint(geo[0], geo[1], root.paneController)
+                }
                 return
             }
 
             objectTools.placeAt(geo[0], geo[1], root.paneController)
         }
 
-        // Live rubber-band while measuring.
+        // A grab can still be lost legitimately (a Shift hand-off, the window losing focus mid
+        // -gesture). onReleased never arrives in that case, so without this measureDragActive
+        // would stay true and the next press would be misread as the second click of a
+        // click-then-click, silently reusing a stale origin.
+        onCanceled: {
+            root.measureDragActive = false
+            root.measureOriginPlaced = false
+        }
+
+        // Live rubber-band while measuring - drives both the drag and the hover half of
+        // click-then-click.
         onPositionChanged: (mouse) => {
             if (!root.measuringActive || !measurementTool.active) {
                 return
@@ -223,8 +360,192 @@ Rectangle {
         }
     }
 
+    // Right-click actions on the pane. The immediate need is deletion - before this a committed
+    // measurement or marker had no way off the map at all - but this is also where §4.5's pane
+    // actions (link, unlink, match location) belong, so it is a menu rather than a bare
+    // delete-on-right-click.
+    //
+    // Hand-rolled from plain QtQuick because the app does not depend on QtQuick.Controls yet;
+    // slice 9's shared Controls/ style is the right place to restyle it, not to reinvent it.
+    MouseArea {
+        anchors.fill: parent
+        // A tool being armed means right-click already means something else there (ending a
+        // measurement), so the menu stays out of the way until the tools are disarmed.
+        enabled: root.hasController && !root.placementActive && !root.measuringActive
+        acceptedButtons: Qt.RightButton
+        onClicked: (mouse) => contextMenu.openAt(mouse.x, mouse.y)
+    }
+
+    // Click-away dismissal. Enabled only while the menu is open, so it never intercepts a gesture
+    // the rest of the time.
+    MouseArea {
+        anchors.fill: parent
+        enabled: contextMenu.visible
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        z: 9
+        onClicked: contextMenu.close()
+    }
+
+    Rectangle {
+        id: contextMenu
+        visible: false
+        z: 10
+        width: menuColumn.width + 20
+        height: menuColumn.height + 12
+        radius: 6
+        color: "#f2161b22"
+        border.color: "#2f3742"
+        border.width: 1
+
+        // What the menu was opened over, captured at open time rather than re-tested per action:
+        // the actions must apply to the object that was highlighted when the user aimed at it,
+        // even if a synced pane moves the map underneath in the meantime.
+        property int    targetObjectId: -1
+        property string targetName: ""
+        property int    visibleObjectCount: 0
+
+        readonly property var store: objectsLayer.objectStore
+
+        // nimbus::objects::MapObjectType. Named for the menu so the entry reads "Delete
+        // measurement", not "Delete object" - useful precisely when objects overlap.
+        function nameForType(type) {
+            switch (type) {
+            case 0: return "marker"
+            case 1: return "line"
+            case 2: return "polygon"
+            case 3: return "range ring"
+            case 4: return "label"
+            case 5: return "measurement"
+            }
+            return "object"
+        }
+
+        function openAt(x, y) {
+            if (!root.hasController || !contextMenu.store) {
+                return
+            }
+
+            const objects = contextMenu.store.objectsForPane(root.paneController)
+            contextMenu.visibleObjectCount = objects.length
+            contextMenu.targetObjectId =
+                contextMenu.store.objectAtPixel(root.paneController, x, y, 12)
+
+            contextMenu.targetName = ""
+            for (var i = 0; i < objects.length; ++i) {
+                if (objects[i].objectId === contextMenu.targetObjectId) {
+                    contextMenu.targetName = contextMenu.nameForType(objects[i].objectType)
+                    break
+                }
+            }
+
+            // Nothing to act on - don't flash an empty menu at the user.
+            if (contextMenu.targetObjectId < 0 && contextMenu.visibleObjectCount === 0) {
+                return
+            }
+
+            objectsLayer.highlightedObjectId = contextMenu.targetObjectId
+
+            // Kept inside the pane, so a right-click near an edge doesn't open a menu half
+            // outside it.
+            contextMenu.x = Math.max(0, Math.min(x, root.width - contextMenu.width - 4))
+            contextMenu.y = Math.max(0, Math.min(y, root.height - contextMenu.height - 4))
+            contextMenu.visible = true
+        }
+
+        function close() {
+            contextMenu.visible = false
+            contextMenu.targetObjectId = -1
+            objectsLayer.highlightedObjectId = -1
+        }
+
+        readonly property var entries: {
+            var items = []
+            if (contextMenu.targetObjectId >= 0) {
+                items.push({ label: "Delete " + contextMenu.targetName, action: "delete" })
+            }
+            if (contextMenu.visibleObjectCount > 0) {
+                items.push({ label: contextMenu.visibleObjectCount === 1
+                                ? "Clear 1 object from this pane"
+                                : "Clear " + contextMenu.visibleObjectCount +
+                                  " objects from this pane",
+                             action: "clearPane" })
+            }
+            return items
+        }
+
+        Column {
+            id: menuColumn
+            anchors.centerIn: parent
+            spacing: 1
+
+            Repeater {
+                model: contextMenu.entries
+
+                delegate: Rectangle {
+                    required property var modelData
+
+                    width: Math.max(entryText.implicitWidth + 16, 170)
+                    height: 26
+                    radius: 4
+                    color: entryArea.containsMouse ? "#243040" : "transparent"
+
+                    Text {
+                        id: entryText
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 8
+                        text: parent.modelData.label
+                        color: "#dce6f2"
+                        font.pixelSize: 12
+                    }
+
+                    MouseArea {
+                        id: entryArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (parent.modelData.action === "delete") {
+                                contextMenu.store.removeObject(contextMenu.targetObjectId)
+                            } else if (parent.modelData.action === "clearPane") {
+                                contextMenu.store.removeObjectsInPane(root.paneController)
+                            }
+                            contextMenu.close()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Bumped whenever this pane's source publishes new data, so the beam-geometry readout below
+    // re-runs its probe. probeSourceAt is a method call, which a binding cannot know has gone
+    // stale - the same reason objects re-project off cameraTick.
+    property int sourceTick: 0
+
+    Connections {
+        target: root.hasController ? root.paneController : null
+        function onSourceDataChanged() { root.sourceTick++ }
+    }
+
+    // The far end of the in-progress measurement - what §4.7's geometry readout interrogates.
+    // Reading `measurementTool.points` (a notifying property) is what makes this live as the
+    // endpoint is dragged, without the geometry panel having to know about measurement at all.
+    readonly property var measureTargetPoint: {
+        if (!root.measuringActive || !root.hasController ||
+            measurementTool.activePaneId !== root.paneController.paneId) {
+            return null
+        }
+        const flat = measurementTool.points
+        if (flat.length < 2) {
+            return null
+        }
+        return { latitude: flat[flat.length - 2], longitude: flat[flat.length - 1] }
+    }
+
     // Measurement readout. Progressive disclosure per §4.4/§5.3: the one-line result is always
-    // visible while measuring; per-segment detail is available but not forced on the user.
+    // visible while measuring; per-segment detail and the §4.7 radar-geometry breakdown are
+    // available but not forced on the user.
     Rectangle {
         visible: root.measuringActive && measurementTool.readout !== ""
         anchors.horizontalCenter: parent.horizontalCenter
@@ -233,7 +554,7 @@ Rectangle {
         width: readoutColumn.width + 20
         height: readoutColumn.height + 12
         radius: 4
-        color: "#0d1116e6"
+        color: "#e60d1116"
         border.color: "#2f3742"
         border.width: 1
 
@@ -256,6 +577,20 @@ Rectangle {
                     : ""
                 color: "#8d99a8"
                 font.pixelSize: 10
+            }
+
+            // Radar geometry (§4.7), extending the measurement's far end into a full beam
+            // interrogation. Collapsed by default; it hides itself entirely on a pane with no
+            // radar source, so a future satellite pane does not grow an empty section.
+            RadarGeometryPanel {
+                id: radarGeometryPanel
+                paneController: root.paneController
+                sourceTick: root.sourceTick
+                onConfigureRequested: (sectionId) => root.configureRequested(sectionId)
+                targetLatitude: root.measureTargetPoint
+                    ? root.measureTargetPoint.latitude : NaN
+                targetLongitude: root.measureTargetPoint
+                    ? root.measureTargetPoint.longitude : NaN
             }
 
             Text {
@@ -328,7 +663,7 @@ Rectangle {
         font.pixelSize: 11
         color: "#c8d0d8"
         style: Text.Outline
-        styleColor: "#00000090"
+        styleColor: "#90000000"
     }
 
     // OSM's ODbL and the OpenMapTiles schema both require attribution; MapLibre Native Qt's
@@ -342,6 +677,6 @@ Rectangle {
         font.pixelSize: 10
         color: "#c8d0d8"
         style: Text.Outline
-        styleColor: "#00000090"
+        styleColor: "#90000000"
     }
 }

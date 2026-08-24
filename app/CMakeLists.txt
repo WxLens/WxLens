@@ -12,6 +12,8 @@ qt_standard_project_setup(REQUIRES 6.5)
 find_package(Boost REQUIRED COMPONENTS timer json)
 find_package(GeographicLib REQUIRED)
 find_package(glm REQUIRED)
+# toml++ backs the structured config store (docs/adr/0003-config-storage-format.md).
+find_package(tomlplusplus REQUIRED)
 
 qt_add_executable(nimbus-app
     source/nimbus/main/main.cpp
@@ -40,10 +42,18 @@ qt_add_executable(nimbus-app
     source/nimbus/products/radar_sweep_product.hpp
     source/nimbus/render/radar_sweep_layer.cpp
     source/nimbus/render/radar_sweep_layer.hpp
+    source/nimbus/settings/app_settings.cpp
+    source/nimbus/settings/app_settings.hpp
+    source/nimbus/settings/settings_store.cpp
+    source/nimbus/settings/settings_store.hpp
     source/nimbus/util/crash_handler.cpp
     source/nimbus/util/crash_handler.hpp
     source/nimbus/util/geodesic.cpp
     source/nimbus/util/geodesic.hpp
+    source/nimbus/util/radar_geometry.cpp
+    source/nimbus/util/radar_geometry.hpp
+    source/nimbus/util/unit_format.cpp
+    source/nimbus/util/unit_format.hpp
     $<$<PLATFORM_ID:Windows>:res/branding/app.rc>
 )
 
@@ -56,8 +66,11 @@ qt_add_qml_module(nimbus-app
         qml/Main.qml
         qml/Chrome/TopBar.qml
         qml/Chrome/SideRail.qml
+        qml/Dialogs/SettingsChoice.qml
+        qml/Dialogs/SettingsDialog.qml
         qml/Panes/MapObjectsLayer.qml
         qml/Panes/MeasurementLayer.qml
+        qml/Panes/RadarGeometryPanel.qml
         qml/Panes/PaneGrid.qml
         qml/Panes/PaneHost.qml
     RESOURCES
@@ -84,6 +97,7 @@ target_link_libraries(nimbus-app PRIVATE
     Boost::json
     GeographicLib::GeographicLib
     glm::glm-header-only
+    tomlplusplus::tomlplusplus
     QMapLibre::Core
     # DbgHelp backs nimbus::util::InstallCrashHandler's symbolized stack walk. It ships with
     # Windows itself, so this adds a link dependency, not a redistributable.

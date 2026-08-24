@@ -4,6 +4,8 @@
 #include <nimbus/render/radar_sweep_layer.hpp>
 
 #include <nimbus/util/geodesic.hpp>
+#include <nimbus/util/radar_geometry.hpp>
+#include <nimbus/util/unit_format.hpp>
 
 #include <map>
 
@@ -24,6 +26,11 @@ namespace
 constexpr double kFallbackLatitude  = 39.8;
 constexpr double kFallbackLongitude = -98.6;
 constexpr double kDefaultZoom       = 6.0;
+
+/// Said out loud rather than left blank wherever terrain would be needed. §4.7 is explicit that
+/// the UI must state the absence: an omitted AGL field reads as "not interesting", while a
+/// filled-in one implies a DEM that does not exist.
+const QString kNoTerrainText = QStringLiteral("requires terrain data");
 } // namespace
 
 class PaneController::Impl
@@ -35,6 +42,7 @@ public:
    }
 
    void RebindProduct();
+   void ConnectProductSignals(PaneController* self);
 
    int                         paneId_;
    products::ProductDescriptor descriptor_;
@@ -42,6 +50,10 @@ public:
    std::map<SyncChannel, SyncGroupId> syncGroups_;
 
    std::shared_ptr<products::RadarSweepProduct> radarProduct_ {nullptr};
+   std::shared_ptr<render::RadarSweepLayerBinding> radarLayerBinding_ {
+      std::make_shared<render::RadarSweepLayerBinding>(nullptr)};
+   QMetaObject::Connection repaintConnection_ {};
+   QMetaObject::Connection sourceDataConnection_ {};
 
    // Borrowed, not owned: MapQuickItem's unique_ptr owns this. Cleared when the map goes away so
    // the projection helpers cannot outlive it.
@@ -68,6 +80,45 @@ void PaneController::Impl::RebindProduct()
                         descriptor_.sourceKey.toStdString());
       }
    }
+
+   radarLayerBinding_->setProduct(radarProduct_);
+}
+
+void PaneController::Impl::ConnectProductSignals(PaneController* self)
+{
+   QObject::disconnect(repaintConnection_);
+   QObject::disconnect(sourceDataConnection_);
+   repaintConnection_    = {};
+   sourceDataConnection_ = {};
+
+   if (radarProduct_ == nullptr)
+   {
+      if (!map_.isNull())
+      {
+         map_->triggerRepaint();
+      }
+      return;
+   }
+
+   if (!map_.isNull())
+   {
+      repaintConnection_ = QObject::connect(radarProduct_.get(),
+                                            &products::RadarSweepProduct::SweepUpdated,
+                                            map_,
+                                            [map = map_]()
+                                            {
+                                               if (!map.isNull())
+                                               {
+                                                  map->triggerRepaint();
+                                               }
+                                            });
+      map_->triggerRepaint();
+   }
+
+   sourceDataConnection_ = QObject::connect(radarProduct_.get(),
+                                             &products::RadarSweepProduct::SweepUpdated,
+                                             self,
+                                             [self]() { Q_EMIT self->sourceDataChanged(); });
 }
 
 PaneController::PaneController(int                                paneId,
@@ -112,6 +163,7 @@ void PaneController::setSourceKey(const QString& sourceKey)
 
    p->descriptor_.sourceKey = sourceKey;
    p->RebindProduct();
+   p->ConnectProductSignals(this);
 
    Q_EMIT productChanged();
    Q_EMIT channelChanged(SyncChannel::RadarSite, ChangeOrigin::UserInput);
@@ -197,6 +249,11 @@ void PaneController::setPitch(double value)
    Q_EMIT channelChanged(SyncChannel::Pitch, ChangeOrigin::UserInput);
 }
 
+bool PaneController::hasMap() const
+{
+   return !p->map_.isNull();
+}
+
 QPointF PaneController::pixelForCoordinate(double latitude, double longitude) const
 {
    if (p->map_.isNull())
@@ -232,6 +289,88 @@ QVariantList PaneController::coordinateAtOffset(double latitude,
    const auto [destLatitude, destLongitude] =
       util::GeodesicDirect(latitude, longitude, bearingDegrees, distanceMeters);
    return QVariantList {destLatitude, destLongitude};
+}
+
+QVariantMap PaneController::probeSourceAt(double latitude, double longitude) const
+{
+   QVariantMap probe;
+   probe[QStringLiteral("kind")]      = p->descriptor_.kind;
+   probe[QStringLiteral("latitude")]  = latitude;
+   probe[QStringLiteral("longitude")] = longitude;
+   probe[QStringLiteral("available")] = false;
+
+   // The one place that dispatches on product kind, mirroring attachLayers - see
+   // products::ProductDescriptor's comment.
+   if (p->descriptor_.kind != QStringLiteral("radar"))
+   {
+      probe[QStringLiteral("unavailableReason")] =
+         QStringLiteral("no probe for %1 sources yet").arg(p->descriptor_.kind);
+      return probe;
+   }
+
+   if (p->radarProduct_ == nullptr)
+   {
+      probe[QStringLiteral("unavailableReason")] = QStringLiteral("no radar source on this pane");
+      return probe;
+   }
+
+   const auto elevationAngle = p->radarProduct_->elevation_angle_degrees();
+
+   const util::RadarBeamProbe beam =
+      util::ProbeRadarBeam(p->radarProduct_->site_latitude(),
+                           p->radarProduct_->site_longitude(),
+                           p->radarProduct_->site_altitude_msl_meters(),
+                           elevationAngle,
+                           latitude,
+                           longitude);
+
+   probe[QStringLiteral("available")] = true;
+   probe[QStringLiteral("sourceKey")] = p->descriptor_.sourceKey;
+
+   probe[QStringLiteral("siteLatitude")]  = p->radarProduct_->site_latitude();
+   probe[QStringLiteral("siteLongitude")] = p->radarProduct_->site_longitude();
+   probe[QStringLiteral("siteAltitudeMslMeters")] = beam.siteAltitudeMslMeters;
+   probe[QStringLiteral("siteAltitudeText")] = util::FormatAltitude(beam.siteAltitudeMslMeters);
+
+   probe[QStringLiteral("rangeMeters")]    = beam.rangeMeters;
+   probe[QStringLiteral("rangeText")]      = util::FormatGroundDistance(beam.rangeMeters);
+   probe[QStringLiteral("azimuthDegrees")] = beam.azimuthDegrees;
+   probe[QStringLiteral("azimuthText")]    = util::FormatBearing(beam.azimuthDegrees);
+
+   probe[QStringLiteral("elevationAngleKnown")] = beam.elevationAngleKnown;
+
+   if (beam.elevationAngleKnown)
+   {
+      probe[QStringLiteral("elevationAngleDegrees")] = beam.elevationAngleDegrees;
+      probe[QStringLiteral("elevationAngleText")] =
+         QStringLiteral("%1°").arg(beam.elevationAngleDegrees, 0, 'f', 2);
+
+      probe[QStringLiteral("beamCenterAltitudeMslMeters")] = beam.beamCenterAltitudeMslMeters;
+      probe[QStringLiteral("beamCenterMslText")] =
+         util::FormatAltitude(beam.beamCenterAltitudeMslMeters);
+
+      probe[QStringLiteral("beamCenterAboveRadarMeters")] = beam.beamCenterAboveRadarMeters;
+      probe[QStringLiteral("beamCenterArlText")] =
+         util::FormatAltitude(beam.beamCenterAboveRadarMeters);
+   }
+   else
+   {
+      // No sweep has been computed yet, so there is no selected tilt to report and nothing
+      // downstream of it means anything. Naming the reason beats an empty row.
+      const QString pending = QStringLiteral("waiting for sweep data");
+      probe[QStringLiteral("elevationAngleText")] = pending;
+      probe[QStringLiteral("beamCenterMslText")]  = pending;
+      probe[QStringLiteral("beamCenterArlText")]  = pending;
+   }
+
+   // Terrain, and therefore beam height above ground, until a DEM provider exists (§4.7, §6).
+   // These two rows are shown, not hidden: a user reading a beam altitude needs to know it is
+   // MSL and that the AGL figure they might expect is genuinely unavailable.
+   probe[QStringLiteral("terrainAvailable")] = false;
+   probe[QStringLiteral("terrainText")]      = QStringLiteral("terrain data unavailable");
+   probe[QStringLiteral("beamCenterAglText")] = kNoTerrainText;
+
+   return probe;
 }
 
 int PaneController::syncGroup(SyncChannel channel) const
@@ -350,6 +489,7 @@ void PaneController::applyChannelValue(SyncChannel     channel,
       {
          p->descriptor_.sourceKey = value.toString();
          p->RebindProduct();
+         p->ConnectProductSignals(this);
          Q_EMIT productChanged();
          changed = true;
       }
@@ -407,29 +547,14 @@ void PaneController::attachLayers(QMapLibre::Map* map)
 
    // Kept for the projection helpers, which the QML object overlay needs on every frame.
    p->map_ = map;
+   p->ConnectProductSignals(this);
 
-   // The one place that dispatches on product kind - see products::ProductDescriptor's comment.
-   if (p->radarProduct_ == nullptr)
-   {
-      return;
-   }
-
-   logger_->info("Pane {} registering radar sweep layer for {}",
-                 p->paneId_,
-                 p->descriptor_.sourceKey.toStdString());
+   logger_->info("Pane {} registering replaceable radar sweep layer", p->paneId_);
 
    map->addCustomLayer("nimbus-radar-sweep",
-                       std::make_unique<render::RadarSweepLayer>(p->radarProduct_));
+                       std::make_unique<render::RadarSweepLayer>(p->radarLayerBinding_));
 
-   // mbgl does not repaint just because a custom layer was registered or its data changed, and
-   // radar data lands asynchronously well after the style loaded - see AGENTS.md's "Custom map
-   // layers must trigger their own repaints".
-   connect(p->radarProduct_.get(),
-           &products::RadarSweepProduct::SweepUpdated,
-           map,
-           [map]() { map->triggerRepaint(); });
-
-   if (p->radarProduct_->sweep_data() != nullptr)
+   if (p->radarProduct_ != nullptr && p->radarProduct_->sweep_data() != nullptr)
    {
       // The data load beat the style load (a network race, not a guaranteed order), so
       // SweepUpdated already fired before the connection above existed.

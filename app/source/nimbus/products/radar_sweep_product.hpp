@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -55,6 +56,7 @@ public:
    explicit RadarSweepProduct(const std::string& radarSite,
                               double             siteLatitude,
                               double             siteLongitude,
+                              double             siteAltitudeMslMeters,
                               QObject*           parent = nullptr);
    ~RadarSweepProduct() override;
 
@@ -73,6 +75,21 @@ public:
    [[nodiscard]] const std::string& radar_site() const;
    [[nodiscard]] double             site_latitude() const;
    [[nodiscard]] double             site_longitude() const;
+
+   /// Antenna altitude above MSL, metres - the `height` input to the beam model (§4.7). Comes
+   /// from data::FindRadarSite, which converts the bundled list's feet; see that header for what
+   /// is and is not known about this figure.
+   [[nodiscard]] double site_altitude_msl_meters() const;
+
+   /**
+    * The tilt of the cut the current sweep was built from, or nullopt when no sweep has been
+    * computed yet.
+    *
+    * Optional on purpose. "No data loaded" and "0.5°" are different answers, and §4.7's
+    * beam-geometry readout has to be able to say the first one - a default would make the UI
+    * report an angle the radar never used, at a moment when it has no data at all.
+    */
+   [[nodiscard]] std::optional<double> elevation_angle_degrees() const;
 
    RadarSweepProduct(const RadarSweepProduct&)            = delete;
    RadarSweepProduct& operator=(const RadarSweepProduct&) = delete;

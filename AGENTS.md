@@ -133,6 +133,30 @@ rule.
   keyword if any dependency in the include chain `#define`s `emit` to something else (verify
   whether this repo's dependency set actually needs it — the legacy repo's reason was a specific
   conflicting library; recheck before assuming it still applies here).
+- **QML colors with alpha are `#AARRGGBB` — alpha first, not last.** CSS/web habits produce
+  `#RRGGBBAA`, which Qt still parses without error and silently reads as a different, usually
+  fully-opaque colour. Every 8-digit literal in `app/qml/` was written the wrong way round at one
+  point and had to be fixed in one pass: a 6%-alpha ring fill rendered as solid orange over the
+  radar, and two panel backgrounds meant to be ~90% opaque rendered at ~5%. There is no warning
+  and no error — it just looks wrong — so check the first two digits whenever a colour reads as
+  unexpectedly opaque or unexpectedly invisible.
+- **A `MouseArea` over the map needs `preventStealing: true` to survive a drag.** Being in front is
+  enough to win the *press*, but not to keep the gesture: the map's `DragHandler` sits behind it
+  with default `grabPermissions`, and `CanTakeOverFromItems` lets it seize the exclusive grab the
+  moment the pointer crosses the drag threshold. The tool then loses the rest of the gesture and
+  the map pans instead — and since a stolen grab delivers `onCanceled`, not `onReleased`, any
+  commit-on-release logic silently never runs. This bit the measurement tool in slice 8. Pair it
+  with an `onCanceled` handler that resets whatever the press started, because a grab can still be
+  lost legitimately (a modifier hand-off, the window losing focus).
+- **Test the primary gesture, not just the fallback.** The same bug survived a "verified" slice
+  because only click-then-hover was driven, never press-drag-release. Both paths call the same
+  update function, so exercising one feels like exercising both — but only one holds a button
+  down, and a held button is the only state in which a grab can be stolen.
+- **Radar site altitudes in `res/config/radar_sites.json` are feet.** Nothing in the file says so.
+  `data::FindRadarSite` converts them and hands back `altitudeMslMeters`; use that, and don't
+  reintroduce a raw read of the `elevation` field. See `radar_site_database.hpp` for how the unit
+  was established and for what is still unknown about the figure (ground level vs. the antenna on
+  the tower).
 
 ## Common tasks
 

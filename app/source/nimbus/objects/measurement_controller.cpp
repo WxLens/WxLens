@@ -3,6 +3,7 @@
 #include <nimbus/objects/map_object_store.hpp>
 #include <nimbus/panes/pane_controller.hpp>
 #include <nimbus/util/geodesic.hpp>
+#include <nimbus/util/unit_format.hpp>
 
 #include <cmath>
 #include <vector>
@@ -19,9 +20,6 @@ static const auto        logger_    = nimbus::log::Create(logPrefix_);
 
 namespace
 {
-constexpr double kMetersPerKilometer = 1000.0;
-constexpr double kMetersPerMile      = 1609.344;
-
 struct Point
 {
    double latitude {0.0};
@@ -61,6 +59,7 @@ public:
    }
 
    Mode               mode_ {Mode::None};
+   int                activePaneId_ {-1};
    std::vector<Point> points_ {};
    Point              cursor_ {};
    bool               hasCursor_ {false};
@@ -156,14 +155,15 @@ double MeasurementController::totalMeters() const
 
 QString MeasurementController::formatDistance(double meters)
 {
-   const double kilometers = meters / kMetersPerKilometer;
-   const double miles      = meters / kMetersPerMile;
+   // Delegated rather than duplicated: the beam-geometry readout (§4.7) reports the same range
+   // this reports as a distance, and the two reading differently would be a bug users would spot
+   // before we did.
+   return util::FormatGroundDistance(meters);
+}
 
-   // Both units until the unit-settings surface exists (§4.4 defers the preference itself, not
-   // the measurement). Showing both is more useful than silently picking one.
-   return QStringLiteral("%1 km / %2 mi")
-      .arg(kilometers, 0, 'f', kilometers < 10.0 ? 2 : 1)
-      .arg(miles, 0, 'f', miles < 10.0 ? 2 : 1);
+int MeasurementController::activePaneId() const
+{
+   return p->activePaneId_;
 }
 
 QString MeasurementController::readout() const
@@ -206,6 +206,17 @@ void MeasurementController::addPoint(double                 latitude,
       return;
    }
 
+   // The first point claims the pane. Later points from a different pane are refused rather than
+   // silently mixing two cameras' picks into one measurement.
+   if (p->points_.empty())
+   {
+      p->activePaneId_ = (pane != nullptr) ? pane->paneId() : -1;
+   }
+   else if (pane != nullptr && pane->paneId() != p->activePaneId_)
+   {
+      return;
+   }
+
    // RadarToPoint's origin is the pane's own source location, not a click - that is what makes it
    // a distinct named mode rather than PointToPoint with extra steps.
    if (p->mode_ == Mode::RadarToPoint && p->points_.empty())
@@ -224,6 +235,38 @@ void MeasurementController::addPoint(double                 latitude,
 
    p->points_.push_back({latitude, longitude});
    p->hasCursor_ = false;
+
+   Q_EMIT measurementChanged();
+}
+
+void MeasurementController::beginDrag(double                 latitude,
+                                      double                 longitude,
+                                      panes::PaneController* pane)
+{
+   if (p->mode_ == Mode::None)
+   {
+      return;
+   }
+
+   p->points_.clear();
+   p->hasCursor_    = false;
+   p->activePaneId_ = (pane != nullptr) ? pane->paneId() : -1;
+
+   if (p->mode_ == Mode::RadarToPoint)
+   {
+      // The press position is deliberately discarded here: this mode measures *from the source*,
+      // so where the drag happened to start is not part of the answer.
+      if (pane == nullptr)
+      {
+         p->activePaneId_ = -1;
+         return;
+      }
+      p->points_.push_back({pane->homeLatitude(), pane->homeLongitude()});
+   }
+   else
+   {
+      p->points_.push_back({latitude, longitude});
+   }
 
    Q_EMIT measurementChanged();
 }
@@ -268,8 +311,14 @@ void MeasurementController::cancel()
    }
 
    p->points_.clear();
-   p->hasCursor_ = false;
+   p->hasCursor_    = false;
+   p->activePaneId_ = -1;
 
+   Q_EMIT measurementChanged();
+}
+
+void MeasurementController::refreshFormatting()
+{
    Q_EMIT measurementChanged();
 }
 
@@ -306,7 +355,8 @@ int MeasurementController::commit(panes::PaneController* pane, int scopeKind)
    {
       logger_->info("Pinned measurement {} with {} vertices", id, p->points_.size());
       p->points_.clear();
-      p->hasCursor_ = false;
+      p->hasCursor_    = false;
+      p->activePaneId_ = -1;
       Q_EMIT measurementChanged();
    }
 

@@ -110,11 +110,36 @@ public:
                                 nimbus::panes::PaneController* originPane,
                                 int                            scopeKind);
 
+   /**
+    * The id of the object under a pixel in `pane`, or -1 if nothing is close enough.
+    *
+    * Hit-testing lives here rather than in the QML overlay because it needs the same scope
+    * resolution and geometry the store already owns, and because the roadmap keeps logic out of
+    * QML (§0.2). Geometry is projected through `pane` exactly as the overlay projects it, so what
+    * the test hits is what the user sees.
+    *
+    * Ties go to the most recently added object, matching the draw order on screen.
+    */
+   Q_INVOKABLE int objectAtPixel(nimbus::panes::PaneController* pane,
+                                 double                         x,
+                                 double                         y,
+                                 double                         tolerancePixels = 10.0) const;
+
+   /**
+    * Removes every object currently visible in `pane`, returning how many went. Scoped to the
+    * pane rather than global, because "clear my analysis off this pane" is the action a user
+    * actually wants; clearObjects() remains for wiping everything.
+    */
+   Q_INVOKABLE int removeObjectsInPane(nimbus::panes::PaneController* pane);
+
    Q_INVOKABLE bool removeObject(int id);
    Q_INVOKABLE void clearObjects();
 
    /** Changes an existing object's scope, so "show this everywhere" is available after creation. */
    Q_INVOKABLE bool setObjectScope(int id, int scopeKind);
+
+   /** Invalidates display-only values after a formatting preference changes. */
+   void refreshFormatting();
 
 signals:
    void revisionChanged();

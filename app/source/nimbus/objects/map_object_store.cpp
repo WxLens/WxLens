@@ -1,10 +1,15 @@
 #include <nimbus/objects/map_object_store.hpp>
 #include <nimbus/log/logger.hpp>
 #include <nimbus/panes/pane_controller.hpp>
+#include <nimbus/util/geodesic.hpp>
+#include <nimbus/util/unit_format.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
+
+#include <QPointF>
 
 namespace nimbus
 {
@@ -257,7 +262,21 @@ QVariantList MapObjectStore::objectsForPane(panes::PaneController* pane) const
       QVariantMap entry;
       entry[QStringLiteral("objectId")]     = object.id;
       entry[QStringLiteral("objectType")]   = static_cast<int>(object.type);
-      entry[QStringLiteral("label")]        = object.label;
+      QString label = object.label;
+      if (object.type == MapObjectType::Measurement)
+      {
+         double totalMeters = 0.0;
+         for (int i = 1; i < object.latitudes.size(); ++i)
+         {
+            totalMeters += util::GeodesicInverse(object.latitudes[i - 1],
+                                                  object.longitudes[i - 1],
+                                                  object.latitudes[i],
+                                                  object.longitudes[i])
+                              .distanceMeters;
+         }
+         label = util::FormatGroundDistance(totalMeters);
+      }
+      entry[QStringLiteral("label")]        = label;
       entry[QStringLiteral("color")]        = object.color;
       entry[QStringLiteral("radiusMeters")] = object.radiusMeters;
       entry[QStringLiteral("latitudes")]    = latitudes;
@@ -323,6 +342,190 @@ int MapObjectStore::addRangeRing(double                 latitude,
    return Add(object);
 }
 
+namespace
+{
+/// Shortest pixel distance from `point` to the segment ab. Degenerate segments fall back to the
+/// point-to-point distance rather than dividing by zero.
+double DistanceToSegment(const QPointF& point, const QPointF& a, const QPointF& b)
+{
+   const double dx     = b.x() - a.x();
+   const double dy     = b.y() - a.y();
+   const double lengthSq = dx * dx + dy * dy;
+
+   double t = 0.0;
+   if (lengthSq > 0.0)
+   {
+      t = ((point.x() - a.x()) * dx + (point.y() - a.y()) * dy) / lengthSq;
+      t = std::clamp(t, 0.0, 1.0);
+   }
+
+   const double px = a.x() + t * dx - point.x();
+   const double py = a.y() + t * dy - point.y();
+   return std::sqrt(px * px + py * py);
+}
+
+double DistanceBetween(const QPointF& a, const QPointF& b)
+{
+   const double dx = a.x() - b.x();
+   const double dy = a.y() - b.y();
+   return std::sqrt(dx * dx + dy * dy);
+}
+
+/// How closely `point` comes to an object as drawn in `pane`, in pixels, or infinity if the
+/// object has no geometry to test. Mirrors what MapObjectsLayer draws, type for type - a hit test
+/// that disagreed with the rendering would feel broken however correct its own maths was.
+double PixelDistanceToObject(const MapObject&             object,
+                             const panes::PaneController* pane,
+                             const QPointF&               point)
+{
+   if (object.latitudes.isEmpty() || object.longitudes.isEmpty())
+   {
+      return std::numeric_limits<double>::infinity();
+   }
+
+   switch (object.type)
+   {
+   case MapObjectType::Marker:
+   case MapObjectType::TextAnnotation:
+      return DistanceBetween(
+         point, pane->pixelForCoordinate(object.latitudes[0], object.longitudes[0]));
+
+   case MapObjectType::Line:
+   case MapObjectType::Polygon:
+   case MapObjectType::Measurement:
+   {
+      // A single-vertex path is a point, not a line: without this it would report infinity and
+      // become undeletable.
+      if (object.latitudes.size() == 1)
+      {
+         return DistanceBetween(
+            point, pane->pixelForCoordinate(object.latitudes[0], object.longitudes[0]));
+      }
+
+      double  best     = std::numeric_limits<double>::infinity();
+      QPointF previous = pane->pixelForCoordinate(object.latitudes[0], object.longitudes[0]);
+      for (int i = 1; i < object.latitudes.size(); ++i)
+      {
+         const QPointF current =
+            pane->pixelForCoordinate(object.latitudes[i], object.longitudes[i]);
+         best     = std::min(best, DistanceToSegment(point, previous, current));
+         previous = current;
+      }
+
+      if (object.type == MapObjectType::Polygon)
+      {
+         // Closing edge: a polygon's last-to-first side is drawn, so it must be hittable too.
+         const QPointF first = pane->pixelForCoordinate(object.latitudes[0], object.longitudes[0]);
+         best                = std::min(best, DistanceToSegment(point, previous, first));
+      }
+
+      return best;
+   }
+
+   case MapObjectType::RangeRing:
+   {
+      // Sampled the same way the overlay draws it - a true geodesic circle, not a screen-space
+      // one - so the ring you can grab is the ring you can see. Grabbing is on the *outline*, not
+      // the interior: a large ring's interior would otherwise swallow every click inside it.
+      constexpr int kSteps = 72;
+
+      double  best  = std::numeric_limits<double>::infinity();
+      QPointF previous {};
+      for (int i = 0; i <= kSteps; ++i)
+      {
+         const double bearing = (360.0 / kSteps) * i;
+         const auto [latitude, longitude] = util::GeodesicDirect(
+            object.latitudes[0], object.longitudes[0], bearing, object.radiusMeters);
+         const QPointF current = pane->pixelForCoordinate(latitude, longitude);
+
+         if (i > 0)
+         {
+            best = std::min(best, DistanceToSegment(point, previous, current));
+         }
+         previous = current;
+      }
+      return best;
+   }
+
+   default:
+      return std::numeric_limits<double>::infinity();
+   }
+}
+} // namespace
+
+int MapObjectStore::objectAtPixel(panes::PaneController* pane,
+                                  double                 x,
+                                  double                 y,
+                                  double                 tolerancePixels) const
+{
+   // No map means every coordinate projects to the same (-1, -1), which would make a click near
+   // the pane's top-left corner "hit" every object at once. Nothing is on screen to be clicked
+   // in that state anyway.
+   if (pane == nullptr || !pane->hasMap())
+   {
+      return -1;
+   }
+
+   const QPointF point {x, y};
+
+   int    hitId = -1;
+   double hitDistance = std::numeric_limits<double>::infinity();
+
+   for (const MapObject& object : p->objects_)
+   {
+      if (!IsVisibleInPane(object, pane))
+      {
+         continue;
+      }
+
+      const double distance = PixelDistanceToObject(object, pane, point);
+      if (distance > tolerancePixels)
+      {
+         continue;
+      }
+
+      // <= rather than <, so later objects win ties. They are drawn last, so they are the ones
+      // the user sees on top and expects to act on.
+      if (distance <= hitDistance)
+      {
+         hitDistance = distance;
+         hitId       = object.id;
+      }
+   }
+
+   return hitId;
+}
+
+int MapObjectStore::removeObjectsInPane(panes::PaneController* pane)
+{
+   if (pane == nullptr)
+   {
+      return 0;
+   }
+
+   // Collected first, then removed: Remove() erases from the same vector this would otherwise be
+   // iterating.
+   std::vector<int> ids;
+   for (const MapObject& object : p->objects_)
+   {
+      if (IsVisibleInPane(object, pane))
+      {
+         ids.push_back(object.id);
+      }
+   }
+
+   int removed = 0;
+   for (const int id : ids)
+   {
+      if (Remove(id))
+      {
+         ++removed;
+      }
+   }
+
+   return removed;
+}
+
 bool MapObjectStore::removeObject(int id)
 {
    return Remove(id);
@@ -352,6 +555,12 @@ bool MapObjectStore::setObjectScope(int id, int scopeKind)
    Q_EMIT revisionChanged();
 
    return true;
+}
+
+void MapObjectStore::refreshFormatting()
+{
+   ++p->revision_;
+   Q_EMIT revisionChanged();
 }
 
 } // namespace objects

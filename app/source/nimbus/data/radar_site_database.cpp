@@ -17,6 +17,13 @@ namespace data
 static const std::string logPrefix_ = "data.radar_site_database";
 static const auto        logger_    = nimbus::log::Create(logPrefix_);
 
+namespace
+{
+/// The bundled site list records altitude in feet - see RadarSiteInfo::altitudeMslMeters and the
+/// FindRadarSite comment for how that was established and why it matters.
+constexpr double kMetersPerFoot = 0.3048;
+} // namespace
+
 static const std::map<std::string, RadarSiteInfo>& Sites()
 {
    static const std::map<std::string, RadarSiteInfo> sites = []()
@@ -42,14 +49,14 @@ static const std::map<std::string, RadarSiteInfo>& Sites()
          const QJsonObject obj = value.toObject();
 
          RadarSiteInfo site;
-         site.id              = obj.value("id").toString().toStdString();
-         site.place           = obj.value("place").toString().toStdString();
-         site.state           = obj.value("state").toString().toStdString();
-         site.country         = obj.value("country").toString().toStdString();
-         site.latitude        = obj.value("lat").toDouble();
-         site.longitude       = obj.value("lon").toDouble();
-         site.elevationMeters = obj.value("elevation").toDouble();
-         site.timeZoneId      = obj.value("tz").toString().toStdString();
+         site.id                = obj.value("id").toString().toStdString();
+         site.place             = obj.value("place").toString().toStdString();
+         site.state             = obj.value("state").toString().toStdString();
+         site.country           = obj.value("country").toString().toStdString();
+         site.latitude          = obj.value("lat").toDouble();
+         site.longitude         = obj.value("lon").toDouble();
+         site.altitudeMslMeters = obj.value("elevation").toDouble() * kMetersPerFoot;
+         site.timeZoneId        = obj.value("tz").toString().toStdString();
 
          if (!site.id.empty())
          {

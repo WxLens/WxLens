@@ -41,8 +41,8 @@ void CheckGlError(QOpenGLFunctions_3_3_Core* gl, const char* where)
 class RadarSweepLayer::Impl
 {
 public:
-   explicit Impl(std::shared_ptr<products::RadarSweepProduct> product) :
-       product_ {std::move(product)}
+   explicit Impl(std::shared_ptr<RadarSweepLayerBinding> binding) :
+       binding_ {std::move(binding)}
    {
    }
 
@@ -74,7 +74,7 @@ public:
    void UploadSweep(QOpenGLFunctions_3_3_Core*                gl,
                     const std::shared_ptr<const products::SweepData>& sweep);
 
-   std::shared_ptr<products::RadarSweepProduct> product_;
+   std::shared_ptr<RadarSweepLayerBinding> binding_;
 
    std::unique_ptr<QOpenGLShaderProgram>      shaderProgram_ {nullptr};
    std::unique_ptr<QOpenGLFunctions_3_3_Core> gl_ {nullptr};
@@ -155,8 +155,26 @@ void RadarSweepLayer::Impl::UploadSweep(QOpenGLFunctions_3_3_Core* gl,
    CheckGlError(gl, "UploadSweep()");
 }
 
-RadarSweepLayer::RadarSweepLayer(std::shared_ptr<products::RadarSweepProduct> product) :
-    p {std::make_unique<Impl>(std::move(product))}
+RadarSweepLayerBinding::RadarSweepLayerBinding(
+   std::shared_ptr<products::RadarSweepProduct> product) :
+    product_ {std::move(product)}
+{
+}
+
+void RadarSweepLayerBinding::setProduct(std::shared_ptr<products::RadarSweepProduct> product)
+{
+   std::scoped_lock lock {mutex_};
+   product_ = std::move(product);
+}
+
+std::shared_ptr<products::RadarSweepProduct> RadarSweepLayerBinding::product() const
+{
+   std::scoped_lock lock {mutex_};
+   return product_;
+}
+
+RadarSweepLayer::RadarSweepLayer(std::shared_ptr<RadarSweepLayerBinding> binding) :
+    p {std::make_unique<Impl>(std::move(binding))}
 {
 }
 
@@ -217,7 +235,15 @@ void RadarSweepLayer::render(const QMapLibre::CustomLayerRenderParameters& param
       return;
    }
 
-   std::shared_ptr<const products::SweepData> sweep = p->product_->sweep_data();
+   const auto product = p->binding_->product();
+   if (product == nullptr)
+   {
+      p->lastUploaded_.reset();
+      p->numVertices_ = 0;
+      return;
+   }
+
+   std::shared_ptr<const products::SweepData> sweep = product->sweep_data();
    if (sweep == nullptr)
    {
       // No data loaded yet - nothing to draw.

@@ -34,6 +34,11 @@ Item {
     // Bumped on every camera change to force re-projection of already-visible objects.
     property int cameraTick: 0
 
+    // The object the pane's context menu is currently acting on, or -1. Drawn as a halo so it is
+    // unambiguous *which* object a delete is about to remove - objects overlap constantly on a
+    // busy map, and the click tolerance means the nearest one is not always the obvious one.
+    property int highlightedObjectId: -1
+
     Connections {
         target: root.paneController ? root.paneController : null
         function onCameraChanged() { root.cameraTick++ }
@@ -49,6 +54,7 @@ Item {
             anchors.fill: parent
 
             readonly property int objectType: modelData.objectType
+            readonly property bool highlighted: modelData.objectId === root.highlightedObjectId
 
             // Reading cameraTick is what re-projects this on every camera change. Without it the
             // binding evaluates once and the object sticks to its original *pixel*, drifting
@@ -78,6 +84,25 @@ Item {
                                                                     modelData.longitudes[i]))
                 }
                 return pts
+            }
+
+            // Highlight halos are drawn as separate wider strokes underneath rather than by
+            // thickening the object itself, so highlighting never changes where the object
+            // appears to be.
+            Shape {
+                visible: objectItem.isPath && objectItem.highlighted
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
+
+                ShapePath {
+                    strokeColor: "#80ffffff"
+                    strokeWidth: 7
+                    fillColor: "transparent"
+
+                    PathPolyline {
+                        path: objectItem.pathPixels
+                    }
+                }
             }
 
             Shape {
@@ -136,6 +161,22 @@ Item {
             }
 
             Shape {
+                visible: objectItem.isRangeRing && objectItem.highlighted
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
+
+                ShapePath {
+                    strokeColor: "#80ffffff"
+                    strokeWidth: 6
+                    fillColor: "transparent"
+
+                    PathPolyline {
+                        path: objectItem.ringPixels
+                    }
+                }
+            }
+
+            Shape {
                 visible: objectItem.isRangeRing
                 anchors.fill: parent
                 preferredRendererType: Shape.CurveRenderer
@@ -149,6 +190,16 @@ Item {
                         path: objectItem.ringPixels
                     }
                 }
+            }
+
+            Rectangle {
+                visible: objectItem.isMarker && objectItem.highlighted
+                x: objectItem.anchorPixel.x - width / 2
+                y: objectItem.anchorPixel.y - height / 2
+                width: 22
+                height: 22
+                radius: 11
+                color: "#59ffffff"
             }
 
             // Marker: a simple dot with a halo so it stays readable over both bright reflectivity
@@ -180,7 +231,7 @@ Item {
                 color: "#e8edf2"
                 font.pixelSize: 11
                 style: Text.Outline
-                styleColor: "#000000c0"
+                styleColor: "#c0000000"
             }
         }
     }

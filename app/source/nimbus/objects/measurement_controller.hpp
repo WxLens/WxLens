@@ -46,6 +46,17 @@ class MeasurementController : public QObject
 
    Q_PROPERTY(double totalMeters READ totalMeters NOTIFY measurementChanged)
 
+   /**
+    * The pane the in-progress measurement belongs to, or -1 when there is none.
+    *
+    * The controller is a singleton shared by every pane, so without this each pane's overlay
+    * drew the same in-progress geometry - a measurement started in one pane appeared in all of
+    * them, then collapsed to a single pane the instant it was committed. Worse, a measurement is
+    * anchored to coordinates the user picked in *one* pane; drawing it through another pane's
+    * camera says something the user never measured.
+    */
+   Q_PROPERTY(int activePaneId READ activePaneId NOTIFY measurementChanged)
+
    /// One-line primary readout for the common case, per §4.4/§5.3's progressive disclosure: the
    /// detail lives in `segments`, this is what the pane shows without being asked.
    Q_PROPERTY(QString readout READ readout NOTIFY measurementChanged)
@@ -73,6 +84,7 @@ public:
    [[nodiscard]] QVariantList points() const;
    [[nodiscard]] QVariantList segments() const;
    [[nodiscard]] double       totalMeters() const;
+   [[nodiscard]] int          activePaneId() const;
    [[nodiscard]] QString      readout() const;
 
    void setMode(int mode);
@@ -85,6 +97,17 @@ public:
     * accumulating.
     */
    Q_INVOKABLE void addPoint(double latitude, double longitude, nimbus::panes::PaneController* pane);
+
+   /**
+    * Starts a fresh measurement whose origin is seeded but whose far end is not - the press half
+    * of a press-drag-release measurement.
+    *
+    * Distinct from addPoint() because the origin is not always where the user pressed:
+    * RadarToPoint anchors to the pane's own source location and ignores the press position
+    * entirely, which is the whole point of that mode. Anything already in progress is discarded,
+    * since a new press means a new measurement.
+    */
+   Q_INVOKABLE void beginDrag(double latitude, double longitude, nimbus::panes::PaneController* pane);
 
    /** Live cursor position - drives the rubber-band segment and readout. Never stored. */
    Q_INVOKABLE void updateCursor(double latitude, double longitude);
@@ -103,6 +126,9 @@ public:
 
    /** Formats a distance for display. Kilometres and statute miles until unit settings exist. */
    Q_INVOKABLE static QString formatDistance(double meters);
+
+   /** Re-emits formatted properties after the global unit preference changes. */
+   void refreshFormatting();
 
 private:
    /// Total over the committed vertices only, excluding the live cursor - used for the label

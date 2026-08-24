@@ -10,6 +10,11 @@ Rectangle {
     width: 56
     color: "#14181e"
 
+    // §4.5's "every quick control links to the setting that governs its default" - the scope
+    // control below changes one object once; the moment a user sets it the same way repeatedly,
+    // what they actually want is the default, and they should not have to go hunting for it.
+    signal configureRequested(string sectionId)
+
     Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
@@ -72,6 +77,11 @@ Rectangle {
 
         // Scope for newly placed objects (§4.3): current pane, the pane's sync group, or all
         // panes. Placed next to the tools because it changes what placing one *means*.
+        //
+        // Shown for measurements too, not just object placement: a committed measurement is an
+        // object like any other, and scope is what decides whether it stays on the pane it was
+        // drawn in or appears across all of them. Hiding it during measurement made "keep this on
+        // every pane" unreachable for exactly the objects people most want it for.
         Rectangle {
             width: 32
             height: 32
@@ -79,7 +89,8 @@ Rectangle {
             color: "#20262e"
             border.color: "#2f3742"
             border.width: 1
-            visible: typeof objectTools !== "undefined" && objectTools.activeTool !== 0
+            visible: (typeof objectTools !== "undefined" && objectTools.activeTool !== 0) ||
+                     (typeof measurementTool !== "undefined" && measurementTool.mode !== 0)
 
             // MapObjectScopeKind: 0 CurrentPaneOnly, 1 SyncGroup, 3 AllPanes. SameLocation (2) is
             // omitted here only because it needs no explicit choice to be useful yet.
@@ -96,8 +107,14 @@ Rectangle {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                // Cycles CurrentPaneOnly -> SyncGroup -> AllPanes, skipping SameLocation.
-                onClicked: {
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                // Left cycles CurrentPaneOnly -> SyncGroup -> AllPanes, skipping SameLocation.
+                // Right opens the setting that decides which of them new objects start in.
+                onClicked: (mouse) => {
+                    if (mouse.button === Qt.RightButton) {
+                        root.configureRequested("objects")
+                        return
+                    }
                     const order = [0, 1, 3]
                     const next = (order.indexOf(objectTools.scopeKind) + 1) % order.length
                     objectTools.scopeKind = order[next]

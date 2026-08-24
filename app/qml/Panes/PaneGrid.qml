@@ -11,6 +11,10 @@ Item {
     // The nimbus::panes::PaneGridModel backing this grid.
     required property var model
 
+    // A quick control inside some pane asked to open Settings at a section (§4.5). Forwarded up
+    // because the settings surface belongs to the window, not to the grid or to any one pane.
+    signal configureRequested(string sectionId)
+
     // `model` is a context property that QML tears down before this item during application exit,
     // so these must tolerate it going null rather than throwing a burst of TypeErrors on close.
     readonly property bool hasModel: root.model !== null && root.model !== undefined
@@ -28,6 +32,8 @@ Item {
 
             paneController: pane
             showLabel: root.columns * root.rows > 1
+
+            onConfigureRequested: (sectionId) => root.configureRequested(sectionId)
 
             // Explicit geometry rather than a GridLayout: each cell's size is a pure function of
             // the grid dimensions, and the trailing row/column absorbs the rounding remainder so

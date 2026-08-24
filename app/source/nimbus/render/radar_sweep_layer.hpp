@@ -3,6 +3,7 @@
 #include <nimbus/products/radar_sweep_product.hpp>
 
 #include <memory>
+#include <mutex>
 
 #include <QMapLibre/Types>
 
@@ -10,6 +11,19 @@ namespace nimbus
 {
 namespace render
 {
+
+class RadarSweepLayerBinding
+{
+public:
+   explicit RadarSweepLayerBinding(std::shared_ptr<products::RadarSweepProduct> product);
+
+   void setProduct(std::shared_ptr<products::RadarSweepProduct> product);
+   [[nodiscard]] std::shared_ptr<products::RadarSweepProduct> product() const;
+
+private:
+   mutable std::mutex                            mutex_;
+   std::shared_ptr<products::RadarSweepProduct> product_;
+};
 
 /**
  * The Visualization Layer (docs/ROADMAP.md §0.1 principle #4, §4.6) for one radar site's
@@ -27,7 +41,7 @@ namespace render
 class RadarSweepLayer : public QMapLibre::CustomLayerHostInterface
 {
 public:
-   explicit RadarSweepLayer(std::shared_ptr<products::RadarSweepProduct> product);
+   explicit RadarSweepLayer(std::shared_ptr<RadarSweepLayerBinding> binding);
    ~RadarSweepLayer() override;
 
    RadarSweepLayer(const RadarSweepLayer&)            = delete;

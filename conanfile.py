@@ -21,6 +21,11 @@ class NimbusConan(ConanFile):
                   "range-v3/cci.20240905",
                   "re2/20251105",
                   "spdlog/1.17.0",
+                  # toml++ (header-only, MIT) backs app/source/nimbus/settings - the structured
+                  # config store chosen in docs/adr/0003-config-storage-format.md. That ADR
+                  # deferred adding it until the first real settings file existed; Phase 1
+                  # slice 17 is that point.
+                  "tomlplusplus/3.4.0",
                   "zlib/1.3.2")
     generators = ("CMakeDeps")
     default_options = {"boost/*:without_cobalt": True}

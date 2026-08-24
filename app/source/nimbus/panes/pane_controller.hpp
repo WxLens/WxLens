@@ -11,6 +11,7 @@
 #include <QString>
 #include <QVariant>
 #include <QVariantList>
+#include <QVariantMap>
 
 namespace nimbus
 {
@@ -128,6 +129,14 @@ public:
     */
    Q_INVOKABLE QPointF pixelForCoordinate(double latitude, double longitude) const;
 
+   /**
+    * Whether this pane has a map yet, i.e. whether the projection above returns anything real.
+    * Callers that project several coordinates and compare the results need this: without a map
+    * every coordinate collapses to the same (-1, -1), which silently turns "these are all at the
+    * same place" into a true statement.
+    */
+   [[nodiscard]] Q_INVOKABLE bool hasMap() const;
+
    /** Screen -> geographic, for placing objects where the user clicked. */
    Q_INVOKABLE QVariantList coordinateForPixel(double x, double y) const;
 
@@ -146,10 +155,45 @@ public:
                                                double bearingDegrees,
                                                double distanceMeters) const;
 
+   /**
+    * Asks this pane's data source what it knows about one coordinate (docs/ROADMAP.md §4.4's
+    * point-info probe, §4.7's radar-geometry interrogation).
+    *
+    * Deliberately *not* a `radarGeometryAt()`. §4.6's audit note forbids radar-specific fields on
+    * PaneController, and §4.4 asks for a probe designed so additional data sources plug in later
+    * without a rework - a satellite or model pane answering the same question with its own fields
+    * is the whole point. So this dispatches on product kind exactly as attachLayers does, and the
+    * returned map's `kind` says which shape the caller is looking at.
+    *
+    * Always present: `kind`, `available`, `latitude`, `longitude`. When `available` is false,
+    * `unavailableReason` says why in words a user can read, and nothing else should be displayed.
+    *
+    * For `kind == "radar"` the map carries range/azimuth, the selected elevation angle, and beam
+    * -centre altitude MSL and above-radar-level, each with raw numbers *and* a preformatted
+    * display string so the UI stays presentation-only. Beam-centre height above *ground* is
+    * absent by construction, and `terrainAvailable` is false, until a real terrain source exists
+    * (§4.7): a missing field cannot be rendered as though it were authoritative, whereas a
+    * plausible placeholder can.
+    *
+    * Cheap and side-effect free - safe to call on every cursor move, which is what §4.7's "live,
+    * not static" readout does.
+    */
+   Q_INVOKABLE QVariantMap probeSourceAt(double latitude, double longitude) const;
+
 signals:
    void productChanged();
    void cameraChanged();
    void syncGroupsChanged();
+
+   /**
+    * The pane's data source published new data. Distinct from productChanged, which means "this
+    * pane is now bound to something else" - this means "the thing it is bound to has new content".
+    *
+    * probeSourceAt's answer depends on that content (the selected elevation angle comes from the
+    * loaded sweep), and a method call is invisible to a QML binding, so the readout needs this to
+    * know it has gone stale.
+    */
+   void sourceDataChanged();
 
    /**
     * Emitted only when a camera channel was changed by something other than this pane's own user
