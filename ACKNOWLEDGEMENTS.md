@@ -67,5 +67,5 @@ Nimbus bundles the following assets:
 
 | Source | License | Notes |
 | ------ | ------- | ----- |
-| [NOAA's Weather and Climate Toolkit](https://www.ncdc.noaa.gov/wct/) | Public Domain | Default Color Tables - `app/res/palettes/wct/DR.pal` (reflectivity) copied unmodified from `scwx-qt/res/palettes/wct/`; more products' defaults follow as they're wired up |
+| [NOAA's Weather and Climate Toolkit](https://www.ncdc.noaa.gov/wct/) | Public Domain | Default Color Tables - the complete `scwx-qt/res/palettes/wct/` set is bundled unmodified as Qt resources; the active product subset grows as products are wired up |
 | [Supercell Wx](https://github.com/dpaulat/supercell-wx) `scwx-qt/res/config/radar_sites.json` | [MIT License](https://spdx.org/licenses/MIT.html) | Radar site location/elevation/time-zone data, compiled from public NOAA/NWS sources — copied unmodified into `app/res/config/`, used by `nimbus::data::FindRadarSite` |

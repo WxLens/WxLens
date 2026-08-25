@@ -13,6 +13,7 @@ Rectangle {
     // The plain "open Settings" route. §4.5's deep-links are the other direction and come from
     // the individual quick controls, not from here.
     signal settingsRequested()
+    signal paletteRequested()
 
     Rectangle {
         anchors.left: parent.left
@@ -52,6 +53,33 @@ Rectangle {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.settingsRequested()
+        }
+    }
+
+    Rectangle {
+        anchors.right: parent.right
+        anchors.rightMargin: 48
+        anchors.verticalCenter: parent.verticalCenter
+        width: paletteText.implicitWidth + 20
+        height: 28
+        radius: 5
+        color: paletteArea.containsMouse ? "#25303b" : "#1d242c"
+        border.color: "#303a45"
+
+        Text {
+            id: paletteText
+            anchors.centerIn: parent
+            text: (typeof paletteManager !== "undefined" && paletteManager !== null)
+                ? paletteManager.activeName : "Palette"
+            color: "#b7c2ce"
+            font.pixelSize: 11
+        }
+        MouseArea {
+            id: paletteArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.paletteRequested()
         }
     }
 

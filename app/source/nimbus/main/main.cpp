@@ -3,6 +3,7 @@
 #include <nimbus/objects/measurement_controller.hpp>
 #include <nimbus/objects/object_tool_controller.hpp>
 #include <nimbus/panes/pane_grid_model.hpp>
+#include <nimbus/palettes/palette_manager.hpp>
 #include <nimbus/products/radar_product_status.hpp>
 #include <nimbus/settings/app_settings.hpp>
 #include <nimbus/settings/settings_store.hpp>
@@ -118,6 +119,8 @@ int main(int argc, char* argv[])
    nimbus::panes::PaneGridModel paneGridModel;
    paneGridModel.setDefaultSourceKey(QString::fromStdString(kDefaultRadarSite));
    engine.rootContext()->setContextProperty("paneGridModel", &paneGridModel);
+   engine.rootContext()->setContextProperty(
+      "paletteManager", &nimbus::palettes::PaletteManager::Instance());
 
    // Still a single-site status line in the top bar: a temporary bridge (see RadarProductStatus's
    // own doc comment) that predates the grid and is superseded by per-pane chrome, not extended.

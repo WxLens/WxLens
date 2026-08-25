@@ -35,6 +35,10 @@ qt_add_executable(nimbus-app
     source/nimbus/panes/pane_grid_model.cpp
     source/nimbus/panes/pane_grid_model.hpp
     source/nimbus/panes/sync_types.hpp
+    source/nimbus/palettes/palette_manager.cpp
+    source/nimbus/palettes/palette_manager.hpp
+    source/nimbus/palettes/palette_model.cpp
+    source/nimbus/palettes/palette_model.hpp
     source/nimbus/products/product_descriptor.hpp
     source/nimbus/products/radar_product_status.cpp
     source/nimbus/products/radar_product_status.hpp
@@ -68,6 +72,8 @@ qt_add_qml_module(nimbus-app
         qml/Chrome/SideRail.qml
         qml/Dialogs/SettingsChoice.qml
         qml/Dialogs/SettingsDialog.qml
+        qml/Dialogs/PaletteDialog.qml
+        qml/Controls/ColorPicker.qml
         qml/Panes/MapObjectsLayer.qml
         qml/Panes/MeasurementLayer.qml
         qml/Panes/RadarGeometryPanel.qml
@@ -78,8 +84,32 @@ qt_add_qml_module(nimbus-app
         res/config/radar_sites.json
         res/gl/radar.vert
         res/gl/radar.frag
-        res/palettes/wct/DR.pal
 )
+
+# NOAA Weather and Climate Toolkit defaults, carried forward unmodified with the attribution in
+# ACKNOWLEDGEMENTS.md. Referencing the vendored copies as resource inputs keeps external/ pristine
+# and prevents Nimbus's copies drifting from the reused legacy dependency.
+set(NIMBUS_WCT_PALETTE_DIR
+    "${CMAKE_SOURCE_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct")
+qt_add_resources(nimbus-app "nimbus-wct-palettes"
+    PREFIX "/qt/qml/Nimbus/App/res/palettes/wct"
+    BASE "${NIMBUS_WCT_PALETTE_DIR}"
+    FILES
+        "${NIMBUS_WCT_PALETTE_DIR}/CC.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/Default16.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/DOD_DSD.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/DR.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/DV.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/ET.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/HC.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/KDP.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/KDP2.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/OHP.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/SRV.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/STP.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/SW.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/VIL.pal"
+        "${NIMBUS_WCT_PALETTE_DIR}/ZDR.pal")
 
 set_target_properties(nimbus-app PROPERTIES
     CXX_STANDARD 20

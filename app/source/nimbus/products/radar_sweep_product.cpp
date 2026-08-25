@@ -2,6 +2,7 @@
 #include <nimbus/data/radar_site_data_service.hpp>
 #include <nimbus/data/radar_site_database.hpp>
 #include <nimbus/log/logger.hpp>
+#include <nimbus/palettes/palette_manager.hpp>
 #include <nimbus/util/geodesic.hpp>
 
 #include <scwx/common/color_table.hpp>
@@ -485,6 +486,7 @@ public:
    }
 
    void OnLevelTwoDataLoaded(const std::shared_ptr<scwx::wsr88d::Ar2vFile>& file);
+   void SetPaletteText(const QString& text);
 
    RadarSweepProduct* self_;
 
@@ -494,6 +496,7 @@ public:
    double      siteAltitudeMslMeters_;
 
    std::shared_ptr<scwx::common::ColorTable> colorTable_;
+   std::shared_ptr<scwx::wsr88d::Ar2vFile>   lastFile_;
 
    mutable std::mutex               dataMutex_;
    std::shared_ptr<const SweepData> data_;
@@ -507,6 +510,7 @@ public:
 void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
    const std::shared_ptr<scwx::wsr88d::Ar2vFile>& file)
 {
+   lastFile_ = file;
    logger_->debug("Computing sweep for {}", radarSite_);
 
    // Lowest elevation cut, latest available scan in this volume (an empty time_point means "no
@@ -543,6 +547,15 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
    Q_EMIT self_->SweepUpdated();
 }
 
+void RadarSweepProduct::Impl::SetPaletteText(const QString& text)
+{
+   std::istringstream stream(text.toStdString());
+   auto table = scwx::common::ColorTable::Load(stream);
+   if (table == nullptr || !table->IsValid()) return;
+   colorTable_ = std::move(table);
+   if (lastFile_ != nullptr) OnLevelTwoDataLoaded(lastFile_);
+}
+
 RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
                                      double             siteLatitude,
                                      double             siteLongitude,
@@ -552,6 +565,13 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
     p {std::make_unique<Impl>(
        this, radarSite, siteLatitude, siteLongitude, siteAltitudeMslMeters)}
 {
+   auto& palettes = nimbus::palettes::PaletteManager::Instance();
+   if (!palettes.activeText().isEmpty()) p->SetPaletteText(palettes.activeText());
+   connect(&palettes,
+           &nimbus::palettes::PaletteManager::paletteTextChanged,
+           this,
+           [this](const QString& text) { p->SetPaletteText(text); });
+
    auto service = nimbus::data::RadarSiteDataService::Instance(radarSite);
 
    connect(service.get(),

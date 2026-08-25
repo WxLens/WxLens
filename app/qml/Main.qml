@@ -19,6 +19,7 @@ Window {
         TopBar {
             width: parent.width
             onSettingsRequested: settingsDialog.open()
+            onPaletteRequested: paletteDialog.open()
         }
 
         Row {
@@ -46,4 +47,6 @@ Window {
     SettingsDialog {
         id: settingsDialog
     }
+
+    PaletteDialog { id: paletteDialog }
 }
