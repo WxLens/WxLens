@@ -194,7 +194,7 @@ std::shared_ptr<SweepData> ComputeSweep(const ElevationScan& radarData,
                                         DataBlockType         dataBlockType,
                                         double                 radarLatitude,
                                         double                 radarLongitude,
-                                        std::shared_ptr<scwx::common::ColorTable> colorTable)
+                                        [[maybe_unused]] std::shared_ptr<scwx::common::ColorTable> colorTable)
 {
    const auto radarData0It = radarData.find(0);
    if (radarData0It == radarData.cend() || radarData0It->second == nullptr)
@@ -405,37 +405,28 @@ std::shared_ptr<SweepData> ComputeSweep(const ElevationScan& radarData,
       dataMoments16.shrink_to_fit();
    }
 
-   // Color table LUT - ported from Level2ProductView::UpdateColorTableLut, Reflectivity's
-   // rangeMin/rangeMax case only (the switch's default branch upstream), no threshold masking
-   // (that comes from a settings-driven "color_table_threshold()" this slice doesn't have yet).
-   if (colorTable != nullptr && colorTable->IsValid())
+   result->dataMomentOffset = momentData0->offset();
+   result->dataMomentScale  = momentData0->scale();
+
+   return result;
+}
+
+std::shared_ptr<ColorTableLut>
+BuildColorTableLut(const SweepData& sweep, const std::shared_ptr<scwx::common::ColorTable>& table)
+{
+   if (table == nullptr || !table->IsValid()) return nullptr;
+   constexpr std::uint16_t rangeMin = 1;
+   constexpr std::uint16_t rangeMax = 255;
+   auto result = std::make_shared<ColorTableLut>();
+   result->minimum = rangeMin;
+   result->maximum = rangeMax;
+   result->colors.resize(rangeMax - rangeMin + 1);
+   for (std::uint16_t i = rangeMin; i <= rangeMax; ++i)
    {
-      const float offset = momentData0->offset();
-      const float scale   = momentData0->scale();
-
-      constexpr std::uint16_t rangeMin = 1;
-      constexpr std::uint16_t rangeMax = 255;
-
-      auto& lut = result->colorTableLut;
-      lut.resize(rangeMax - rangeMin + 1);
-
-      for (std::uint16_t i = rangeMin; i <= rangeMax; ++i)
-      {
-         if (i == kRangeFolded)
-         {
-            lut[i - rangeMin] = colorTable->rf_color();
-         }
-         else
-         {
-            const float f = (static_cast<float>(i) - offset) / scale;
-            lut[i - rangeMin] = colorTable->Color(f);
-         }
-      }
-
-      result->colorTableMin = rangeMin;
-      result->colorTableMax = rangeMax;
+      result->colors[i - rangeMin] = i == kRangeFolded
+         ? table->rf_color()
+         : table->Color((static_cast<float>(i) - sweep.dataMomentOffset) / sweep.dataMomentScale);
    }
-
    return result;
 }
 
@@ -496,10 +487,9 @@ public:
    double      siteAltitudeMslMeters_;
 
    std::shared_ptr<scwx::common::ColorTable> colorTable_;
-   std::shared_ptr<scwx::wsr88d::Ar2vFile>   lastFile_;
-
    mutable std::mutex               dataMutex_;
    std::shared_ptr<const SweepData> data_;
+   std::shared_ptr<const ColorTableLut> colorTableLut_;
 
    /// The tilt of the cut `data_` was built from. Guarded by dataMutex_ alongside data_, because
    /// the two must never be read out of step: an altitude computed from one sweep's range and a
@@ -510,7 +500,6 @@ public:
 void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
    const std::shared_ptr<scwx::wsr88d::Ar2vFile>& file)
 {
-   lastFile_ = file;
    logger_->debug("Computing sweep for {}", radarSite_);
 
    // Lowest elevation cut, latest available scan in this volume (an empty time_point means "no
@@ -541,6 +530,7 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
    {
       std::scoped_lock lock {dataMutex_};
       data_                  = std::move(sweepData);
+      colorTableLut_         = BuildColorTableLut(*data_, colorTable_);
       elevationAngleDegrees_ = elevationCut;
    }
 
@@ -553,7 +543,13 @@ void RadarSweepProduct::Impl::SetPaletteText(const QString& text)
    auto table = scwx::common::ColorTable::Load(stream);
    if (table == nullptr || !table->IsValid()) return;
    colorTable_ = std::move(table);
-   if (lastFile_ != nullptr) OnLevelTwoDataLoaded(lastFile_);
+   {
+      std::scoped_lock lock {dataMutex_};
+      if (data_ != nullptr) colorTableLut_ = BuildColorTableLut(*data_, colorTable_);
+   }
+   // The existing signal already triggers every attached map's repaint. Render layers compare
+   // the palette snapshot independently, so only the 1D texture is uploaded.
+   Q_EMIT self_->SweepUpdated();
 }
 
 RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
@@ -646,6 +642,12 @@ std::shared_ptr<const SweepData> RadarSweepProduct::sweep_data() const
 {
    std::scoped_lock lock {p->dataMutex_};
    return p->data_;
+}
+
+std::shared_ptr<const ColorTableLut> RadarSweepProduct::color_table_lut() const
+{
+   std::scoped_lock lock {p->dataMutex_};
+   return p->colorTableLut_;
 }
 
 } // namespace products

@@ -41,8 +41,8 @@ public:
    double maximumValue() const;
    bool dirty() const;
 
-   Q_INVOKABLE void setStopValue(int row, double value);
-   Q_INVOKABLE void setStopColor(int row, const QColor& color, bool second = false);
+   Q_INVOKABLE bool setStopValue(int row, double value);
+   Q_INVOKABLE bool setStopColor(int row, const QColor& color, bool second = false);
    Q_INVOKABLE bool saveAs(const QUrl& destination);
    Q_INVOKABLE void revertChanges();
 

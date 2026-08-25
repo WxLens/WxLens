@@ -30,9 +30,16 @@ struct SweepData
    std::vector<std::uint8_t>  dataMoments8;  ///< populated when the moment word size is 8 bits
    std::vector<std::uint16_t> dataMoments16; ///< populated when the moment word size is 16 bits
 
-   std::vector<boost::gil::rgba8_pixel_t> colorTableLut;
-   std::uint16_t                          colorTableMin {0};
-   std::uint16_t                          colorTableMax {0};
+   float dataMomentOffset {0.0f};
+   float dataMomentScale {1.0f};
+};
+
+/** Small, independently replaceable palette snapshot; changing it never rebuilds geometry. */
+struct ColorTableLut
+{
+   std::vector<boost::gil::rgba8_pixel_t> colors;
+   std::uint16_t                          minimum {0};
+   std::uint16_t                          maximum {0};
 };
 
 /**
@@ -101,6 +108,7 @@ public:
     * yet. Safe to call from any thread (the render thread included) - see SweepData's comment.
     */
    [[nodiscard]] std::shared_ptr<const SweepData> sweep_data() const;
+   [[nodiscard]] std::shared_ptr<const ColorTableLut> color_table_lut() const;
 
 signals:
    /// Emitted after a new SweepData snapshot is published; sweep_data() will return it.

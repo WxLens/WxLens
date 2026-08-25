@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <sstream>
+#include <set>
 
 #include <QFile>
 #include <QFileInfo>
@@ -82,6 +83,8 @@ void PaletteModel::load(const QString& name, const QString& text)
 void PaletteModel::Parse()
 {
    stops_.clear();
+   bool parseValid = true;
+   std::set<double> values;
    static const QRegularExpression whitespace {"\\s+"};
    for (int i = 0; i < lines_.size(); ++i)
    {
@@ -89,35 +92,67 @@ void PaletteModel::Parse()
       const int commentAt = line.indexOf(';');
       const QString body = line.left(commentAt < 0 ? line.size() : commentAt).trimmed();
       const QStringList tokens = body.split(whitespace, Qt::SkipEmptyParts);
-      if (tokens.size() < 5) continue;
+      if (tokens.isEmpty()) continue;
       const QString directive = tokens[0].toLower();
       const bool color = directive == "color:" || directive == "color4:";
       const bool solid = directive == "solidcolor:" || directive == "solidcolor4:";
       if (!color && !solid) continue;
+      if (tokens.size() < 5)
+      {
+         parseValid = false;
+         continue;
+      }
       bool ok = false;
       const double value = tokens[1].toDouble(&ok);
-      if (!ok) continue;
+      if (!ok || !std::isfinite(value) || values.contains(value))
+      {
+         parseValid = false;
+         continue;
+      }
       const bool alpha = directive.endsWith("4:");
       const int width = alpha ? 4 : 3;
-      if (tokens.size() < 2 + width) continue;
-      auto parseColor = [&](int offset)
+      const bool hasSecond = color && tokens.size() == 2 + width * 2;
+      if ((!hasSecond && tokens.size() != 2 + width) || (solid && tokens.size() != 2 + width))
       {
-         return QColor(tokens[offset].toInt(), tokens[offset + 1].toInt(),
-                       tokens[offset + 2].toInt(), alpha ? tokens[offset + 3].toInt() : 255);
+         parseValid = false;
+         continue;
+      }
+      auto parseColor = [&](int offset, QColor& result)
+      {
+         int channels[4] {0, 0, 0, 255};
+         for (int channel = 0; channel < width; ++channel)
+         {
+            bool channelOk = false;
+            channels[channel] = tokens[offset + channel].toInt(&channelOk);
+            if (!channelOk || channels[channel] < 0 || channels[channel] > 255) return false;
+         }
+         result = QColor(channels[0], channels[1], channels[2], channels[3]);
+         return true;
       };
-      Stop stop {i, tokens[0], value, parseColor(2), {}, false,
-                 commentAt < 0 ? QString {} : line.mid(commentAt)};
-      if (color && tokens.size() >= 2 + width * 2)
+      QColor first;
+      if (!parseColor(2, first))
       {
-         stop.second = parseColor(2 + width);
+         parseValid = false;
+         continue;
+      }
+      Stop stop {i, tokens[0], value, first, {}, false,
+                 commentAt < 0 ? QString {} : line.mid(commentAt)};
+      if (hasSecond)
+      {
+         if (!parseColor(2 + width, stop.second))
+         {
+            parseValid = false;
+            continue;
+         }
          stop.hasSecond = true;
       }
+      values.insert(value);
       stops_.append(stop);
    }
 
    std::istringstream stream(text().toStdString());
    auto table = scwx::common::ColorTable::Load(stream);
-   valid_ = table != nullptr && table->IsValid();
+   valid_ = parseValid && table != nullptr && table->IsValid();
    previewStops_.clear();
    if (valid_ && !stops_.isEmpty())
    {
@@ -158,19 +193,24 @@ void PaletteModel::RewriteStop(int row)
    if (dirty_ != wasDirty) Q_EMIT dirtyChanged();
 }
 
-void PaletteModel::setStopValue(int row, double value)
+bool PaletteModel::setStopValue(int row, double value)
 {
-   if (row < 0 || row >= stops_.size() || !std::isfinite(value)) return;
+   if (row < 0 || row >= stops_.size() || !std::isfinite(value)) return false;
+   for (int i = 0; i < stops_.size(); ++i)
+      if (i != row && stops_[i].value == value) return false;
    stops_[row].value = value;
    RewriteStop(row);
+   return true;
 }
 
-void PaletteModel::setStopColor(int row, const QColor& color, bool second)
+bool PaletteModel::setStopColor(int row, const QColor& color, bool second)
 {
-   if (row < 0 || row >= stops_.size() || !color.isValid()) return;
-   if (second && stops_[row].hasSecond) stops_[row].second = color;
+   if (row < 0 || row >= stops_.size() || !color.isValid()) return false;
+   if (second && !stops_[row].hasSecond) return false;
+   if (second) stops_[row].second = color;
    else stops_[row].first = color;
    RewriteStop(row);
+   return true;
 }
 
 bool PaletteModel::saveAs(const QUrl& destination)

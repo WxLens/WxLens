@@ -4,6 +4,7 @@
 #include <scwx/common/color_table.hpp>
 
 #include <sstream>
+
 #include <QFile>
 #include <QFileInfo>
 
@@ -12,18 +13,36 @@ namespace nimbus
 namespace palettes
 {
 
-namespace { const auto logger_ = nimbus::log::Create("palettes.palette_manager"); }
+namespace
+{
+const auto logger_ = nimbus::log::Create("palettes.palette_manager");
+const QStringList kFactoryNames {"DR", "DV", "SRV", "SW", "ZDR", "CC", "KDP", "KDP2",
+                                 "HC", "ET", "VIL", "OHP", "STP", "DOD_DSD", "Default16"};
+}
 
 PaletteManager::PaletteManager(QObject* parent) : QObject(parent), editor_(this)
 {
-   connect(&editor_, &PaletteModel::contentChanged, this,
+   for (const QString& name : kFactoryNames)
+   {
+      QFile file(":/qt/qml/Nimbus/App/res/palettes/wct/" + name + ".pal");
+      if (!file.open(QIODevice::ReadOnly)) continue;
+      const QString text = QString::fromUtf8(file.readAll());
+      names_.append(name);
+      entries_.emplace(name, Entry {text, text, {}, true});
+   }
+
+   connect(&editor_,
+           &PaletteModel::contentChanged,
+           this,
            [this](const QString& text)
            {
               activeText_ = text;
+              if (auto it = entries_.find(activeName_); it != entries_.end())
+                 it->second.workingText = text;
               Q_EMIT paletteTextChanged(activeText_);
            });
-   QFile file(":/qt/qml/Nimbus/App/res/palettes/wct/DR.pal");
-   if (file.open(QIODevice::ReadOnly)) Activate("DR", QString::fromUtf8(file.readAll()));
+
+   if (entries_.contains("DR")) Activate("DR");
 }
 
 PaletteManager& PaletteManager::Instance()
@@ -34,66 +53,150 @@ PaletteManager& PaletteManager::Instance()
 
 QStringList PaletteManager::paletteNames() const { return names_; }
 QString PaletteManager::activeName() const { return activeName_; }
+bool PaletteManager::confirmationRequired() const { return confirmationRequired_; }
 PaletteModel* PaletteManager::editor() { return &editor_; }
 QString PaletteManager::activeText() const { return activeText_; }
 
-bool PaletteManager::Activate(const QString& name, const QString& text)
+bool PaletteManager::activeIsFactoryPalette() const
 {
-   std::istringstream stream(text.toStdString());
+   auto it = entries_.find(activeName_);
+   return it != entries_.end() && it->second.factory;
+}
+
+bool PaletteManager::Activate(const QString& name)
+{
+   const auto it = entries_.find(name);
+   if (it == entries_.end()) return false;
+   std::istringstream stream(it->second.workingText.toStdString());
    auto table = scwx::common::ColorTable::Load(stream);
-   if (table == nullptr || !table->IsValid())
-   {
-      logger_->warn("Rejected invalid palette {}", name.toStdString());
-      return false;
-   }
+   if (table == nullptr || !table->IsValid()) return false;
+
    activeName_ = name;
-   activeText_ = text;
-   editor_.load(name, text);
+   activeText_ = it->second.workingText;
+   editor_.load(name, activeText_);
    Q_EMIT activePaletteChanged();
    Q_EMIT paletteTextChanged(activeText_);
    logger_->info("Activated palette {}", name.toStdString());
    return true;
 }
 
-bool PaletteManager::select(const QString& name)
+bool PaletteManager::select(const QString& name) { return Activate(name); }
+
+QString PaletteManager::UniqueImportedName(const QString& baseName) const
 {
-   if (!names_.contains(name)) return false;
-   QFile file(":/qt/qml/Nimbus/App/res/palettes/wct/" + name + ".pal");
-   return file.open(QIODevice::ReadOnly) && Activate(name, QString::fromUtf8(file.readAll()));
+   QString candidate = baseName.isEmpty() ? QStringLiteral("Imported palette") : baseName;
+   if (!entries_.contains(candidate)) return candidate;
+   for (int suffix = 2;; ++suffix)
+   {
+      const QString suffixed = QString("%1 (%2)").arg(candidate).arg(suffix);
+      if (!entries_.contains(suffixed)) return suffixed;
+   }
 }
 
 bool PaletteManager::openFile(const QUrl& source)
 {
    QFile file(source.toLocalFile());
-   if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return false;
-   const QString name = QFileInfo(file).completeBaseName();
-   if (!names_.contains(name))
+   if (!file.open(QIODevice::ReadOnly)) return false;
+   const QString text = QString::fromUtf8(file.readAll());
+   std::istringstream stream(text.toStdString());
+   auto table = scwx::common::ColorTable::Load(stream);
+   if (table == nullptr || !table->IsValid()) return false;
+
+   const QString name = UniqueImportedName(QFileInfo(file).completeBaseName());
+   names_.append(name);
+   entries_.emplace(name, Entry {text, {}, source, false});
+   Q_EMIT paletteNamesChanged();
+   return Activate(name);
+}
+
+bool PaletteManager::saveAs(const QUrl& destination)
+{
+   return editor_.saveAs(destination);
+}
+
+void PaletteManager::BeginAction(PendingAction action, const QString& target)
+{
+   // Once a confirmation is visible its action is immutable. This also makes an overlay click
+   // that leaks through harmless instead of silently changing what Discard will do.
+   if (confirmationRequired_) return;
+   pendingAction_ = action;
+   pendingTarget_ = target;
+   if (editor_.dirty())
    {
-      names_.append(name);
-      Q_EMIT paletteNamesChanged();
+      confirmationRequired_ = true;
+      Q_EMIT confirmationRequiredChanged();
+      return;
    }
-   return Activate(name, QString::fromUtf8(file.readAll()));
+   ExecutePendingAction();
 }
 
-bool PaletteManager::activeIsFactoryPalette() const
+void PaletteManager::requestClose() { BeginAction(PendingAction::Close); }
+void PaletteManager::requestSelect(const QString& name) { BeginAction(PendingAction::Select, name); }
+void PaletteManager::requestImport() { BeginAction(PendingAction::Import); }
+void PaletteManager::requestResetActive() { BeginAction(PendingAction::ResetActive); }
+void PaletteManager::requestResetAll() { BeginAction(PendingAction::ResetAll); }
+
+void PaletteManager::resolveUnsavedChanges(UnsavedDecision decision)
 {
-   return names_.mid(0, 15).contains(activeName_);
+   if (!confirmationRequired_) return;
+   if (decision == UnsavedDecision::SaveCopy)
+   {
+      Q_EMIT saveFileRequested();
+      return;
+   }
+   if (decision == UnsavedDecision::KeepEditing)
+   {
+      ClearPendingAction();
+      return;
+   }
+   editor_.revertChanges();
+   ExecutePendingAction();
 }
 
-bool PaletteManager::resetActiveToFactory()
+void PaletteManager::completePendingSave(const QUrl& destination)
 {
-   if (!activeIsFactoryPalette()) return false;
-   logger_->info("Resetting palette {} to factory colors", activeName_.toStdString());
-   return select(activeName_);
+   if (!confirmationRequired_ || !editor_.saveAs(destination)) return;
+   ExecutePendingAction();
 }
 
-bool PaletteManager::resetAllToFactory()
+void PaletteManager::ExecutePendingAction()
 {
-   // Factory palettes are immutable Qt resources. Runtime edits never modify them, so resetting
-   // all means discarding the current working copy and returning to the factory reflectivity
-   // palette. Imported/saved files are deliberately outside this operation and remain untouched.
-   logger_->info("Resetting all factory palettes");
-   return select("DR");
+   const PendingAction action = pendingAction_;
+   const QString target = pendingTarget_;
+   ClearPendingAction();
+   switch (action)
+   {
+   case PendingAction::Close: Q_EMIT closeRequested(); break;
+   case PendingAction::Select: Activate(target); break;
+   case PendingAction::Import: Q_EMIT importFileRequested(); break;
+   case PendingAction::ResetActive:
+   {
+      auto it = entries_.find(activeName_);
+      if (it != entries_.end() && it->second.factory)
+      {
+         it->second.workingText = it->second.factoryText;
+         Activate(activeName_);
+      }
+      break;
+   }
+   case PendingAction::ResetAll:
+      for (auto& [name, entry] : entries_)
+         if (entry.factory) entry.workingText = entry.factoryText;
+      Activate("DR");
+      break;
+   case PendingAction::None: break;
+   }
+}
+
+void PaletteManager::ClearPendingAction()
+{
+   pendingAction_ = PendingAction::None;
+   pendingTarget_.clear();
+   if (confirmationRequired_)
+   {
+      confirmationRequired_ = false;
+      Q_EMIT confirmationRequiredChanged();
+   }
 }
 
 } // namespace palettes

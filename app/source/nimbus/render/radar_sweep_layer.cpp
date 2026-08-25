@@ -73,6 +73,9 @@ public:
 
    void UploadSweep(QOpenGLFunctions_3_3_Core*                gl,
                     const std::shared_ptr<const products::SweepData>& sweep);
+   void UploadColorTableLut(
+      QOpenGLFunctions_3_3_Core* gl,
+      const std::shared_ptr<const products::ColorTableLut>& colorTableLut);
 
    std::shared_ptr<RadarSweepLayerBinding> binding_;
 
@@ -90,6 +93,7 @@ public:
    int uCFPEnabledLocation_ {-1};
 
    std::shared_ptr<const products::SweepData> lastUploaded_ {nullptr};
+   std::shared_ptr<const products::ColorTableLut> lastUploadedLut_ {nullptr};
 
    GLsizei       numVertices_ {0};
    std::uint16_t colorTableMin_ {0};
@@ -136,23 +140,30 @@ void RadarSweepLayer::Impl::UploadSweep(QOpenGLFunctions_3_3_Core* gl,
    // simply never enabled, which the shader's uCFPEnabled=false uniform (set every render() call)
    // makes irrelevant, matching the legacy layer's own behavior when CFP data is absent.
 
+   numVertices_ = static_cast<GLsizei>(sweep->vertices.size() / 2);
+
+   CheckGlError(gl, "UploadSweep()");
+}
+
+void RadarSweepLayer::Impl::UploadColorTableLut(
+   QOpenGLFunctions_3_3_Core* gl,
+   const std::shared_ptr<const products::ColorTableLut>& colorTableLut)
+{
    gl->glActiveTexture(GL_TEXTURE0);
    gl->glBindTexture(GL_TEXTURE_1D, texture_);
    gl->glTexImage1D(GL_TEXTURE_1D,
                     0,
                     GL_RGBA,
-                    static_cast<GLsizei>(sweep->colorTableLut.size()),
+                    static_cast<GLsizei>(colorTableLut->colors.size()),
                     0,
                     GL_RGBA,
                     GL_UNSIGNED_BYTE,
-                    sweep->colorTableLut.data());
-   gl->glGenerateMipmap(GL_TEXTURE_1D);
+                    colorTableLut->colors.data());
 
-   numVertices_     = static_cast<GLsizei>(sweep->vertices.size() / 2);
-   colorTableMin_   = sweep->colorTableMin;
-   colorTableScale_ = static_cast<float>(sweep->colorTableMax - sweep->colorTableMin);
+   colorTableMin_ = colorTableLut->minimum;
+   colorTableScale_ = static_cast<float>(colorTableLut->maximum - colorTableLut->minimum);
 
-   CheckGlError(gl, "UploadSweep()");
+   CheckGlError(gl, "UploadColorTableLut()");
 }
 
 RadarSweepLayerBinding::RadarSweepLayerBinding(
@@ -239,12 +250,15 @@ void RadarSweepLayer::render(const QMapLibre::CustomLayerRenderParameters& param
    if (product == nullptr)
    {
       p->lastUploaded_.reset();
+      p->lastUploadedLut_.reset();
       p->numVertices_ = 0;
       return;
    }
 
    std::shared_ptr<const products::SweepData> sweep = product->sweep_data();
-   if (sweep == nullptr)
+   std::shared_ptr<const products::ColorTableLut> colorTableLut =
+      product->color_table_lut();
+   if (sweep == nullptr || colorTableLut == nullptr)
    {
       // No data loaded yet - nothing to draw.
       return;
@@ -254,6 +268,12 @@ void RadarSweepLayer::render(const QMapLibre::CustomLayerRenderParameters& param
    {
       p->UploadSweep(p->gl_.get(), sweep);
       p->lastUploaded_ = sweep;
+   }
+
+   if (colorTableLut != p->lastUploadedLut_)
+   {
+      p->UploadColorTableLut(p->gl_.get(), colorTableLut);
+      p->lastUploadedLut_ = colorTableLut;
    }
 
    if (p->numVertices_ == 0)

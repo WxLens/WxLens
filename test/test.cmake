@@ -110,6 +110,7 @@ add_executable(nimbus-app-test
     source/nimbus/objects/map_object_scope.test.cpp
     source/nimbus/objects/measurement.test.cpp
     source/nimbus/palettes/palette_model.test.cpp
+    source/nimbus/palettes/palette_manager.test.cpp
     source/nimbus/panes/pane_sync.test.cpp
     source/nimbus/panes/source_probe.test.cpp
     source/nimbus/settings/settings_store.test.cpp
@@ -149,8 +150,8 @@ qt_add_resources(nimbus-app-test "nimbus-app-test-config"
 
 qt_add_resources(nimbus-app-test "nimbus-app-test-palette"
     PREFIX "/qt/qml/Nimbus/App/res/palettes/wct"
-    BASE "${NIMBUS_DIR}/app/res/palettes/wct"
-    FILES "${NIMBUS_DIR}/app/res/palettes/wct/DR.pal")
+    BASE "${NIMBUS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct"
+    FILES "${NIMBUS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct/DR.pal")
 
 set_target_properties(nimbus-app-test PROPERTIES CXX_STANDARD 20
                                                  CXX_STANDARD_REQUIRED ON

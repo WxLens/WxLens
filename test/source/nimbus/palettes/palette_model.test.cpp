@@ -65,6 +65,30 @@ TEST(PaletteModel, DirtyStateCanBeDiscardedOrClearedBySaveAs)
    EXPECT_FALSE(model.dirty());
    EXPECT_EQ(model.data(model.index(0), PaletteModel::ColorRole).value<QColor>(), QColor(0, 0, 0));
 }
+
+TEST(PaletteModel, RejectsMalformedChannelsAndDuplicateValues)
+{
+   PaletteModel malformed;
+   malformed.load("bad", "Product: BR\nColor: 0 nope 2 3\n");
+   EXPECT_FALSE(malformed.valid());
+
+   PaletteModel duplicate;
+   duplicate.load("bad", "Product: BR\nColor: 0 1 2 3\nColor: 0 4 5 6\n");
+   EXPECT_FALSE(duplicate.valid());
+}
+
+TEST(PaletteModel, RejectsDuplicateEditAndEditsSecondColor)
+{
+   PaletteModel model;
+   model.load("test", kPalette);
+   EXPECT_FALSE(model.setStopValue(1, 0.0));
+   EXPECT_DOUBLE_EQ(model.data(model.index(1), PaletteModel::ValueRole).toDouble(), 10.0);
+   EXPECT_TRUE(model.setStopColor(1, QColor(7, 8, 9), true));
+   EXPECT_EQ(model.data(model.index(1), PaletteModel::SecondColorRole).value<QColor>(),
+             QColor(7, 8, 9));
+   EXPECT_EQ(model.data(model.index(1), PaletteModel::ColorRole).value<QColor>(),
+             QColor(255, 0, 0));
+}
 } // namespace
 } // namespace palettes
 } // namespace nimbus
