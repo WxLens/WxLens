@@ -7,6 +7,7 @@
 #include <nimbus/products/radar_product_status.hpp>
 #include <nimbus/settings/app_settings.hpp>
 #include <nimbus/settings/settings_store.hpp>
+#include <nimbus/theme/theme_manager.hpp>
 #include <nimbus/util/crash_handler.hpp>
 
 #include <scwx/util/threads.hpp>
@@ -136,6 +137,8 @@ int main(int argc, char* argv[])
    // slice 17). Constructed before the controllers that read defaults from it.
    nimbus::settings::AppSettings appSettings {nimbus::settings::SettingsStore::Instance()};
    engine.rootContext()->setContextProperty("appSettings", &appSettings);
+   nimbus::theme::ThemeManager themeManager {nimbus::settings::SettingsStore::Instance()};
+   engine.rootContext()->setContextProperty("themeManager", &themeManager);
 
    nimbus::objects::ObjectToolController objectTools;
 

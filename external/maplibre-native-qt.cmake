@@ -73,6 +73,14 @@ nimbus_apply_mln_qt_patch(
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0007-mln-qt-connect-map-signals-before-style-load.patch"
     "connect Map signals before the style load starts (ADR 0004)")
 
+# MapQuickItem::setStyle() only updates the string used during initialize(); changing the QML
+# `style` property after the map exists therefore does nothing. Theme-driven basemap changes need
+# the setter to forward the new URL to the live core Map, whose normal mapChanged/styleLoaded
+# signals then rebuild Nimbus's custom layers. Found during the live-review follow-up to slice 10.
+nimbus_apply_mln_qt_patch(
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0008-mln-qt-reload-style-from-qml.patch"
+    "reload the live map when its QML style property changes (ADR 0004)")
+
 set(MLN_QT_WITH_QUICK_PLUGIN ON)
 set(MLN_QT_WITH_LOCATION OFF)
 set(MLN_QT_WITH_WIDGETS OFF)

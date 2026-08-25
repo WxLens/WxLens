@@ -1,0 +1,27 @@
+[theme]
+version = 1
+name = "Daylight"
+dark = false
+
+[colors]
+background = "#e8edf2"
+surface = "#f8fafc"
+elevated_surface = "#f2ffffff"
+control = "#e2e8ef"
+control_hover = "#d5e0ea"
+control_active = "#c7dbee"
+primary = "#3973a8"
+accent = "#216da8"
+danger = "#a83d45"
+warning = "#94691f"
+success = "#287a50"
+text_primary = "#17212b"
+text_secondary = "#405163"
+text_muted = "#68798a"
+border = "#b7c3cf"
+radar_accent = "#216da8"
+measurement_accent = "#9a6400"
+
+[metrics]
+corner_radius = 6
+spacing_unit = 4

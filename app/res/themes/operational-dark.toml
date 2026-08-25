@@ -1,0 +1,27 @@
+[theme]
+version = 1
+name = "Operational Dark"
+dark = true
+
+[colors]
+background = "#101418"
+surface = "#181d24"
+elevated_surface = "#f2161b22"
+control = "#20262e"
+control_hover = "#25303b"
+control_active = "#2b3a4d"
+primary = "#4a7ab0"
+accent = "#73aee8"
+danger = "#b75a5a"
+warning = "#b08a4a"
+success = "#4f9b72"
+text_primary = "#e8edf2"
+text_secondary = "#aeb9c5"
+text_muted = "#7b8794"
+border = "#2f3742"
+radar_accent = "#73aee8"
+measurement_accent = "#ffd166"
+
+[metrics]
+corner_radius = 6
+spacing_unit = 4

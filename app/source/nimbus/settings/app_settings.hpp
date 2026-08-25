@@ -48,6 +48,9 @@ class AppSettings : public QObject
    Q_PROPERTY(
       int distanceUnits READ distanceUnits WRITE setDistanceUnits NOTIFY distanceUnitsChanged)
 
+   /// Basemap appearance: follow the chrome by default, or force dark/light independently.
+   Q_PROPERTY(int mapTheme READ mapTheme WRITE setMapTheme NOTIFY mapThemeChanged)
+
    /**
     * The §4.7 radar-geometry rows, as {id, label, visible, locked, note}. A list rather than one
     * property per row so the settings UI and the readout iterate the same catalogue and cannot
@@ -78,6 +81,14 @@ public:
    };
    Q_ENUM(DistanceUnits)
 
+   enum class MapTheme
+   {
+      FollowChrome = 0,
+      Dark,
+      Light
+   };
+   Q_ENUM(MapTheme)
+
    explicit AppSettings(SettingsStore& store, QObject* parent = nullptr);
    ~AppSettings() override;
 
@@ -89,10 +100,12 @@ public:
    [[nodiscard]] int measurementGesture() const;
    [[nodiscard]] int defaultObjectScope() const;
    [[nodiscard]] int distanceUnits() const;
+   [[nodiscard]] int mapTheme() const;
 
    void setMeasurementGesture(int gesture);
    void setDefaultObjectScope(int scopeKind);
    void setDistanceUnits(int units);
+   void setMapTheme(int theme);
 
    [[nodiscard]] QVariantList geometryRows() const;
 
@@ -124,6 +137,7 @@ signals:
    void measurementGestureChanged();
    void defaultObjectScopeChanged();
    void distanceUnitsChanged();
+   void mapThemeChanged();
    void geometryRowsChanged();
 
 private:

@@ -1,0 +1,13 @@
+diff --git a/src/quick/plugins/map_quick_item.cpp b/src/quick/plugins/map_quick_item.cpp
+index d1556cb..05631bf 100644
+--- a/src/quick/plugins/map_quick_item.cpp
++++ b/src/quick/plugins/map_quick_item.cpp
+@@ -64,4 +64,8 @@ void MapQuickItem::setStyle(const QString &style) {
+         return;
+     }
+     d->m_style = style;
++
++    if (d->m_map != nullptr) {
++        d->m_map->setStyleUrl(style);
++    }
+ }

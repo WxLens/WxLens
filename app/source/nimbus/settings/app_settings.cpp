@@ -25,6 +25,7 @@ const QString kMeasurementCategory = QStringLiteral("measurement");
 const QString kObjectsCategory     = QStringLiteral("objects");
 const QString kUnitsCategory       = QStringLiteral("units");
 const QString kRadarCategory       = QStringLiteral("radar");
+const QString kAppearanceCategory  = QStringLiteral("appearance");
 
 /**
  * The §4.7 geometry-row catalogue. `alwaysDefaultVisible` is not decoration: §4.7 requires the app
@@ -76,7 +77,8 @@ struct Section
 
 /// Stable ids (§4.5). Changing one breaks every deep-link that points at it, so treat these as
 /// part of the app's contract rather than as labels.
-constexpr std::array<Section, 4> kSections {{
+constexpr std::array<Section, 5> kSections {{
+   {"appearance", "Appearance", "Choose the chrome theme used throughout Nimbus."},
    {"measurement", "Measurement", "How measurements are started and finished."},
    {"objects", "Map objects", "Defaults for markers, range rings and pinned measurements."},
    {"units", "Units", "How distances and altitudes are displayed."},
@@ -85,6 +87,7 @@ constexpr std::array<Section, 4> kSections {{
 
 constexpr int kMeasurementGestureMax = static_cast<int>(AppSettings::MeasurementGesture::ClickOnly);
 constexpr int kDistanceUnitsMax      = static_cast<int>(AppSettings::DistanceUnits::Imperial);
+constexpr int kMapThemeMax           = static_cast<int>(AppSettings::MapTheme::Light);
 constexpr int kScopeKindMax = static_cast<int>(objects::MapObjectScopeKind::AllPanes);
 
 } // namespace
@@ -110,6 +113,7 @@ public:
    int measurementGesture_ {static_cast<int>(MeasurementGesture::Both)};
    int defaultObjectScope_ {static_cast<int>(objects::MapObjectScopeKind::CurrentPaneOnly)};
    int distanceUnits_ {static_cast<int>(DistanceUnits::Both)};
+   int mapTheme_ {static_cast<int>(MapTheme::FollowChrome)};
 
    std::map<QString, bool> geometryRowVisible_ {};
 };
@@ -134,6 +138,12 @@ void AppSettings::Impl::Load()
                                   static_cast<int>(DistanceUnits::Both),
                                   0,
                                   kDistanceUnitsMax);
+
+   mapTheme_ = store_.GetInt(kAppearanceCategory,
+                             QStringLiteral("map_theme"),
+                             static_cast<int>(MapTheme::FollowChrome),
+                             0,
+                             kMapThemeMax);
 
    geometryRowVisible_.clear();
    for (const GeometryRow& row : kGeometryRows)
@@ -168,6 +178,11 @@ int AppSettings::defaultObjectScope() const
 int AppSettings::distanceUnits() const
 {
    return p->distanceUnits_;
+}
+
+int AppSettings::mapTheme() const
+{
+   return p->mapTheme_;
 }
 
 void AppSettings::setMeasurementGesture(int gesture)
@@ -211,6 +226,18 @@ void AppSettings::setDistanceUnits(int units)
    p->store_.Save();
 
    Q_EMIT distanceUnitsChanged();
+}
+
+void AppSettings::setMapTheme(int theme)
+{
+   if (theme < 0 || theme > kMapThemeMax || theme == p->mapTheme_)
+   {
+      return;
+   }
+   p->mapTheme_ = theme;
+   p->store_.SetInt(kAppearanceCategory, QStringLiteral("map_theme"), theme);
+   p->store_.Save();
+   Q_EMIT mapThemeChanged();
 }
 
 QVariantList AppSettings::geometryRows() const
@@ -295,6 +322,9 @@ void AppSettings::resetToDefaults()
    p->store_.SetInt(kObjectsCategory,
                     QStringLiteral("default_scope"),
                     static_cast<int>(objects::MapObjectScopeKind::CurrentPaneOnly));
+   p->store_.SetInt(kAppearanceCategory,
+                    QStringLiteral("map_theme"),
+                    static_cast<int>(MapTheme::FollowChrome));
    p->store_.SetInt(kUnitsCategory, QStringLiteral("distance"), static_cast<int>(DistanceUnits::Both));
 
    for (const GeometryRow& row : kGeometryRows)
@@ -309,6 +339,7 @@ void AppSettings::resetToDefaults()
    Q_EMIT measurementGestureChanged();
    Q_EMIT defaultObjectScopeChanged();
    Q_EMIT distanceUnitsChanged();
+   Q_EMIT mapThemeChanged();
    Q_EMIT geometryRowsChanged();
 }
 

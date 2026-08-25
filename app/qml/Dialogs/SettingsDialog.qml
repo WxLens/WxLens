@@ -73,9 +73,9 @@ Item {
         width: Math.min(720, root.width - 80)
         height: Math.min(520, root.height - 80)
         anchors.centerIn: parent
-        radius: 8
-        color: "#161b22"
-        border.color: "#2f3742"
+        radius: themeManager.cornerRadius
+        color: themeManager.surface
+        border.color: themeManager.border
         border.width: 1
 
         // Clicks inside the panel must not reach the scrim's dismiss handler.
@@ -90,7 +90,7 @@ Item {
             anchors.top: parent.top
             anchors.margins: 16
             text: "Settings"
-            color: "#e8edf2"
+            color: themeManager.textPrimary
             font.pixelSize: 15
             font.bold: true
         }
@@ -105,7 +105,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 text: "✕"
-                color: closeArea.containsMouse ? "#e8edf2" : "#8d99a8"
+                color: closeArea.containsMouse ? themeManager.textPrimary : themeManager.textMuted
                 font.pixelSize: 13
             }
 
@@ -138,9 +138,9 @@ Item {
                     height: 34
                     radius: 4
                     color: root.currentSection === modelData.id
-                        ? "#243040"
-                        : (sectionArea.containsMouse ? "#1c232c" : "transparent")
-                    border.color: root.highlightedSection === modelData.id ? "#4a7ab0" : "transparent"
+                        ? themeManager.controlActive
+                        : (sectionArea.containsMouse ? themeManager.controlHover : "transparent")
+                    border.color: root.highlightedSection === modelData.id ? themeManager.primary : "transparent"
                     border.width: 1
 
                     Text {
@@ -148,7 +148,7 @@ Item {
                         anchors.left: parent.left
                         anchors.leftMargin: 10
                         text: parent.modelData.title
-                        color: root.currentSection === parent.modelData.id ? "#dce6f2" : "#8d99a8"
+                        color: root.currentSection === parent.modelData.id ? themeManager.textPrimary : themeManager.textMuted
                         font.pixelSize: 12
                     }
 
@@ -169,7 +169,7 @@ Item {
             anchors.top: sectionList.top
             anchors.bottom: sectionList.bottom
             width: 1
-            color: "#2a3138"
+            color: themeManager.border
         }
 
         // ---- section content ----------------------------------------------------------------
@@ -200,9 +200,32 @@ Item {
                         }
                         return ""
                     }
-                    color: "#7b8794"
+                    color: themeManager.textMuted
                     font.pixelSize: 11
                     wrapMode: Text.WordWrap
+                }
+
+                // -- Appearance ---------------------------------------------------------------
+                SettingsChoice {
+                    visible: root.currentSection === "appearance"
+                    width: contentColumn.width
+                    label: "Chrome theme"
+                    explanation: "Themes are versioned TOML files. Custom files can be placed in " +
+                                 themeManager.themesDirectory() + " and are discovered at launch."
+                    options: themeManager.availableThemes
+                    currentIndex: Math.max(0, themeManager.availableThemes.indexOf(themeManager.activeTheme))
+                    onSelected: (index) => themeManager.activeTheme = themeManager.availableThemes[index]
+                }
+
+                SettingsChoice {
+                    visible: root.currentSection === "appearance"
+                    width: contentColumn.width
+                    label: "Map theme"
+                    explanation: "Same as app is the default. Dark and Light override only the " +
+                                 "basemap, independently of the Nimbus chrome theme."
+                    options: ["Same as app", "Dark", "Light"]
+                    currentIndex: appSettings.mapTheme
+                    onSelected: (index) => appSettings.mapTheme = index
                 }
 
                 // -- Measurement --------------------------------------------------------------
@@ -261,7 +284,7 @@ Item {
 
                     Text {
                         text: "Rows shown in the beam-height readout"
-                        color: "#dce6f2"
+                        color: themeManager.textPrimary
                         font.pixelSize: 12
                     }
 
@@ -290,15 +313,15 @@ Item {
                                     height: 14
                                     radius: 3
                                     anchors.verticalCenter: parent.verticalCenter
-                                    color: rowEntry.modelData.visible ? "#2b3a4d" : "#1a1f26"
-                                    border.color: rowEntry.modelData.visible ? "#4a7ab0" : "#2f3742"
+                                    color: rowEntry.modelData.visible ? themeManager.controlActive : themeManager.control
+                                    border.color: rowEntry.modelData.visible ? themeManager.primary : themeManager.border
                                     border.width: 1
 
                                     Text {
                                         anchors.centerIn: parent
                                         visible: rowEntry.modelData.visible
                                         text: "✓"
-                                        color: "#dce6f2"
+                                        color: themeManager.textPrimary
                                         font.pixelSize: 10
                                     }
                                 }
@@ -308,7 +331,7 @@ Item {
                                     anchors.leftMargin: 8
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: rowEntry.modelData.label
-                                    color: "#dce6f2"
+                                    color: themeManager.textPrimary
                                     font.pixelSize: 12
                                 }
 
@@ -328,7 +351,7 @@ Item {
                                 x: 22
                                 width: rowEntry.width - 22
                                 text: rowEntry.modelData.note
-                                color: "#5f6b7a"
+                                color: themeManager.textMuted
                                 font.pixelSize: 10
                                 wrapMode: Text.WordWrap
                                 bottomPadding: 4
@@ -358,7 +381,7 @@ Item {
                 elide: Text.ElideMiddle
                 text: (typeof appSettings !== "undefined" && appSettings !== null)
                     ? appSettings.configDirectory() : ""
-                color: "#4f5a68"
+                color: themeManager.textMuted
                 font.pixelSize: 9
             }
 
@@ -367,15 +390,15 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 108
                 height: 24
-                radius: 4
-                color: resetArea.containsMouse ? "#2a2230" : "#20262e"
-                border.color: "#2f3742"
+                radius: themeManager.cornerRadius
+                color: resetArea.containsMouse ? themeManager.controlHover : themeManager.control
+                border.color: themeManager.border
                 border.width: 1
 
                 Text {
                     anchors.centerIn: parent
                     text: "Reset to defaults"
-                    color: "#8d99a8"
+                    color: themeManager.textMuted
                     font.pixelSize: 10
                 }
 

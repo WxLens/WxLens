@@ -50,6 +50,8 @@ qt_add_executable(nimbus-app
     source/nimbus/settings/app_settings.hpp
     source/nimbus/settings/settings_store.cpp
     source/nimbus/settings/settings_store.hpp
+    source/nimbus/theme/theme_manager.cpp
+    source/nimbus/theme/theme_manager.hpp
     source/nimbus/util/crash_handler.cpp
     source/nimbus/util/crash_handler.hpp
     source/nimbus/util/geodesic.cpp
@@ -82,6 +84,8 @@ qt_add_qml_module(nimbus-app
     RESOURCES
         res/branding/nimbus-icon.png
         res/config/radar_sites.json
+        res/themes/operational-dark.toml
+        res/themes/daylight.toml
         res/gl/radar.vert
         res/gl/radar.frag
 )

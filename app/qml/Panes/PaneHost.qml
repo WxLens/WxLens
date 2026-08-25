@@ -8,8 +8,7 @@ import MapLibre 4.0
 //
 // Base map: OpenFreeMap (docs/data-sources.md), free/unlimited/no-API-key OSM vector tiles - both
 // dark and light styles come from the same tile source, so switching is just a style URL swap.
-// darkMode is hardcoded here for now; it should follow ThemeManager's active theme once that
-// exists (slice 10), not stay a local property. A future "map provider" setting can let a user
+// A future "map provider" setting can let a user
 // swap in their own style URL/key (e.g. MapTiler) for more detail - OpenFreeMap is the
 // no-signup-required default, not the only option.
 Rectangle {
@@ -47,7 +46,9 @@ Rectangle {
         !measuringActive && typeof objectTools !== "undefined" && objectTools !== null &&
         objectTools.activeTool !== 0
 
-    readonly property bool darkMode: true
+    // AppSettings::MapTheme: 0 follows chrome (the default), 1 forces dark, 2 forces light.
+    readonly property bool darkMode: appSettings.mapTheme === 1 ||
+                                     (appSettings.mapTheme === 0 && themeManager.dark)
     readonly property string mapStyle: darkMode
         ? "https://tiles.openfreemap.org/styles/dark"
         : "https://tiles.openfreemap.org/styles/positron"
@@ -64,6 +65,17 @@ Rectangle {
         focus: true
 
         style: root.mapStyle
+
+        // MapLibre consumes its initial style binding while loading. Drive subsequent changes
+        // explicitly so dark -> light -> dark cannot leave the first reloaded style in place.
+        Connections {
+            target: themeManager
+            function onThemeChanged() { map.style = root.mapStyle }
+        }
+        Connections {
+            target: appSettings
+            function onMapThemeChanged() { map.style = root.mapStyle }
+        }
 
         // Seeded imperatively rather than bound, because the camera is written back below:
         // assigning to a property in QML replaces any binding on it, so a binding here plus the
@@ -392,9 +404,9 @@ Rectangle {
         z: 10
         width: menuColumn.width + 20
         height: menuColumn.height + 12
-        radius: 6
-        color: "#f2161b22"
-        border.color: "#2f3742"
+        radius: themeManager.cornerRadius
+        color: themeManager.elevatedSurface
+        border.color: themeManager.border
         border.width: 1
 
         // What the menu was opened over, captured at open time rather than re-tested per action:
@@ -486,8 +498,8 @@ Rectangle {
 
                     width: Math.max(entryText.implicitWidth + 16, 170)
                     height: 26
-                    radius: 4
-                    color: entryArea.containsMouse ? "#243040" : "transparent"
+                    radius: themeManager.cornerRadius
+                    color: entryArea.containsMouse ? themeManager.controlHover : "transparent"
 
                     Text {
                         id: entryText
@@ -495,7 +507,7 @@ Rectangle {
                         anchors.left: parent.left
                         anchors.leftMargin: 8
                         text: parent.modelData.label
-                        color: "#dce6f2"
+                        color: themeManager.textPrimary
                         font.pixelSize: 12
                     }
 
@@ -553,9 +565,9 @@ Rectangle {
         anchors.bottomMargin: 22
         width: readoutColumn.width + 20
         height: readoutColumn.height + 12
-        radius: 4
-        color: "#e60d1116"
-        border.color: "#2f3742"
+        radius: themeManager.cornerRadius
+        color: themeManager.elevatedSurface
+        border.color: themeManager.border
         border.width: 1
 
         Column {
@@ -565,7 +577,7 @@ Rectangle {
 
             Text {
                 text: root.measuringActive ? measurementTool.readout : ""
-                color: "#dce6f2"
+                color: themeManager.textPrimary
                 font.pixelSize: 12
             }
 
@@ -575,7 +587,7 @@ Rectangle {
                     ? "last leg " + measurementTool.formatDistance(
                         measurementTool.segments[measurementTool.segments.length - 1].distanceMeters)
                     : ""
-                color: "#8d99a8"
+                color: themeManager.textMuted
                 font.pixelSize: 10
             }
 
@@ -595,7 +607,7 @@ Rectangle {
 
             Text {
                 text: "click to add · right-click to finish"
-                color: "#5f6b7a"
+                color: themeManager.textMuted
                 font.pixelSize: 9
             }
         }
@@ -615,9 +627,9 @@ Rectangle {
         Rectangle {
             width: 62
             height: 22
-            radius: 4
-            color: linked ? "#2b3a4d" : "#1a1f26"
-            border.color: linked ? "#4a7ab0" : "#2f3742"
+            radius: themeManager.cornerRadius
+            color: linked ? themeManager.controlActive : themeManager.control
+            border.color: linked ? themeManager.primary : themeManager.border
             border.width: 1
             opacity: 0.92
 
@@ -635,7 +647,7 @@ Rectangle {
                 text: parent.linked
                     ? "Link " + String.fromCharCode(64 + parent.group)
                     : "Unlinked"
-                color: parent.linked ? "#dce6f2" : "#8d99a8"
+                color: parent.linked ? themeManager.textPrimary : themeManager.textMuted
                 font.pixelSize: 10
             }
 
@@ -661,7 +673,7 @@ Rectangle {
             ? root.paneController.sourceKey + " " + root.paneController.productName
             : ""
         font.pixelSize: 11
-        color: "#c8d0d8"
+        color: themeManager.textSecondary
         style: Text.Outline
         styleColor: "#90000000"
     }
@@ -675,7 +687,7 @@ Rectangle {
         anchors.margins: 4
         text: "© OpenStreetMap contributors © OpenMapTiles"
         font.pixelSize: 10
-        color: "#c8d0d8"
+        color: themeManager.textSecondary
         style: Text.Outline
         styleColor: "#90000000"
     }

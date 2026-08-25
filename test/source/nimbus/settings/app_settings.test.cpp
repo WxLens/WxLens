@@ -65,6 +65,7 @@ TEST_F(AppSettingsTest, ShippedDefaults)
 {
    EXPECT_EQ(settings_->measurementGesture(), static_cast<int>(Gesture::Both));
    EXPECT_EQ(settings_->distanceUnits(), static_cast<int>(Units::Both));
+   EXPECT_EQ(settings_->mapTheme(), static_cast<int>(AppSettings::MapTheme::FollowChrome));
 
    // §4.3 is explicit that CurrentPaneOnly is the *shipped default*, read from config - not a
    // hardcoded constant.
@@ -100,6 +101,7 @@ TEST_F(AppSettingsTest, ChangesPersistAcrossAReload)
    settings_->setMeasurementGesture(static_cast<int>(Gesture::DragOnly));
    settings_->setDefaultObjectScope(static_cast<int>(objects::MapObjectScopeKind::AllPanes));
    settings_->setDistanceUnits(static_cast<int>(Units::Imperial));
+   settings_->setMapTheme(static_cast<int>(AppSettings::MapTheme::Dark));
    settings_->setGeometryRowVisible(QStringLiteral("terrain"), false);
 
    // A second store over the same directory stands in for the next launch. A setting that only
@@ -112,6 +114,7 @@ TEST_F(AppSettingsTest, ChangesPersistAcrossAReload)
    EXPECT_EQ(reloaded.defaultObjectScope(),
              static_cast<int>(objects::MapObjectScopeKind::AllPanes));
    EXPECT_EQ(reloaded.distanceUnits(), static_cast<int>(Units::Imperial));
+   EXPECT_EQ(reloaded.mapTheme(), static_cast<int>(AppSettings::MapTheme::Dark));
    EXPECT_FALSE(reloaded.geometryRowVisible(QStringLiteral("terrain")));
 }
 
@@ -158,6 +161,7 @@ TEST_F(AppSettingsTest, ChangesNotifyExactlyOnce)
 TEST_F(AppSettingsTest, UnitPreferenceDrivesFormatting)
 {
    settings_->setDistanceUnits(static_cast<int>(Units::Metric));
+   settings_->setMapTheme(static_cast<int>(AppSettings::MapTheme::Light));
    EXPECT_EQ(util::FormatGroundDistance(50000.0), QStringLiteral("50.0 km"));
    EXPECT_EQ(util::FormatAltitude(1000.0), QStringLiteral("1000 m"));
 
@@ -174,7 +178,8 @@ TEST_F(AppSettingsTest, SectionIdsAreStableAndAddressable)
 {
    // §4.5: a quick control deep-links by id. These ids are a contract - renaming one silently
    // breaks every control that points at it, which is why they are asserted literally here.
-   for (const QString& id : {QStringLiteral("measurement"),
+   for (const QString& id : {QStringLiteral("appearance"),
+                             QStringLiteral("measurement"),
                              QStringLiteral("objects"),
                              QStringLiteral("units"),
                              QStringLiteral("radar-geometry")})
@@ -211,6 +216,7 @@ TEST_F(AppSettingsTest, ResetRestoresEveryDefault)
 
    EXPECT_EQ(settings_->measurementGesture(), static_cast<int>(Gesture::Both));
    EXPECT_EQ(settings_->distanceUnits(), static_cast<int>(Units::Both));
+   EXPECT_EQ(settings_->mapTheme(), static_cast<int>(AppSettings::MapTheme::FollowChrome));
    EXPECT_TRUE(settings_->geometryRowVisible(QStringLiteral("beamAgl")));
 
    // And the reset is itself persisted, not just applied in memory.

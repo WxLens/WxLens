@@ -1208,7 +1208,17 @@ next starts:
     overlay (`wxdata/gr/placefile.cpp`, unmodified).
 13. **Multi-pane polish + acceptance validation** — quick sync/object controls in chrome (§4.5),
     UI/UX pass checked against RadarOmega/RadarScope for layout-density inspiration only, then
-    validate the whole phase against §4.8's acceptance criteria.
+    validate the whole phase against §4.8's acceptance criteria. Include a persisted **Map
+    details** surface shared consistently across panes: built-in `Operational`, `Minimal`, and
+    `Detailed` presets plus grouped visibility toggles for roads, city/town labels, boundaries,
+    buildings, points of interest, water labels, and terrain/hillshade where the active style and
+    source support them. `Operational` is the shipped default and should preserve geographic
+    context (boundaries, major roads, cities, water) without letting minor roads, buildings, or
+    POIs compete with radar data. Keep these controls independent of the chrome theme and the
+    dark/light basemap choice added in slice 10. Arbitrary MapLibre style-JSON import is a later
+    enhancement requiring validation and safe fallback; Snazzy Maps JSON targets Google Maps and
+    is not directly compatible, so any partial converter is explicitly later work rather than
+    slice-13 scope.
 
 **Added 2026-08-23 from user feedback on the slice-7 shell.** These are numbered after 13 only
 because renumbering breaks cross-references; each names where it actually belongs in the
@@ -1909,6 +1919,36 @@ and editor, connected to the real radar renderer rather than implemented as an i
   live-network `wxdata` tests failed against changed/unavailable upstream data.
 - **Next slice:** slice 10, `ThemeManager` and two bundled chrome themes. Slice 15 can now reuse
   `Controls/ColorPicker.qml` for saved-place groups without coupling place colors to palettes.
+
+**Status as of 2026-08-25 — Slice 10 complete: app chrome themes.** §5.2's live, shareable theme
+system now owns the semantic colors and core metrics used by all chrome built through slice 9.
+
+- `theme/ThemeManager` exposes background/surface/control, status, text, border, product-accent,
+  corner-radius and spacing roles as notifying QML properties. Switching one name causes existing
+  bindings to repaint immediately; QML does not contain a parallel theme lookup table.
+- `Operational Dark` and `Daylight` are bundled as the same version-1 TOML format accepted for
+  user themes. Theme files validate every required role and metric before activation; a malformed
+  file is logged and leaves the current theme untouched.
+- Active selection persists in `appearance.toml`. Custom TOML files live under the visible config
+  directory's `themes/` folder, are discovered at launch, and can also be imported/exported through
+  the C++ API. The addressable `appearance` settings section provides the live bundled/custom
+  theme picker.
+- Existing hand-built Qt Quick controls remain fully custom and are now driven by semantic roles;
+  Nimbus does not currently use Qt Quick Controls 2, so there is no native `Fusion`, `Material`, or
+  platform widget style to leak through. Literal colors that remain in QML are content colors
+  (palette values, map-object translucency, map label outlines, and modal scrims), not chrome roles.
+- Follow-up from live review: Appearance has an independently persisted map-theme choice: `Same
+  as app` (the shipped default), `Dark`, or `Light`. The effective choice selects OpenFreeMap's
+  `dark` or `positron` basemap style. Reloads are assigned explicitly because MapLibre consumes
+  the initial QML binding during its first style change; the existing `onStyleLoaded` path then
+  reattaches the radar custom layer after MapLibre replaces the style.
+- **Verified:** Release builds of `nimbus-app` and `nimbus-app-test`; all 92 Nimbus model tests pass,
+  including focused coverage for bundled themes, live notification, persisted selection,
+  import/export round-tripping, and rejection of malformed/version-incompatible themes.
+- **Next slice:** slice 11, archive/time controls. Then slice 12 (warnings/placefiles) and slice 13
+  (multi-pane polish and Phase 1 acceptance validation). The separately added slices 14-16 remain
+  queued according to their dependency notes; completing slice 10 does not skip the original
+  11-13 sequence.
 
 **Status as of 2026-08-24 — Slice 17 complete: the settings foundation.** §3.2's structured config
 store, ADR 0003's TOML backing, and §4.5's addressable sections - built out of order, ahead of

@@ -10,8 +10,8 @@ Rectangle {
     width: 220
     height: 150
     radius: 6
-    color: "#1b222a"
-    border.color: "#3a4652"
+    color: themeManager.elevatedSurface
+    border.color: themeManager.border
 
     function channelColor(channel, value) {
         var r = Math.round(root.colorValue.r * 255)
@@ -34,13 +34,13 @@ Rectangle {
                 required property string modelData
                 required property int index
                 spacing: 8
-                Text { width: 38; text: parent.modelData; color: "#aeb9c5"; font.pixelSize: 10 }
+                Text { width: 38; text: parent.modelData; color: themeManager.textSecondary; font.pixelSize: 10 }
                 Rectangle {
-                    width: 140; height: 14; radius: 7; color: "#303944"
+                    width: 140; height: 14; radius: 7; color: themeManager.control
                     Rectangle {
                         width: 12; height: 18; radius: 6; y: -2
                         x: (index === 0 ? root.colorValue.r : index === 1 ? root.colorValue.g : root.colorValue.b) * (parent.width - width)
-                        color: "#eef3f7"
+                        color: themeManager.textPrimary
                     }
                     MouseArea {
                         anchors.fill: parent

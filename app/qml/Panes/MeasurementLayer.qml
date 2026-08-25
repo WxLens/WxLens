@@ -79,11 +79,15 @@ Item {
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-            strokeColor: "#99ffd166"
+            strokeColor: Qt.rgba(themeManager.measurementAccent.r,
+                                 themeManager.measurementAccent.g,
+                                 themeManager.measurementAccent.b, 0.6)
             strokeWidth: 1.5
             // A barely-there fill, so the ring reads as an area at a glance without washing out
             // the reflectivity it is drawn over - the data underneath is the point of measuring.
-            fillColor: "#0fffd166"
+            fillColor: Qt.rgba(themeManager.measurementAccent.r,
+                               themeManager.measurementAccent.g,
+                               themeManager.measurementAccent.b, 0.06)
 
             PathPolyline {
                 path: root.ringPixels
@@ -97,7 +101,7 @@ Item {
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-            strokeColor: "#ffd166"
+            strokeColor: themeManager.measurementAccent
             strokeWidth: 2
             fillColor: "transparent"
             // Dashed, so an unfinished measurement reads as provisional rather than as something
@@ -123,8 +127,8 @@ Item {
             width: 8
             height: 8
             radius: 4
-            color: index === 0 ? "#ffd166" : "#0d1116"
-            border.color: "#ffd166"
+            color: index === 0 ? themeManager.measurementAccent : themeManager.background
+            border.color: themeManager.measurementAccent
             border.width: 2
         }
     }
@@ -156,7 +160,7 @@ Item {
                 const bearing = Math.round(modelData.bearingDegrees) % 360
                 return distance + "  ·  " + ("00" + bearing).slice(-3) + "°"
             }
-            color: "#ffd166"
+            color: themeManager.measurementAccent
             font.pixelSize: 10
             style: Text.Outline
             styleColor: "#c0000000"

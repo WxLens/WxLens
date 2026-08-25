@@ -8,7 +8,7 @@ import QtQuick
 Rectangle {
     id: root
     width: 56
-    color: "#14181e"
+    color: themeManager.surface
 
     // §4.5's "every quick control links to the setting that governs its default" - the scope
     // control below changes one object once; the moment a user sets it the same way repeatedly,
@@ -20,7 +20,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
         width: 1
-        color: "#2a3138"
+        color: themeManager.border
     }
 
     Column {
@@ -43,9 +43,9 @@ Rectangle {
 
                 width: 32
                 height: 32
-                radius: 6
-                color: active ? "#3a2f1e" : "#20262e"
-                border.color: active ? "#b08a4a" : "#2f3742"
+                radius: themeManager.cornerRadius
+                color: active ? themeManager.controlActive : themeManager.control
+                border.color: active ? themeManager.warning : themeManager.border
                 border.width: 1
 
                 readonly property bool active:
@@ -55,7 +55,7 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     text: parent.modelData.label
-                    color: parent.active ? "#f2dcb0" : "#8d99a8"
+                    color: parent.active ? themeManager.textPrimary : themeManager.textMuted
                     font.pixelSize: 14
                 }
 
@@ -85,9 +85,9 @@ Rectangle {
         Rectangle {
             width: 32
             height: 32
-            radius: 6
-            color: "#20262e"
-            border.color: "#2f3742"
+            radius: themeManager.cornerRadius
+            color: themeManager.control
+            border.color: themeManager.border
             border.width: 1
             visible: (typeof objectTools !== "undefined" && objectTools.activeTool !== 0) ||
                      (typeof measurementTool !== "undefined" && measurementTool.mode !== 0)
@@ -100,7 +100,7 @@ Rectangle {
                 anchors.centerIn: parent
                 text: typeof objectTools !== "undefined"
                     ? parent.labels[objectTools.scopeKind] : ""
-                color: "#8d99a8"
+                color: themeManager.textMuted
                 font.pixelSize: 13
             }
 
@@ -125,7 +125,7 @@ Rectangle {
         Rectangle {
             width: 32
             height: 1
-            color: "#2a3138"
+            color: themeManager.border
         }
 
         // Measurement modes (§4.4). Selecting one disarms the object tools, since both act on
@@ -142,9 +142,9 @@ Rectangle {
 
                 width: 32
                 height: 32
-                radius: 6
-                color: active ? "#3a3520" : "#20262e"
-                border.color: active ? "#b0a04a" : "#2f3742"
+                radius: themeManager.cornerRadius
+                color: active ? themeManager.controlActive : themeManager.control
+                border.color: active ? themeManager.measurementAccent : themeManager.border
                 border.width: 1
 
                 readonly property bool active:
@@ -154,7 +154,7 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     text: parent.modelData.label
-                    color: parent.active ? "#f2e9b0" : "#8d99a8"
+                    color: parent.active ? themeManager.textPrimary : themeManager.textMuted
                     font.pixelSize: 14
                 }
 
@@ -176,7 +176,7 @@ Rectangle {
         Rectangle {
             width: 32
             height: 1
-            color: "#2a3138"
+            color: themeManager.border
         }
 
         Repeater {
@@ -192,9 +192,9 @@ Rectangle {
 
                 width: 32
                 height: 32
-                radius: 6
-                color: active ? "#2b3a4d" : "#20262e"
-                border.color: active ? "#4a7ab0" : "#2f3742"
+                radius: themeManager.cornerRadius
+                color: active ? themeManager.controlActive : themeManager.control
+                border.color: active ? themeManager.primary : themeManager.border
                 border.width: 1
 
                 // paneGridModel is a context property torn down before this item on application
@@ -207,7 +207,7 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     text: parent.modelData.label
-                    color: parent.active ? "#dce6f2" : "#8d99a8"
+                    color: parent.active ? themeManager.textPrimary : themeManager.textMuted
                     font.pixelSize: 13
                 }
 

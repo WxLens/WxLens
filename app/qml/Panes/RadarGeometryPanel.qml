@@ -97,7 +97,7 @@ Column {
                 id: headerText
                 anchors.verticalCenter: parent.verticalCenter
                 text: (root.expanded ? "▾" : "▸") + "  Radar geometry"
-                color: "#8d99a8"
+                color: themeManager.textMuted
                 font.pixelSize: 10
             }
 
@@ -120,7 +120,7 @@ Column {
                 id: configText
                 anchors.centerIn: parent
                 text: "⚙"
-                color: configArea.containsMouse ? "#dce6f2" : "#5f6b7a"
+                color: configArea.containsMouse ? themeManager.textPrimary : themeManager.textMuted
                 font.pixelSize: 11
             }
 
@@ -149,7 +149,7 @@ Column {
                 Text {
                     width: 96
                     text: parent.modelData.label
-                    color: "#5f6b7a"
+                    color: themeManager.textMuted
                     font.pixelSize: 10
                 }
 
@@ -157,7 +157,7 @@ Column {
                     text: parent.modelData.value
                     // Dimmed where the value is a statement about what is *not* known, so a
                     // reader can tell a figure from an apology at a glance.
-                    color: parent.modelData.dim ? "#6f7a88" : "#dce6f2"
+                    color: parent.modelData.dim ? themeManager.textMuted : themeManager.textPrimary
                     font.pixelSize: 10
                     font.italic: parent.modelData.dim
                 }
@@ -169,7 +169,7 @@ Column {
         Text {
             visible: root.rows.length === 0
             text: "all rows hidden — ⚙ to change"
-            color: "#5f6b7a"
+            color: themeManager.textMuted
             font.pixelSize: 10
             font.italic: true
         }

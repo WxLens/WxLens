@@ -134,7 +134,7 @@ Item {
                     height: 6
                     radius: 3
                     color: objectItem.modelData.color
-                    border.color: "#101418"
+                    border.color: themeManager.background
                     border.width: 1
                 }
             }
@@ -212,7 +212,7 @@ Item {
                 height: 12
                 radius: 6
                 color: objectItem.modelData.color
-                border.color: "#101418"
+                border.color: themeManager.background
                 border.width: 2
             }
 
@@ -228,7 +228,7 @@ Item {
                 x: objectItem.labelPixel.x + 10
                 y: objectItem.labelPixel.y - 8
                 text: objectItem.modelData.label
-                color: "#e8edf2"
+                color: themeManager.textPrimary
                 font.pixelSize: 11
                 style: Text.Outline
                 styleColor: "#c0000000"

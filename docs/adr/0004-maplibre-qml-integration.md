@@ -266,3 +266,16 @@ ahead): the vendored core uses the **drawables** renderer architecture — a cus
 `context.setDirtyState()` after (mbgl re-assumes nothing about GL state the host may have
 changed). So a custom layer host does NOT need to restore mbgl's state itself beyond not
 breaking the FBO — but defensive unbinding (VAO/program) stays cheap and harmless.
+
+## Slice 10 follow-up (2026-08-25): the QML style setter does not reload a live map
+
+**Patch 0008 — `MapQuickItem::setStyle()` only stores the new URL.** The stored value is consumed
+by `MapQuickItemPrivate::initialize()`, so the initial style works, but assigning the QML `style`
+property after initialization never calls the live core `Map`. This left later theme-driven
+basemap changes stuck on the already-loaded style.
+
+The patch forwards a changed style to `Map::setStyleUrl()` whenever the map already exists. Its
+normal `mapChanged` events reset the style-loaded state, and patch 0005's `styleLoaded()` signal
+lets Nimbus reattach the radar custom layer after the replacement style finishes loading. Keep
+this patch with the QML-facing Quick integration; recreating every pane would discard map state
+and hide a genuine missing setter behavior in the dependency.

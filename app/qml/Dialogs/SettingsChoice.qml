@@ -22,7 +22,7 @@ Column {
 
     Text {
         text: root.label
-        color: "#dce6f2"
+        color: themeManager.textPrimary
         font.pixelSize: 12
     }
 
@@ -40,16 +40,16 @@ Column {
 
                 width: optionText.implicitWidth + 20
                 height: 26
-                radius: 4
-                color: active ? "#2b3a4d" : (optionArea.containsMouse ? "#20262e" : "#1a1f26")
-                border.color: active ? "#4a7ab0" : "#2f3742"
+                radius: themeManager.cornerRadius
+                color: active ? themeManager.controlActive : (optionArea.containsMouse ? themeManager.controlHover : themeManager.control)
+                border.color: active ? themeManager.primary : themeManager.border
                 border.width: 1
 
                 Text {
                     id: optionText
                     anchors.centerIn: parent
                     text: parent.modelData
-                    color: parent.active ? "#dce6f2" : "#8d99a8"
+                    color: parent.active ? themeManager.textPrimary : themeManager.textMuted
                     font.pixelSize: 11
                 }
 
@@ -68,7 +68,7 @@ Column {
         visible: root.explanation !== ""
         width: root.width
         text: root.explanation
-        color: "#5f6b7a"
+        color: themeManager.textMuted
         font.pixelSize: 10
         wrapMode: Text.WordWrap
     }

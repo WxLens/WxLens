@@ -115,6 +115,7 @@ add_executable(nimbus-app-test
     source/nimbus/panes/source_probe.test.cpp
     source/nimbus/settings/settings_store.test.cpp
     source/nimbus/settings/app_settings.test.cpp
+    source/nimbus/theme/theme_manager.test.cpp
     source/nimbus/util/radar_geometry.test.cpp
 
     ${NIMBUS_APP_SRC}/data/radar_site_data_service.cpp
@@ -133,6 +134,7 @@ add_executable(nimbus-app-test
     ${NIMBUS_APP_SRC}/render/radar_sweep_layer.cpp
     ${NIMBUS_APP_SRC}/settings/app_settings.cpp
     ${NIMBUS_APP_SRC}/settings/settings_store.cpp
+    ${NIMBUS_APP_SRC}/theme/theme_manager.cpp
     ${NIMBUS_APP_SRC}/util/geodesic.cpp
     ${NIMBUS_APP_SRC}/util/radar_geometry.cpp
     ${NIMBUS_APP_SRC}/util/unit_format.cpp
@@ -152,6 +154,12 @@ qt_add_resources(nimbus-app-test "nimbus-app-test-palette"
     PREFIX "/qt/qml/Nimbus/App/res/palettes/wct"
     BASE "${NIMBUS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct"
     FILES "${NIMBUS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct/DR.pal")
+
+qt_add_resources(nimbus-app-test "nimbus-app-test-themes"
+    PREFIX "/qt/qml/Nimbus/App/res/themes"
+    BASE "${NIMBUS_DIR}/app/res/themes"
+    FILES "${NIMBUS_DIR}/app/res/themes/operational-dark.toml"
+          "${NIMBUS_DIR}/app/res/themes/daylight.toml")
 
 set_target_properties(nimbus-app-test PROPERTIES CXX_STANDARD 20
                                                  CXX_STANDARD_REQUIRED ON

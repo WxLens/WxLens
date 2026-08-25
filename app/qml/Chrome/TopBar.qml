@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
 
-// Phase 1 slice 1/2: static chrome shell - no ThemeManager yet (slice 10). Colors are hardcoded
-// placeholders for that reason. The site/status text is real (radarStatus context property,
+// The site/status text is real (radarStatus context property,
 // nimbus::products::RadarProductStatus, slice 2) but this is still a single hardcoded site, not
 // the real per-pane product binding that arrives with PaneGridModel/PaneController (slice 4+).
 Rectangle {
     id: root
     height: 48
-    color: "#181d24"
+    color: themeManager.surface
 
     // The plain "open Settings" route. §4.5's deep-links are the other direction and come from
     // the individual quick controls, not from here.
@@ -20,7 +19,7 @@ Rectangle {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: 1
-        color: "#2a3138"
+        color: themeManager.border
     }
 
     Text {
@@ -28,7 +27,7 @@ Rectangle {
         anchors.leftMargin: 16
         anchors.verticalCenter: parent.verticalCenter
         text: "Nimbus"
-        color: "#e8edf2"
+        color: themeManager.textPrimary
         font.pixelSize: 16
         font.bold: true
     }
@@ -43,7 +42,7 @@ Rectangle {
         Text {
             anchors.centerIn: parent
             text: "⚙"
-            color: settingsArea.containsMouse ? "#e8edf2" : "#7b8794"
+            color: settingsArea.containsMouse ? themeManager.textPrimary : themeManager.textMuted
             font.pixelSize: 16
         }
 
@@ -62,16 +61,16 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         width: paletteText.implicitWidth + 20
         height: 28
-        radius: 5
-        color: paletteArea.containsMouse ? "#25303b" : "#1d242c"
-        border.color: "#303a45"
+        radius: themeManager.cornerRadius
+        color: paletteArea.containsMouse ? themeManager.controlHover : themeManager.control
+        border.color: themeManager.border
 
         Text {
             id: paletteText
             anchors.centerIn: parent
             text: (typeof paletteManager !== "undefined" && paletteManager !== null)
                 ? paletteManager.activeName : "Palette"
-            color: "#b7c2ce"
+            color: themeManager.textSecondary
             font.pixelSize: 11
         }
         MouseArea {
@@ -90,7 +89,7 @@ Rectangle {
         text: (radarStatus !== null && radarStatus !== undefined)
             ? radarStatus.siteId + " — " + radarStatus.statusText
             : ""
-        color: "#7b8794"
+        color: themeManager.textMuted
         font.pixelSize: 13
     }
 }

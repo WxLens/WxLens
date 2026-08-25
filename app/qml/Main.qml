@@ -10,7 +10,7 @@ Window {
     height: 800
     visible: true
     title: "Nimbus"
-    color: "#101418"
+    color: themeManager.background
 
     Column {
         anchors.fill: parent
