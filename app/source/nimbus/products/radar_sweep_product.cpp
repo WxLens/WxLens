@@ -466,13 +466,14 @@ public:
                  const std::string& radarSite,
                  double             siteLatitude,
                  double             siteLongitude,
-                 double             siteAltitudeMslMeters) :
+                 double             siteAltitudeMslMeters,
+                 std::optional<std::chrono::system_clock::time_point> archiveTime) :
        self_ {self},
        radarSite_ {radarSite},
        siteLatitude_ {siteLatitude},
        siteLongitude_ {siteLongitude},
        siteAltitudeMslMeters_ {siteAltitudeMslMeters},
-       colorTable_ {LoadBundledColorTable()}
+       colorTable_ {LoadBundledColorTable()}, archiveTime_ {archiveTime}
    {
    }
 
@@ -495,6 +496,9 @@ public:
    /// the two must never be read out of step: an altitude computed from one sweep's range and a
    /// different sweep's elevation angle is a number that describes nothing.
    std::optional<double> elevationAngleDegrees_ {};
+   std::optional<std::chrono::system_clock::time_point> archiveTime_;
+   std::chrono::system_clock::time_point selectedTime_ {};
+   std::uint64_t requestId_ {0};
 };
 
 void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
@@ -556,10 +560,11 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
                                      double             siteLatitude,
                                      double             siteLongitude,
                                      double             siteAltitudeMslMeters,
+                                     std::optional<std::chrono::system_clock::time_point> archiveTime,
                                      QObject*           parent) :
     QObject(parent),
     p {std::make_unique<Impl>(
-       this, radarSite, siteLatitude, siteLongitude, siteAltitudeMslMeters)}
+       this, radarSite, siteLatitude, siteLongitude, siteAltitudeMslMeters, archiveTime)}
 {
    auto& palettes = nimbus::palettes::PaletteManager::Instance();
    if (!palettes.activeText().isEmpty()) p->SetPaletteText(palettes.activeText());
@@ -570,28 +575,66 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
 
    auto service = nimbus::data::RadarSiteDataService::Instance(radarSite);
 
-   connect(service.get(),
-           &nimbus::data::RadarSiteDataService::LevelTwoDataLoaded,
-           this,
-           [this](std::shared_ptr<scwx::wsr88d::Ar2vFile> file) { p->OnLevelTwoDataLoaded(file); });
+   if (archiveTime.has_value())
+   {
+      connect(service.get(),
+              &nimbus::data::RadarSiteDataService::LevelTwoDataLoadedForRequest,
+              this,
+              [this](std::uint64_t requestId,
+                     std::shared_ptr<scwx::wsr88d::Ar2vFile> file,
+                     std::chrono::system_clock::time_point actualTime)
+              {
+                 if (requestId != p->requestId_) return;
+                 p->selectedTime_ = actualTime;
+                 p->OnLevelTwoDataLoaded(file);
+                 Q_EMIT LoadStateChanged(false, {},
+                    std::chrono::duration_cast<std::chrono::milliseconds>(actualTime.time_since_epoch()).count());
+              });
+      connect(service.get(),
+              &nimbus::data::RadarSiteDataService::RequestFailed,
+              this,
+              [this](std::uint64_t requestId, const QString& reason)
+              {
+                 if (requestId == p->requestId_) Q_EMIT LoadStateChanged(false, reason, 0);
+              });
+      p->requestId_ = service->LoadLevel2DataAt(*archiveTime);
+      Q_EMIT LoadStateChanged(true, {}, 0);
+   }
+   else
+   {
+      connect(service.get(),
+              &nimbus::data::RadarSiteDataService::LevelTwoDataLoaded,
+              this,
+              [this](std::shared_ptr<scwx::wsr88d::Ar2vFile> file)
+              {
+                 p->OnLevelTwoDataLoaded(file);
+                 Q_EMIT LoadStateChanged(false, {}, 0);
+              });
+      service->LoadLatestLevel2Data();
+   }
 
    // This product owns requesting its own data, rather than depending on some other object having
    // done so first (which is what an earlier slice relied on, and which stops being true as soon
    // as more than one site can be on screen).
-   service->LoadLatestLevel2Data();
 }
 
 RadarSweepProduct::~RadarSweepProduct() = default;
 
-std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(const std::string& radarSite)
+std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
+   const std::string& radarSite,
+   std::optional<std::chrono::system_clock::time_point> archiveTime)
 {
-   static std::shared_mutex                                          instanceMutex;
-   static std::map<std::string, std::shared_ptr<RadarSweepProduct>>  instances;
+   static std::shared_mutex                                         instanceMutex;
+   static std::map<std::string, std::weak_ptr<RadarSweepProduct>>   instances;
+   const auto minute = archiveTime.has_value()
+      ? std::chrono::duration_cast<std::chrono::minutes>(archiveTime->time_since_epoch()).count()
+      : -1;
+   const std::string instanceKey = radarSite + ":" + std::to_string(minute);
 
    std::shared_lock readLock {instanceMutex};
-   if (auto it = instances.find(radarSite); it != instances.end())
+   if (auto it = instances.find(instanceKey); it != instances.end())
    {
-      return it->second;
+      if (auto existing = it->second.lock()) return existing;
    }
    readLock.unlock();
 
@@ -603,13 +646,20 @@ std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(const std::string
    }
 
    std::unique_lock writeLock {instanceMutex};
-   auto [it, inserted] = instances.try_emplace(radarSite, nullptr);
-   if (inserted)
-   {
-      it->second = std::make_shared<RadarSweepProduct>(
-         radarSite, siteInfo->latitude, siteInfo->longitude, siteInfo->altitudeMslMeters);
-   }
-   return it->second;
+   auto& weak = instances[instanceKey];
+   if (auto existing = weak.lock()) return existing;
+   auto created = std::make_shared<RadarSweepProduct>(
+      radarSite, siteInfo->latitude, siteInfo->longitude, siteInfo->altitudeMslMeters,
+      archiveTime);
+   weak = created;
+   return created;
+}
+
+bool RadarSweepProduct::is_archive() const { return p->archiveTime_.has_value(); }
+
+std::chrono::system_clock::time_point RadarSweepProduct::selected_time() const
+{
+   return p->selectedTime_;
 }
 
 const std::string& RadarSweepProduct::radar_site() const

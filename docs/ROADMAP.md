@@ -1950,6 +1950,33 @@ system now owns the semantic colors and core metrics used by all chrome built th
   queued according to their dependency notes; completing slice 10 does not skip the original
   11-13 sequence.
 
+**Status as of 2026-08-25 — Slice 11 implemented: archive/time controls.** Each radar pane now
+has compact, theme-driven Live/Archive controls, a UTC time field, and a site field. Archive
+selection lists the requested UTC day through wxdata's existing Level 2 provider, chooses the
+latest volume no later than the requested time, and reports the actual returned scan time.
+
+- Time is real `PaneController` state and participates in the existing `SyncChannel::Time`; it is
+  not a new global linked flag. Independent panes can browse independently, while time-grouped
+  panes propagate live/archive selections through the existing feedback-loop guard.
+- `RadarSiteDataService` remains the per-site singleton. Archive requests carry ids so results
+  cannot be consumed by the wrong time selection. `RadarSweepProduct` is shared by site plus
+  selected minute, with weak registry entries: identical selections share decode/geometry work,
+  different selections do not overwrite one another, and scrubbing does not retain every volume.
+- Invalid and future times stay in the current mode and produce a visible error. State-changing
+  live/archive requests and provider outcomes are logged.
+- **Test coverage added:** time-channel propagation, returning to Live, and invalid/future input.
+- The per-site service refreshes Live data once a minute and suppresses overlapping refreshes.
+  Worker completions are marshalled back to the QObject thread before notifying products.
+- **Verified:** Release `nimbus-app-test` build and all 94 Nimbus model tests pass. The Release app
+  and every QML cache unit compile; its final link could not replace `nimbus-app.exe` because the
+  user's existing Nimbus process was still running. Close that process and rerun the app target
+  to complete link/launch verification.
+- The build also fixed the MapLibre patch driver's idempotence check: later tracked patches overlap
+  earlier ones, so the ordered series now uses its final patch as the completion marker instead of
+  incorrectly reverse-checking every earlier patch in isolation. `external/` source remains
+  unmodified beyond the already-applied tracked patches.
+- **Next slice after verification:** slice 12, warnings/placefiles.
+
 **Status as of 2026-08-24 — Slice 17 complete: the settings foundation.** §3.2's structured config
 store, ADR 0003's TOML backing, and §4.5's addressable sections - built out of order, ahead of
 slices 14–16, because it was never given a slice at all and everything else had been deferring

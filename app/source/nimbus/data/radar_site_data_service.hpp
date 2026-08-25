@@ -3,6 +3,8 @@
 #include <scwx/wsr88d/ar2v_file.hpp>
 
 #include <memory>
+#include <chrono>
+#include <cstdint>
 #include <string>
 
 #include <QObject>
@@ -48,8 +50,18 @@ public:
     */
    void LoadLatestLevel2Data();
 
+   /// Loads the volume at or immediately before `time`. The provider first lists that UTC day,
+   /// then uses wxdata's bounded-time lookup. The request id lets independently-timed panes share
+   /// this service without consuming one another's result.
+   std::uint64_t LoadLevel2DataAt(std::chrono::system_clock::time_point time);
+
 signals:
    void LevelTwoDataLoaded(std::shared_ptr<scwx::wsr88d::Ar2vFile> file);
+   void LevelTwoDataLoadedForRequest(
+      std::uint64_t requestId,
+      std::shared_ptr<scwx::wsr88d::Ar2vFile> file,
+      std::chrono::system_clock::time_point actualTime);
+   void RequestFailed(std::uint64_t requestId, QString reason);
    void LoadFailed(QString reason);
 
 private:

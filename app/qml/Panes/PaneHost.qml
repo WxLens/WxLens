@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
+import Nimbus.App
 import MapLibre 4.0
 
 // One pane's map surface, bound to a nimbus::panes::PaneController (docs/ROADMAP.md §4.6).
@@ -660,6 +661,14 @@ Rectangle {
                     root.paneController.paneId, (parent.group + 1) % 3)
             }
         }
+    }
+
+    TimeControls {
+        visible: root.hasController
+        paneController: root.paneController
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 20
     }
 
     // Minimal per-pane identification while the grid has more than one pane. Full pane chrome

@@ -232,16 +232,39 @@ TEST_F(PaneSyncTest, PanesKeepGroupsAcrossGridResize)
       << "a pane added by the resize is independent";
 }
 
-TEST_F(PaneSyncTest, ChannelsWithoutStateArePropagationNoOps)
+TEST_F(PaneSyncTest, TimeChannelPropagatesArchiveSelectionWithoutLinkingOtherState)
 {
-   // Declared-but-unbacked channels must not propagate a meaningless value.
    Pane(0)->setSyncGroup(SyncChannel::Time, 1);
    Pane(1)->setSyncGroup(SyncChannel::Time, 1);
 
-   EXPECT_FALSE(Pane(0)->channelValue(SyncChannel::Time).isValid());
+   ASSERT_TRUE(Pane(0)->selectArchiveTime(QStringLiteral("2024-05-06 12:34")));
+   EXPECT_FALSE(Pane(0)->liveMode());
+   EXPECT_FALSE(Pane(1)->liveMode());
+   EXPECT_EQ(Pane(1)->selectedTimeText(), QStringLiteral("2024-05-06 12:34 UTC"));
+
+   Pane(0)->selectLive();
+   EXPECT_TRUE(Pane(1)->liveMode());
+}
+
+TEST_F(PaneSyncTest, InvalidAndFutureArchiveTimesAreRejected)
+{
+   EXPECT_FALSE(Pane(0)->selectArchiveTime(QStringLiteral("not a date")));
+   EXPECT_TRUE(Pane(0)->liveMode());
+   EXPECT_FALSE(Pane(0)->timeError().isEmpty());
+
+   EXPECT_FALSE(Pane(0)->selectArchiveTime(QStringLiteral("2999-01-01 00:00")));
+   EXPECT_TRUE(Pane(0)->liveMode());
+}
+
+TEST_F(PaneSyncTest, ChannelsWithoutStateArePropagationNoOps)
+{
+   Pane(0)->setSyncGroup(SyncChannel::Animation, 1);
+   Pane(1)->setSyncGroup(SyncChannel::Animation, 1);
+
+   EXPECT_FALSE(Pane(0)->channelValue(SyncChannel::Animation).isValid());
 
    // Applying an invalid value must be inert rather than corrupting anything.
-   Pane(1)->applyChannelValue(SyncChannel::Time, QVariant {}, ChangeOrigin::ProgrammaticSync);
+   Pane(1)->applyChannelValue(SyncChannel::Animation, QVariant {}, ChangeOrigin::ProgrammaticSync);
    SUCCEED();
 }
 

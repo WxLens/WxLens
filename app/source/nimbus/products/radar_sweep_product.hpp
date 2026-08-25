@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <chrono>
 #include <string>
 #include <vector>
 
@@ -64,6 +65,8 @@ public:
                               double             siteLatitude,
                               double             siteLongitude,
                               double             siteAltitudeMslMeters,
+                              std::optional<std::chrono::system_clock::time_point> archiveTime =
+                                 std::nullopt,
                               QObject*           parent = nullptr);
    ~RadarSweepProduct() override;
 
@@ -77,7 +80,12 @@ public:
     * that site), so simply obtaining an instance is enough to start a fetch - callers must not
     * depend on some other object having triggered one first.
     */
-   static std::shared_ptr<RadarSweepProduct> Instance(const std::string& radarSite);
+   static std::shared_ptr<RadarSweepProduct> Instance(
+      const std::string& radarSite,
+      std::optional<std::chrono::system_clock::time_point> archiveTime = std::nullopt);
+
+   [[nodiscard]] bool is_archive() const;
+   [[nodiscard]] std::chrono::system_clock::time_point selected_time() const;
 
    [[nodiscard]] const std::string& radar_site() const;
    [[nodiscard]] double             site_latitude() const;
@@ -111,6 +119,8 @@ public:
    [[nodiscard]] std::shared_ptr<const ColorTableLut> color_table_lut() const;
 
 signals:
+   void LoadStateChanged(bool loading, QString error, qint64 actualTimeMs);
+
    /// Emitted after a new SweepData snapshot is published; sweep_data() will return it.
    void SweepUpdated();
 

@@ -11,6 +11,7 @@
 
 #include <QPointer>
 #include <QQmlEngine>
+#include <QTimeZone>
 
 namespace nimbus
 {
@@ -43,6 +44,8 @@ public:
 
    void RebindProduct();
    void ConnectProductSignals(PaneController* self);
+   void SetArchiveTime(PaneController* self,
+                       std::optional<std::chrono::system_clock::time_point> time);
 
    int                         paneId_;
    products::ProductDescriptor descriptor_;
@@ -54,6 +57,11 @@ public:
       std::make_shared<render::RadarSweepLayerBinding>(nullptr)};
    QMetaObject::Connection repaintConnection_ {};
    QMetaObject::Connection sourceDataConnection_ {};
+   QMetaObject::Connection loadStateConnection_ {};
+   std::optional<std::chrono::system_clock::time_point> archiveTime_ {};
+   std::chrono::system_clock::time_point actualTime_ {};
+   bool timeLoading_ {false};
+   QString timeError_ {};
 
    // Borrowed, not owned: MapQuickItem's unique_ptr owns this. Cleared when the map goes away so
    // the projection helpers cannot outlive it.
@@ -72,7 +80,8 @@ void PaneController::Impl::RebindProduct()
 
    if (descriptor_.kind == QStringLiteral("radar") && !descriptor_.sourceKey.isEmpty())
    {
-      radarProduct_ = products::RadarSweepProduct::Instance(descriptor_.sourceKey.toStdString());
+      radarProduct_ = products::RadarSweepProduct::Instance(
+         descriptor_.sourceKey.toStdString(), archiveTime_);
       if (radarProduct_ == nullptr)
       {
          logger_->error("Pane {} could not bind radar source \"{}\"",
@@ -88,8 +97,10 @@ void PaneController::Impl::ConnectProductSignals(PaneController* self)
 {
    QObject::disconnect(repaintConnection_);
    QObject::disconnect(sourceDataConnection_);
+   QObject::disconnect(loadStateConnection_);
    repaintConnection_    = {};
    sourceDataConnection_ = {};
+   loadStateConnection_  = {};
 
    if (radarProduct_ == nullptr)
    {
@@ -119,6 +130,35 @@ void PaneController::Impl::ConnectProductSignals(PaneController* self)
                                              &products::RadarSweepProduct::SweepUpdated,
                                              self,
                                              [self]() { Q_EMIT self->sourceDataChanged(); });
+   loadStateConnection_ = QObject::connect(
+      radarProduct_.get(),
+      &products::RadarSweepProduct::LoadStateChanged,
+      self,
+      [this, self](bool loading, const QString& error, qint64 actualTimeMs)
+      {
+         timeLoading_ = loading;
+         timeError_   = error;
+         if (actualTimeMs > 0)
+         {
+            actualTime_ = std::chrono::system_clock::time_point {
+               std::chrono::milliseconds {actualTimeMs}};
+         }
+         Q_EMIT self->timeChanged();
+      });
+}
+
+void PaneController::Impl::SetArchiveTime(
+   PaneController* self,
+   std::optional<std::chrono::system_clock::time_point> time)
+{
+   archiveTime_ = time;
+   actualTime_  = {};
+   timeError_.clear();
+   timeLoading_ = time.has_value();
+   RebindProduct();
+   ConnectProductSignals(self);
+   Q_EMIT self->timeChanged();
+   Q_EMIT self->channelChanged(SyncChannel::Time, ChangeOrigin::UserInput);
 }
 
 PaneController::PaneController(int                                paneId,
@@ -202,6 +242,49 @@ double PaneController::bearing() const
 double PaneController::pitch() const
 {
    return p->pitch_;
+}
+
+bool PaneController::liveMode() const { return !p->archiveTime_.has_value(); }
+
+QString PaneController::selectedTimeText() const
+{
+   if (!p->archiveTime_.has_value()) return QStringLiteral("Live");
+   const auto value = p->actualTime_ == std::chrono::system_clock::time_point {}
+      ? *p->archiveTime_ : p->actualTime_;
+   const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      value.time_since_epoch()).count();
+   return QDateTime::fromMSecsSinceEpoch(ms, Qt::UTC).toString(QStringLiteral("yyyy-MM-dd HH:mm 'UTC'"));
+}
+
+bool PaneController::timeLoading() const { return p->timeLoading_; }
+QString PaneController::timeError() const { return p->timeError_; }
+
+void PaneController::selectLive() { p->SetArchiveTime(this, std::nullopt); }
+
+bool PaneController::selectArchiveTime(const QString& isoUtc)
+{
+   const QString input = isoUtc.trimmed();
+   const QDateTime fields =
+      QDateTime::fromString(input, QStringLiteral("yyyy-MM-dd HH:mm"));
+   QDateTime dateTime = fields.isValid() && input.size() == 16
+      ? QDateTime(fields.date(), fields.time(), QTimeZone::UTC)
+      : QDateTime::fromString(input, Qt::ISODate);
+   if (!dateTime.isValid())
+   {
+      p->timeError_ = QStringLiteral("Use YYYY-MM-DD HH:MM or ISO 8601");
+      Q_EMIT timeChanged();
+      return false;
+   }
+   dateTime = dateTime.toUTC();
+   if (dateTime > QDateTime::currentDateTimeUtc())
+   {
+      p->timeError_ = QStringLiteral("Archive time cannot be in the future");
+      Q_EMIT timeChanged();
+      return false;
+   }
+   p->SetArchiveTime(this, std::chrono::system_clock::time_point {
+      std::chrono::milliseconds {dateTime.toMSecsSinceEpoch()}});
+   return true;
 }
 
 void PaneController::setCenter(double latitude, double longitude)
@@ -418,6 +501,11 @@ QVariant PaneController::channelValue(SyncChannel channel) const
       return p->descriptor_.product;
 
    case SyncChannel::Time:
+      if (p->archiveTime_.has_value())
+         return QVariant::fromValue(QDateTime::fromMSecsSinceEpoch(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+               p->archiveTime_->time_since_epoch()).count(), Qt::UTC));
+      return QDateTime {};
    case SyncChannel::Animation:
    case SyncChannel::Cursor:
    case SyncChannel::SelectedStorm:
@@ -503,6 +591,24 @@ void PaneController::applyChannelValue(SyncChannel     channel,
          changed = true;
       }
       break;
+
+   case SyncChannel::Time:
+   {
+      const QDateTime time = value.toDateTime();
+      p->archiveTime_ = time.isValid()
+         ? std::optional<std::chrono::system_clock::time_point> {
+              std::chrono::system_clock::time_point {
+                 std::chrono::milliseconds {time.toMSecsSinceEpoch()}}}
+         : std::nullopt;
+      p->actualTime_ = {};
+      p->timeError_.clear();
+      p->timeLoading_ = p->archiveTime_.has_value();
+      p->RebindProduct();
+      p->ConnectProductSignals(this);
+      Q_EMIT timeChanged();
+      changed = true;
+      break;
+   }
 
    default:
       return;

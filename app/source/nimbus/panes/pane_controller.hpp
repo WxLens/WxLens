@@ -12,6 +12,7 @@
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QDateTime>
 
 namespace nimbus
 {
@@ -51,6 +52,10 @@ class PaneController : public QObject
    Q_PROPERTY(double zoom READ zoom WRITE setZoom NOTIFY cameraChanged)
    Q_PROPERTY(double bearing READ bearing WRITE setBearing NOTIFY cameraChanged)
    Q_PROPERTY(double pitch READ pitch WRITE setPitch NOTIFY cameraChanged)
+   Q_PROPERTY(bool liveMode READ liveMode NOTIFY timeChanged)
+   Q_PROPERTY(QString selectedTimeText READ selectedTimeText NOTIFY timeChanged)
+   Q_PROPERTY(bool timeLoading READ timeLoading NOTIFY timeChanged)
+   Q_PROPERTY(QString timeError READ timeError NOTIFY timeChanged)
 
 public:
    explicit PaneController(int                                 paneId,
@@ -78,6 +83,13 @@ public:
    [[nodiscard]] double zoom() const;
    [[nodiscard]] double bearing() const;
    [[nodiscard]] double pitch() const;
+   [[nodiscard]] bool liveMode() const;
+   [[nodiscard]] QString selectedTimeText() const;
+   [[nodiscard]] bool timeLoading() const;
+   [[nodiscard]] QString timeError() const;
+
+   Q_INVOKABLE void selectLive();
+   Q_INVOKABLE bool selectArchiveTime(const QString& isoUtc);
 
    /**
     * Sets the Location channel atomically. Called from QML as the user pans, so it is treated as
@@ -194,6 +206,7 @@ signals:
     * know it has gone stale.
     */
    void sourceDataChanged();
+   void timeChanged();
 
    /**
     * Emitted only when a camera channel was changed by something other than this pane's own user

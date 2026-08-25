@@ -72,6 +72,7 @@ qt_add_qml_module(nimbus-app
         qml/Main.qml
         qml/Chrome/TopBar.qml
         qml/Chrome/SideRail.qml
+        qml/Chrome/TimeControls.qml
         qml/Dialogs/SettingsChoice.qml
         qml/Dialogs/SettingsDialog.qml
         qml/Dialogs/PaletteDialog.qml
