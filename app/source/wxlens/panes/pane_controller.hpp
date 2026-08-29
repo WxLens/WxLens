@@ -36,7 +36,16 @@ class PaneController : public QObject
 
    Q_PROPERTY(QString productKind READ productKind NOTIFY productChanged)
    Q_PROPERTY(QString sourceKey READ sourceKey WRITE setSourceKey NOTIFY productChanged)
-   Q_PROPERTY(QString productName READ productName NOTIFY productChanged)
+   Q_PROPERTY(QString productName READ productName WRITE setProductName NOTIFY productChanged)
+   Q_PROPERTY(QStringList availableProducts READ availableProducts CONSTANT)
+   Q_PROPERTY(QVariantList productCatalog READ productCatalog NOTIFY productCatalogChanged)
+   Q_PROPERTY(bool productCatalogLoading READ productCatalogLoading NOTIFY productCatalogChanged)
+   Q_PROPERTY(QString productCatalogError READ productCatalogError NOTIFY productCatalogChanged)
+   Q_PROPERTY(QString productIdentity READ productIdentity NOTIFY productChanged)
+   Q_PROPERTY(bool level3Product READ level3Product NOTIFY productChanged)
+   Q_PROPERTY(QString paletteName READ paletteName WRITE setPaletteName NOTIFY paletteChanged)
+   Q_PROPERTY(QVariantList elevationCuts READ elevationCuts NOTIFY sourceDataChanged)
+   Q_PROPERTY(double selectedElevation READ selectedElevation WRITE setSelectedElevation NOTIFY productChanged)
 
    // The pane's data source's own coordinates (a radar site's location today) - used to centre a
    // freshly created pane on something meaningful. Named for the role, not the domain, so a
@@ -56,6 +65,7 @@ class PaneController : public QObject
    Q_PROPERTY(QString selectedTimeText READ selectedTimeText NOTIFY timeChanged)
    Q_PROPERTY(bool timeLoading READ timeLoading NOTIFY timeChanged)
    Q_PROPERTY(QString timeError READ timeError NOTIFY timeChanged)
+   Q_PROPERTY(QString selectedStorm READ selectedStorm NOTIFY selectedStormChanged)
 
 public:
    explicit PaneController(int                                 paneId,
@@ -73,6 +83,22 @@ public:
    [[nodiscard]] QString productKind() const;
    [[nodiscard]] QString sourceKey() const;
    [[nodiscard]] QString productName() const;
+   [[nodiscard]] QStringList availableProducts() const;
+   [[nodiscard]] QVariantList productCatalog() const;
+   [[nodiscard]] bool productCatalogLoading() const;
+   [[nodiscard]] QString productCatalogError() const;
+   [[nodiscard]] QString productIdentity() const;
+   [[nodiscard]] bool level3Product() const;
+   [[nodiscard]] QString paletteName() const;
+   void setPaletteName(const QString& paletteName);
+   Q_INVOKABLE void refreshProductCatalog();
+   Q_INVOKABLE bool selectProduct(const QString& identityKind,
+                                  const QString& identity,
+                                  const QString& name);
+   [[nodiscard]] QVariantList elevationCuts() const;
+   [[nodiscard]] double selectedElevation() const;
+   void setProductName(const QString& productName);
+   void setSelectedElevation(double elevation);
    void                  setSourceKey(const QString& sourceKey);
 
    [[nodiscard]] double homeLatitude() const;
@@ -87,6 +113,8 @@ public:
    [[nodiscard]] QString selectedTimeText() const;
    [[nodiscard]] bool timeLoading() const;
    [[nodiscard]] QString timeError() const;
+   [[nodiscard]] QString selectedStorm() const;
+   Q_INVOKABLE void selectStorm(const QString& stormId);
 
    Q_INVOKABLE void selectLive();
    Q_INVOKABLE bool selectArchiveTime(const QString& isoUtc);
@@ -197,6 +225,8 @@ public:
 
 signals:
    void productChanged();
+   void productCatalogChanged();
+   void paletteChanged();
    void cameraChanged();
    void syncGroupsChanged();
 
@@ -210,6 +240,7 @@ signals:
     */
    void sourceDataChanged();
    void timeChanged();
+   void selectedStormChanged();
 
    /**
     * Emitted only when a camera channel was changed by something other than this pane's own user

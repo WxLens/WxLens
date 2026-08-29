@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
+import QtQuick.Shapes
 import WxLens.App
 import MapLibre 4.0
 
@@ -37,6 +38,7 @@ Rectangle {
     // A control inside this pane asked to open Settings at a specific section (§4.5). Forwarded
     // rather than handled here: a pane does not own the settings surface, and several panes exist.
     signal configureRequested(string sectionId)
+    property bool productBrowserOpen: false
 
     // Which interaction, if any, is currently claiming clicks on this pane. Measurement takes
     // precedence so the two tool families can never both act on one click.
@@ -212,6 +214,30 @@ Rectangle {
         visible: root.hasController
     }
 
+    // Tier-1 drawing preview. Geographic vertices live in ObjectToolController; this item only
+    // projects and presents them, exactly as the committed MapObjectsLayer does.
+    Shape {
+        anchors.fill: parent
+        visible: objectTools.activeTool === 3 && objectTools.drawingActive
+        preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            strokeColor: themeManager.warning
+            strokeWidth: 2
+            fillColor: "transparent"
+            PathPolyline {
+                path: {
+                    objectsLayer.cameraTick
+                    var points = []
+                    for (var i = 0; i < objectTools.drawingLatitudes.length; ++i) {
+                        points.push(root.paneController.pixelForCoordinate(
+                            objectTools.drawingLatitudes[i], objectTools.drawingLongitudes[i]))
+                    }
+                    return points
+                }
+            }
+        }
+    }
+
     // MeasurementController::Mode::Path. Path is the one mode that cannot be a drag: it has no
     // fixed number of vertices, so it stays click-to-add with right-click to finish.
     readonly property int measurementModePath: 2
@@ -279,6 +305,19 @@ Rectangle {
         preventStealing: true
 
         onPressed: (mouse) => {
+            if (objectTools.activeTool === 3) {
+                if (mouse.button === Qt.RightButton) {
+                    objectTools.cancelDrawing()
+                    return
+                }
+                if (mouse.modifiers & Qt.ShiftModifier) {
+                    mouse.accepted = false
+                    return
+                }
+                const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
+                if (geo.length === 2) objectTools.beginDrawing(geo[0], geo[1])
+                return
+            }
             if (!root.measuringActive || mouse.button !== Qt.LeftButton) {
                 return
             }
@@ -313,6 +352,12 @@ Rectangle {
         }
 
         onReleased: (mouse) => {
+            if (objectTools.activeTool === 3 && mouse.button === Qt.LeftButton) {
+                const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
+                if (geo.length === 2) objectTools.appendDrawingPoint(geo[0], geo[1])
+                objectTools.commitDrawing(root.paneController)
+                return
+            }
             if (!root.measureDragActive || mouse.button !== Qt.LeftButton) {
                 return
             }
@@ -356,6 +401,9 @@ Rectangle {
         }
 
         onClicked: (mouse) => {
+            if (objectTools.activeTool === 3) {
+                return
+            }
             const point = root.measurementPlacement(mouse.x, mouse.y, mouse.modifiers)
             if (point === null) {
                 return
@@ -382,7 +430,7 @@ Rectangle {
                 return
             }
 
-            objectTools.placeAt(geo[0], geo[1], root.paneController)
+            objectTools.placeAt(point.latitude, point.longitude, root.paneController)
         }
 
         // A grab can still be lost legitimately (a Shift hand-off, the window losing focus mid
@@ -398,6 +446,11 @@ Rectangle {
         // Live rubber-band while measuring - drives both the drag and the hover half of
         // click-then-click.
         onPositionChanged: (mouse) => {
+            if (objectTools.activeTool === 3 && objectTools.drawingActive) {
+                const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
+                if (geo.length === 2) objectTools.appendDrawingPoint(geo[0], geo[1])
+                return
+            }
             if (!root.measuringActive || !measurementTool.active) {
                 return
             }
@@ -736,18 +789,40 @@ Rectangle {
 
     // Minimal per-pane identification while the grid has more than one pane. Full pane chrome
     // (site/product pickers) still lands later.
-    Text {
+    Rectangle {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.margins: 6
         visible: root.showLabel
-        text: root.hasController
-            ? root.paneController.sourceKey + " " + root.paneController.productName
-            : ""
-        font.pixelSize: 11
-        color: themeManager.textSecondary
-        style: Text.Outline
-        styleColor: "#90000000"
+        width: productLabel.implicitWidth + 14
+        height: 24
+        radius: themeManager.cornerRadius
+        color: themeManager.control
+        border.color: themeManager.border
+        Text {
+            id: productLabel
+            anchors.centerIn: parent
+            text: root.hasController
+                ? root.paneController.sourceKey + " · " + root.paneController.productName + " ▾"
+                : ""
+            font.pixelSize: 11
+            color: themeManager.textSecondary
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.productBrowserOpen = !root.productBrowserOpen
+        }
+    }
+
+    ProductBrowser {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: 6
+        z: 20
+        visible: root.productBrowserOpen && root.hasController
+        paneController: root.paneController
+        onCloseRequested: root.productBrowserOpen = false
     }
 
     // OSM's ODbL and the OpenMapTiles schema both require attribution; MapLibre Native Qt's

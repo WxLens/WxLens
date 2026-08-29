@@ -1,6 +1,7 @@
 #include <wxlens/panes/pane_controller.hpp>
 #include <wxlens/log/logger.hpp>
 #include <wxlens/products/radar_sweep_product.hpp>
+#include <wxlens/data/radar_site_data_service.hpp>
 #include <wxlens/render/radar_sweep_layer.hpp>
 
 #include <wxlens/util/geodesic.hpp>
@@ -8,6 +9,8 @@
 #include <wxlens/util/unit_format.hpp>
 
 #include <map>
+#include <array>
+#include <ranges>
 
 #include <QPointer>
 #include <QQmlEngine>
@@ -62,6 +65,14 @@ public:
    std::chrono::system_clock::time_point actualTime_ {};
    bool timeLoading_ {false};
    QString timeError_ {};
+   QString selectedStorm_ {};
+   std::shared_ptr<data::RadarSiteDataService> dataService_ {nullptr};
+   std::vector<products::Level3ProductDescriptor> level3Catalog_ {};
+   bool productCatalogLoading_ {false};
+   QString productCatalogError_ {};
+   QMetaObject::Connection catalogReadyConnection_ {};
+   QMetaObject::Connection catalogLoadingConnection_ {};
+   QMetaObject::Connection catalogFailedConnection_ {};
 
    // Borrowed, not owned: MapQuickItem's unique_ptr owns this. Cleared when the map goes away so
    // the projection helpers cannot outlive it.
@@ -81,7 +92,8 @@ void PaneController::Impl::RebindProduct()
    if (descriptor_.kind == QStringLiteral("radar") && !descriptor_.sourceKey.isEmpty())
    {
       radarProduct_ = products::RadarSweepProduct::Instance(
-         descriptor_.sourceKey.toStdString(), archiveTime_);
+         descriptor_.sourceKey.toStdString(), descriptor_.product.toStdString(),
+         descriptor_.elevation, archiveTime_);
       if (radarProduct_ == nullptr)
       {
          logger_->error("Pane {} could not bind radar source \"{}\"",
@@ -168,6 +180,8 @@ PaneController::PaneController(int                                paneId,
 {
    p->RebindProduct();
 
+   if (!p->descriptor_.sourceKey.isEmpty()) refreshProductCatalog();
+
    p->centerLatitude_  = homeLatitude();
    p->centerLongitude_ = homeLongitude();
 }
@@ -194,6 +208,145 @@ QString PaneController::productName() const
    return p->descriptor_.product;
 }
 
+QStringList PaneController::availableProducts() const
+{
+   return {QStringLiteral("Reflectivity"), QStringLiteral("Velocity"),
+           QStringLiteral("Spectrum Width"), QStringLiteral("Differential Reflectivity"),
+           QStringLiteral("Differential Phase"), QStringLiteral("Correlation Coefficient"),
+           QStringLiteral("Clutter Filter Power Removed")};
+}
+
+QVariantList PaneController::productCatalog() const
+{
+   QVariantList catalog;
+   const std::array<std::pair<const char*, const char*>, 7> level2 {{
+      {"REF", "Reflectivity"}, {"VEL", "Velocity"}, {"SW", "Spectrum Width"},
+      {"ZDR", "Differential Reflectivity"}, {"PHI", "Differential Phase"},
+      {"RHO", "Correlation Coefficient"}, {"CFP", "Clutter Filter Power Removed"}}};
+   for (const auto& [identity, name] : level2)
+   {
+      catalog.append(QVariantMap {{QStringLiteral("category"), QStringLiteral("Level 2 moments")},
+                                  {QStringLiteral("description"), QString::fromLatin1(name)},
+                                  {QStringLiteral("identityKind"), QStringLiteral("level2")},
+                                  {QStringLiteral("identity"), QString::fromLatin1(identity)},
+                                  {QStringLiteral("awipsId"), QString {}},
+                                  {QStringLiteral("available"), true}});
+   }
+   for (const auto& item : p->level3Catalog_)
+   {
+      catalog.append(QVariantMap {{QStringLiteral("category"), item.categoryDescription},
+                                  {QStringLiteral("description"), item.description},
+                                  {QStringLiteral("identityKind"), QStringLiteral("level3")},
+                                  {QStringLiteral("identity"), item.awipsId},
+                                  {QStringLiteral("awipsId"), item.awipsId},
+                                  {QStringLiteral("available"), true}});
+   }
+   return catalog;
+}
+
+bool PaneController::productCatalogLoading() const { return p->productCatalogLoading_; }
+QString PaneController::productCatalogError() const { return p->productCatalogError_; }
+QString PaneController::productIdentity() const { return p->descriptor_.identity; }
+bool PaneController::level3Product() const
+{
+   return p->descriptor_.identityKind == products::ProductDescriptor::IdentityKind::Level3Awips;
+}
+QString PaneController::paletteName() const { return p->descriptor_.palette; }
+
+void PaneController::setPaletteName(const QString& name)
+{
+   if (p->descriptor_.palette == name) return;
+   p->descriptor_.palette = name;
+   Q_EMIT paletteChanged();
+   Q_EMIT channelChanged(SyncChannel::Palette, ChangeOrigin::UserInput);
+}
+
+void PaneController::refreshProductCatalog()
+{
+   QObject::disconnect(p->catalogReadyConnection_);
+   QObject::disconnect(p->catalogLoadingConnection_);
+   QObject::disconnect(p->catalogFailedConnection_);
+   p->level3Catalog_.clear();
+   p->productCatalogError_.clear();
+   p->dataService_ = data::RadarSiteDataService::Instance(p->descriptor_.sourceKey.toStdString());
+   if (p->dataService_ == nullptr) return;
+   p->catalogLoadingConnection_ = connect(p->dataService_.get(),
+      &data::RadarSiteDataService::LevelThreeCatalogLoading, this, [this]() {
+         p->productCatalogLoading_ = true; p->productCatalogError_.clear();
+         Q_EMIT productCatalogChanged();
+      });
+   p->catalogReadyConnection_ = connect(p->dataService_.get(),
+      &data::RadarSiteDataService::LevelThreeCatalogReady, this,
+      [this](std::vector<products::Level3ProductDescriptor> catalog) {
+         p->level3Catalog_ = std::move(catalog); p->productCatalogLoading_ = false;
+         Q_EMIT productCatalogChanged();
+      });
+   p->catalogFailedConnection_ = connect(p->dataService_.get(),
+      &data::RadarSiteDataService::LevelThreeCatalogFailed, this, [this](const QString& error) {
+         p->productCatalogLoading_ = false; p->productCatalogError_ = error;
+         Q_EMIT productCatalogChanged();
+      });
+   p->dataService_->RefreshLevel3Catalog();
+}
+
+bool PaneController::selectProduct(const QString& kind, const QString& identity, const QString& name)
+{
+   const bool isLevel3 = kind == QStringLiteral("level3");
+   if (identity.isEmpty() || name.isEmpty()) return false;
+   if (!isLevel3 && !availableProducts().contains(name)) return false;
+   if (isLevel3)
+   {
+      const bool found = std::ranges::any_of(p->level3Catalog_, [&](const auto& value) {
+         return value.awipsId == identity;
+      });
+      if (!found) return false;
+   }
+   p->descriptor_.identityKind = isLevel3
+      ? products::ProductDescriptor::IdentityKind::Level3Awips
+      : products::ProductDescriptor::IdentityKind::Level2Moment;
+   p->descriptor_.identity = identity;
+   p->descriptor_.product = name;
+   p->descriptor_.elevation = 0.0f;
+   p->descriptor_.palette.clear();
+   p->RebindProduct(); p->ConnectProductSignals(this);
+   Q_EMIT productChanged(); Q_EMIT paletteChanged();
+   Q_EMIT channelChanged(SyncChannel::Product, ChangeOrigin::UserInput);
+   return true;
+}
+
+QVariantList PaneController::elevationCuts() const
+{
+   QVariantList result;
+   if (p->radarProduct_ != nullptr)
+      for (float cut : p->radarProduct_->elevation_cuts()) result.append(cut);
+   return result;
+}
+
+double PaneController::selectedElevation() const { return p->descriptor_.elevation; }
+
+void PaneController::setProductName(const QString& name)
+{
+   if (!availableProducts().contains(name) || p->descriptor_.product == name) return;
+   p->descriptor_.product = name;
+   const int index = availableProducts().indexOf(name);
+   static const std::array<const char*, 7> identities {
+      "REF", "VEL", "SW", "ZDR", "PHI", "RHO", "CFP"};
+   p->descriptor_.identityKind = products::ProductDescriptor::IdentityKind::Level2Moment;
+   p->descriptor_.identity = QString::fromLatin1(identities[static_cast<std::size_t>(index)]);
+   p->descriptor_.elevation = 0.0f;
+   p->RebindProduct(); p->ConnectProductSignals(this);
+   Q_EMIT productChanged();
+   Q_EMIT channelChanged(SyncChannel::Product, ChangeOrigin::UserInput);
+}
+
+void PaneController::setSelectedElevation(double elevation)
+{
+   if (qFuzzyCompare(p->descriptor_.elevation, static_cast<float>(elevation))) return;
+   p->descriptor_.elevation = static_cast<float>(elevation);
+   p->RebindProduct(); p->ConnectProductSignals(this);
+   Q_EMIT productChanged();
+}
+
 void PaneController::setSourceKey(const QString& sourceKey)
 {
    if (p->descriptor_.sourceKey == sourceKey)
@@ -204,6 +357,7 @@ void PaneController::setSourceKey(const QString& sourceKey)
    p->descriptor_.sourceKey = sourceKey;
    p->RebindProduct();
    p->ConnectProductSignals(this);
+   refreshProductCatalog();
 
    Q_EMIT productChanged();
    Q_EMIT channelChanged(SyncChannel::RadarSite, ChangeOrigin::UserInput);
@@ -258,6 +412,15 @@ QString PaneController::selectedTimeText() const
 
 bool PaneController::timeLoading() const { return p->timeLoading_; }
 QString PaneController::timeError() const { return p->timeError_; }
+QString PaneController::selectedStorm() const { return p->selectedStorm_; }
+
+void PaneController::selectStorm(const QString& stormId)
+{
+   if (p->selectedStorm_ == stormId) return;
+   p->selectedStorm_ = stormId;
+   Q_EMIT selectedStormChanged();
+   Q_EMIT channelChanged(SyncChannel::SelectedStorm, ChangeOrigin::UserInput);
+}
 
 void PaneController::selectLive() { p->SetArchiveTime(this, std::nullopt); }
 
@@ -498,7 +661,11 @@ QVariant PaneController::channelValue(SyncChannel channel) const
    case SyncChannel::RadarSite:
       return p->descriptor_.sourceKey;
    case SyncChannel::Product:
-      return p->descriptor_.product;
+      return QVariantMap {
+         {QStringLiteral("kind"), level3Product() ? QStringLiteral("level3")
+                                                   : QStringLiteral("level2")},
+         {QStringLiteral("identity"), p->descriptor_.identity},
+         {QStringLiteral("name"), p->descriptor_.product}};
 
    case SyncChannel::Time:
       if (p->archiveTime_.has_value())
@@ -508,8 +675,11 @@ QVariant PaneController::channelValue(SyncChannel channel) const
       return QDateTime {};
    case SyncChannel::Animation:
    case SyncChannel::Cursor:
-   case SyncChannel::SelectedStorm:
+      return {};
    case SyncChannel::Palette:
+      return p->descriptor_.palette;
+   case SyncChannel::SelectedStorm:
+      return p->selectedStorm_;
    default:
       // Declared but not yet backed by state - see SyncChannel's comment. An invalid QVariant
       // makes the coordinator skip the channel rather than propagating a meaningless value.
@@ -584,10 +754,34 @@ void PaneController::applyChannelValue(SyncChannel     channel,
       break;
 
    case SyncChannel::Product:
-      if (p->descriptor_.product != value.toString())
+   {
+      const QVariantMap selection = value.toMap();
+      if (selection.isEmpty()) return;
+      const bool level3 = selection.value(QStringLiteral("kind")).toString() == QStringLiteral("level3");
+      const QString identity = selection.value(QStringLiteral("identity")).toString();
+      const QString name = selection.value(QStringLiteral("name")).toString();
+      if (p->descriptor_.product != name || p->descriptor_.identity != identity ||
+          level3Product() != level3)
       {
-         p->descriptor_.product = value.toString();
+         p->descriptor_.product = name;
+         p->descriptor_.identity = identity;
+         p->descriptor_.identityKind = level3
+            ? products::ProductDescriptor::IdentityKind::Level3Awips
+            : products::ProductDescriptor::IdentityKind::Level2Moment;
+         p->descriptor_.elevation = 0.0f;
+         p->RebindProduct();
+         p->ConnectProductSignals(this);
          Q_EMIT productChanged();
+         changed = true;
+      }
+      break;
+   }
+
+   case SyncChannel::Palette:
+      if (p->descriptor_.palette != value.toString())
+      {
+         p->descriptor_.palette = value.toString();
+         Q_EMIT paletteChanged();
          changed = true;
       }
       break;
@@ -609,6 +803,15 @@ void PaneController::applyChannelValue(SyncChannel     channel,
       changed = true;
       break;
    }
+
+   case SyncChannel::SelectedStorm:
+      if (p->selectedStorm_ != value.toString())
+      {
+         p->selectedStorm_ = value.toString();
+         Q_EMIT selectedStormChanged();
+         changed = true;
+      }
+      break;
 
    default:
       return;

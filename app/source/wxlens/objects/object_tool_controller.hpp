@@ -31,6 +31,9 @@ class ObjectToolController : public QObject
    Q_PROPERTY(int scopeKind READ scopeKind WRITE setScopeKind NOTIFY scopeKindChanged)
    Q_PROPERTY(double ringRadiusMeters READ ringRadiusMeters WRITE setRingRadiusMeters NOTIFY
                  ringRadiusMetersChanged)
+   Q_PROPERTY(bool drawingActive READ drawingActive NOTIFY drawingChanged)
+   Q_PROPERTY(QVariantList drawingLatitudes READ drawingLatitudes NOTIFY drawingChanged)
+   Q_PROPERTY(QVariantList drawingLongitudes READ drawingLongitudes NOTIFY drawingChanged)
 
 public:
    /// Deliberately not MapObjectType: "no tool" is a first-class state, and the tool set is a UI
@@ -40,7 +43,8 @@ public:
    {
       None = 0,
       Marker,
-      RangeRing
+      RangeRing,
+      Drawing
    };
    Q_ENUM(Tool)
 
@@ -55,6 +59,9 @@ public:
    [[nodiscard]] int    activeTool() const;
    [[nodiscard]] int    scopeKind() const;
    [[nodiscard]] double ringRadiusMeters() const;
+   [[nodiscard]] bool drawingActive() const;
+   [[nodiscard]] QVariantList drawingLatitudes() const;
+   [[nodiscard]] QVariantList drawingLongitudes() const;
 
    void setActiveTool(int tool);
    void setScopeKind(int scopeKind);
@@ -67,12 +74,17 @@ public:
    Q_INVOKABLE int placeAt(double                         latitude,
                            double                         longitude,
                            wxlens::panes::PaneController* pane);
+   Q_INVOKABLE void beginDrawing(double latitude, double longitude);
+   Q_INVOKABLE void appendDrawingPoint(double latitude, double longitude);
+   Q_INVOKABLE int commitDrawing(wxlens::panes::PaneController* pane);
+   Q_INVOKABLE void cancelDrawing();
 
 signals:
    void activeToolChanged();
    void scopeKindChanged();
    void ringRadiusMetersChanged();
    void objectPlaced(int objectId);
+   void drawingChanged();
 
 private:
    class Impl;

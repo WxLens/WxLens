@@ -2168,6 +2168,182 @@ packaged Release application on Windows, with the real MapLibre surface and netw
   wxdata CTest pass has two unrelated live IEM endpoint failures and one unbuilt optional MapLibre
   test; these do not fail the WxLens model suite or the acceptance paths above.
 
+**Status as of 2026-08-29 — remaining Phase 1 coverage work resumed.** The acceptance rerun above
+confirmed the palette bundle was already complete, while product coverage and general drawing
+creation were genuine gaps.
+
+- General drawings now use the unified `MapObjectStore`: a bottom-bar tool captures a geographic
+  freehand path, keeps the live path in tier-1 tool state, and commits a scoped, pinned `Line` on
+  release. The existing object layer renders and hit-tests it like every other analysis object.
+- Level 2 selection now covers all seven `wxdata` moment blocks (reflectivity, velocity, spectrum
+  width, ZDR, differential phase, correlation coefficient, and clutter-filter power removed).
+  Product and actual volume elevation cuts are selectable per pane; the product singleton key
+  includes site, moment, elevation and archive minute, so independent panes cannot overwrite one
+  another. Product-channel synchronization rebinds the data product rather than changing only its
+  label.
+- **Verified:** Release application and QML cache build; all 108 C++ model tests pass, including
+  drawing geometry/lifecycle and independent/synchronized Level 2 selection.
+- **Not verified:** live visual drawing gesture and live non-reflectivity/elevation rendering.
+- **Still outstanding:** Level 3. The reference implementation establishes at least four
+  behaviors that must remain separate: radial products, raster products, graphic/vector overlays
+  (including storm tracking), and graphic/tabular text. Implement this as provider/cache, radial,
+  raster, then overlay/text slices; do not claim "full Level 3" after wiring only radial AWIPS IDs.
+
+#### Remaining Phase 1 Level 3 sub-slices
+
+These are continuations of Phase 1 slice 3 (radar rendering), not Phase 2 work. Phase 2 starts
+multi-site mosaic/mesh radar; it must not become a bucket for unfinished single-site NEXRAD
+coverage. Complete and verify each sub-slice independently in this order:
+
+1. **3A — Level 3 source service and product catalog.** Extend the radar Data Source with live
+   and archive Level 3 requests through wxdata's existing providers. Discover the products and
+   AWIPS IDs actually available for a site; cache/request by site + AWIPS ID + selected time; add
+   typed loading, completion and failure signals. Extend `ProductDescriptor` so Level 2 moments
+   and Level 3 AWIPS products have unambiguous identities without making `PaneController`
+   radar-specific. Verify provider behavior and catalog/category mapping with bundled fixtures.
+   **IMPLEMENTED (2026-08-29):** `RadarSiteDataService` now owns per-AWIPS wxdata providers,
+   supports latest and bounded archive requests, caches parsed files by AWIPS ID plus provider
+   object key, and publishes distinct catalog/loading/completion/failure signals with request IDs.
+   The presentation-neutral catalog filters site availability through wxdata's canonical product,
+   category, description and AWIPS tables. `ProductDescriptor` carries an explicit Level 2-moment
+   versus Level 3-AWIPS identity without adding radar fields to `PaneController`. Catalog mapping
+   and non-colliding identity have WxLens model tests; wxdata's bundled Level 3 fixture/provider
+   tests remain the parser/provider acceptance seam. Live UI selection/rendering intentionally
+   begins in 3B/3F.
+2. **3B — Level 3 radial data products.** Port the behavior of the legacy
+   `Level3RadialView`, not its Qt/OpenGL implementation. Convert supported radial packets into an
+   immutable, presentation-neutral sweep snapshot and reuse/generalize the existing visualization
+   layer where the geometry contract genuinely matches. Preserve Level 3 thresholds, data-level
+   decoding, scale/offset metadata, range folding, product timestamp, elevation and default
+   palette selection. Verify representative reflectivity, velocity, dual-pol and categorical
+   radial fixtures through the real renderer.
+   **IMPLEMENTED (2026-08-29):** `BuildLevel3RadialSnapshot` accepts wxdata's parsed Graphic
+   Product Messages, prefers packet 16 digital radial data over AF1F radial data, rejects other
+   renderer families, applies the product threshold while retaining range-folded bins, and emits
+   immutable geographic triangle geometry plus 8-bit moments in `RadarSweepLayer`'s existing
+   upload contract. Its presentation-neutral metadata preserves all 16 raw thresholds, decoded
+   values/categorical codes, scale/offset, product time, elevation and wxdata's default-palette
+   identity. Bundled N0B reflectivity, N1U velocity, N0X dual-pol and N0H categorical fixtures
+   exercise that real renderer contract; a non-radial NST fixture verifies family separation.
+   Release build and all 115 WxLens model tests pass. Packaged live/archive visual selection remains
+   deliberately in 3F, where the product browser and per-pane palette binding are introduced.
+3. **3C — Level 3 raster data products.** Port the behavior of `Level3RasterView` for raster and
+   precipitation-array packet families. Convert Cartesian bins to geographic GPU geometry in a
+   dedicated Data Product implementation rather than pretending they are radial gates. Verify a
+   representative raster product and precipitation accumulation product at multiple zooms and
+   bearings, including archive selection.
+   **PARTIALLY IMPLEMENTED (2026-08-29):** `BuildLevel3RasterSnapshot` now converts wxdata
+   packet BA07/BA0F Cartesian bins into immutable geographic triangle geometry for the existing
+   GPU upload contract, without presenting the bins as radial gates. It preserves thresholds,
+   decoded values/codes, scale/offset, product time, resolution, dimensions and default-palette
+   identity. A bundled NCR raster fixture verifies the real geometry contract; packet-family
+   detection and the archived DPA fixture verify that packet 17/18 precipitation arrays fail
+   explicitly instead of silently rendering empty. Full packet 17/18 rendering is blocked by
+   wxdata's public API: both packet classes parse their row payload internally but expose only
+   dimensions and `data_size()`. Per ADR 0002 and this roadmap's upstream-first rule, decoded-row
+   accessors must land in the legacy wxdata repository before WxLens can consume them; do not
+   re-parse Level 3 bytes here or edit the vendored submodule. Packaged visual verification at
+   multiple zooms/bearings remains in 3F after live product selection is wired.
+4. **3D — Level 3 graphic/vector overlays.** Translate storm IDs/tracks, hail and mesocyclone
+   symbols, point features, linked/unlinked contours and vectors, vector arrows, and wind barbs
+   into presentation-neutral geographic overlay primitives above radar and below the User
+   Analysis Layer. Connect real Storm Tracking Information selection to the already-reserved
+   `SelectedStorm` synchronization channel. Do not store meteorological graphics as user-created
+   `MapObject`s.
+   **PARTIALLY IMPLEMENTED (2026-08-29):** `BuildLevel3GraphicOverlaySnapshot` translates the
+   wxdata packet families that currently expose decoded geometry into immutable geographic,
+   presentation-neutral primitives: storm IDs, SCIT past/forecast linked tracks, HDA hail,
+   mesocyclones, point features/symbols and STI circles. These objects remain product-owned and
+   never enter `MapObjectStore`. The bundled NST fixture verifies real storm identities and
+   multi-point track geometry. `PaneController` now backs the reserved `SelectedStorm` channel
+   with real state; grouped panes propagate selection once with the existing origin guard.
+   Rendering/binding this snapshot above radar remains for the next continuation of 3D (and live
+   product selection remains in 3F). wxdata currently withholds decoded geometry accessors for
+   unlinked vectors, linked/unlinked contours, vector arrows and wind barbs; those accessors must
+   land upstream before WxLens can translate those families. Do not re-parse their private packet
+   bytes here or edit the vendored submodule.
+5. **3E — Level 3 graphic/tabular text.** Expose graphic annotations, tabular alphanumeric
+   blocks and text-only products in a product-details surface associated with the pane and selected
+   time. Preserve raw/unavailable metadata honestly; do not fabricate geographic placement for
+   packets that have none. Verify representative graphic and tabular fixtures.
+   **PARTIALLY IMPLEMENTED (2026-08-29):** `BuildLevel3TextSnapshot` exposes graphic annotation packets
+   and tabular alphanumeric pages through one immutable, presentation-neutral product-details
+   contract, preserving product time/code, AWIPS identity, raw annotation value and page I/J
+   coordinates, and explicit block availability. Raw I/J positions are deliberately not promoted
+   to geographic coordinates because the graphic page supplies no geographic anchor.
+   `BuildTextProductSnapshot` adapts wxdata AWIPS text-only messages to the same contract while
+   explicitly recording that geographic placement is unavailable. Real NST graphic and SPD
+   tabular fixtures verify both Level 3 families, and a radial fixture verifies honest absent-block
+   metadata. Live per-pane binding and the visible details control land with 3F's product browser,
+   because the current pane service only loads Level 2 data and adding a second temporary Level 3
+   selection path here would violate the slice boundary.
+6. **3F — Product browser, palettes and Phase 1 acceptance.** Replace the temporary cycling
+   control with a categorized per-pane product browser showing product description, AWIPS ID,
+   availability, timestamp, loading/error state, and elevation only where meaningful. Select the
+   bundled product-default palette while retaining user overrides and per-channel palette/product
+   synchronization. Exercise simultaneous Level 2, Level 3 radial, Level 3 raster, storm overlay
+   and text products across independent and synchronized panes; record decode/render performance;
+   rerun all Phase 1 acceptance criteria.
+   **PARTIALLY IMPLEMENTED (2026-08-29):** each pane now exposes a categorized browser backed by
+   the site's discovered Level 3 catalog alongside the seven Level 2 moments. Entries carry an
+   unambiguous family/identity tuple, description, AWIPS ID and availability; the surface reports
+   catalog loading/failure and the pane's time/loading/error state remains independently exposed.
+   Product synchronization now propagates family + canonical identity + name, preventing a Level
+   2 label from colliding with a Level 3 AWIPS selection. Palette override state is per pane and
+   participates in the existing Palette channel; selecting a different product clears the override
+   so its bundled default can take effect. The repeatable performance capture protocol is recorded
+   in `docs/performance-baseline.md` without fabricating measurements. Live Level 3 binding into
+   the renderer, visible overlay/details surfaces, per-pane LUT application, packaged visual
+   family acceptance, actual performance measurements, and the phase-wide release gates remain
+   open; therefore neither 3F nor Phase 1 is complete.
+
+**Level 3 completion rule:** Phase 1 cannot be marked complete until at least one real fixture or
+live/archive product from every applicable renderer family (radial, raster, graphic/vector, and
+graphic/tabular text) passes its automated tests and the packaged application's visual acceptance
+path. A populated product picker or successful parser call alone is not coverage.
+
+#### Phase 1 completion and release-readiness gates
+
+The feature slices above are not, by themselves, permission to call Phase 1 complete or publish a
+release. Before that milestone, explicitly close and record evidence for every gate below. Keep
+unfinished items visible here rather than treating them as implied polish:
+
+- [ ] **Settings coverage for every promised preference.** Verify persistence, defaults, reset
+  behavior, addressable settings-section navigation, and actual runtime application for product
+  defaults, unit preferences, map-provider choice, per-object-kind default scope, workspace/pane
+  layout, and floating-versus-docked controls. Active theme/palette, measurement gesture, snap
+  tolerance/suppress modifier, geometry-row visibility, map details, and other preferences already
+  promised elsewhere in this roadmap remain part of the same audit. Do not silently resolve open
+  question 11 while adding the floating/docked preference.
+- [ ] **Phase-wide UX and acceptance validation.** Rerun every criterion in §4.8 against the
+  packaged application, including primary pointer gestures and keyboard paths, and record which
+  automated and manual test provides evidence for each criterion. Validate representative dense
+  multi-pane layouts as well as the easy 1×1 case.
+- [ ] **Performance baselines on a modest laptop.** Record hardware, display resolution, pane
+  layout, products/data sources, and measurement method alongside FPS/frame time (including
+  stalls), CPU and GPU utilization, memory/working-set behavior, radar decode latency, network
+  request volume/latency, cache hit/miss behavior, and repeated/live-update behavior. Establish
+  reproducible baselines before optimization and document regressions or accepted limits.
+- [ ] **Packaging, release, and update readiness.** Exercise clean-machine installation and
+  uninstall/repair behavior; verify runtime dependency and license/attribution packaging; expand
+  CI across supported configurations; define artifact signing/versioning and release-channel
+  mechanics; and make an explicit, documented decision about installation and update behavior.
+  A developer-tree executable or deploy-folder smoke test alone is not release readiness.
+- [ ] **First-run usability and general polish.** Validate a new-user path from empty settings to
+  a useful live radar view; accessible names/roles, contrast, text scaling, focus visibility and
+  reduced-motion implications; complete keyboard navigation and shortcuts; actionable loading,
+  empty, permission, provider-failure, corrupt-data, and offline/cache states; and recovery without
+  restarting or losing the workspace. Check error messages and logs without exposing secrets.
+- [ ] **“WxLens” name and trademark due diligence.** Before registering domains/accounts or
+  publishing broadly, search relevant software, weather, and mapping products plus applicable
+  trademark databases for confusingly similar names. Record the date, jurisdictions/databases,
+  findings, and resulting decision. This is practical collision screening, not a substitute for
+  legal advice when registration or material distribution warrants counsel.
+
+**Completion rule:** Phase 1 closes only when the Level 3 completion rule and every gate above
+has evidence in the repository (tests, CI/release configuration, or a dated validation record),
+with any consciously deferred limitation named and accepted rather than silently omitted.
+
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
 **Scope:** a national/regional mosaic reflectivity (and optionally echo-tops/precip) layer as a

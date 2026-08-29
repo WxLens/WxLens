@@ -77,6 +77,8 @@ public:
                               double             siteLatitude,
                               double             siteLongitude,
                               double             siteAltitudeMslMeters,
+                              const std::string& productName,
+                              float              selectedElevation,
                               std::optional<std::chrono::system_clock::time_point> archiveTime =
                                  std::nullopt,
                               QObject*           parent = nullptr);
@@ -94,7 +96,11 @@ public:
     */
    static std::shared_ptr<RadarSweepProduct> Instance(
       const std::string& radarSite,
+      const std::string& productName = "Reflectivity",
+      float selectedElevation = 0.0f,
       std::optional<std::chrono::system_clock::time_point> archiveTime = std::nullopt);
+
+   [[nodiscard]] std::vector<float> elevation_cuts() const;
 
    [[nodiscard]] bool is_archive() const;
    [[nodiscard]] std::chrono::system_clock::time_point selected_time() const;

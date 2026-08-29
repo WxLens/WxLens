@@ -27,6 +27,9 @@ public:
    int    scopeKind_ {static_cast<int>(MapObjectScopeKind::CurrentPaneOnly)};
    double ringRadiusMeters_ {kDefaultRingRadiusMeters};
    int    markerCount_ {0};
+   QVariantList drawingLatitudes_ {};
+   QVariantList drawingLongitudes_ {};
+   int drawingCount_ {0};
 };
 
 ObjectToolController::ObjectToolController(QObject* parent) :
@@ -51,6 +54,10 @@ double ObjectToolController::ringRadiusMeters() const
    return p->ringRadiusMeters_;
 }
 
+bool ObjectToolController::drawingActive() const { return !p->drawingLatitudes_.isEmpty(); }
+QVariantList ObjectToolController::drawingLatitudes() const { return p->drawingLatitudes_; }
+QVariantList ObjectToolController::drawingLongitudes() const { return p->drawingLongitudes_; }
+
 void ObjectToolController::setActiveTool(int tool)
 {
    const auto requested = static_cast<Tool>(tool);
@@ -59,6 +66,10 @@ void ObjectToolController::setActiveTool(int tool)
       return;
    }
    p->activeTool_ = requested;
+   if (requested != Tool::Drawing)
+   {
+      cancelDrawing();
+   }
    Q_EMIT activeToolChanged();
 }
 
@@ -107,6 +118,9 @@ int ObjectToolController::placeAt(double latitude, double longitude, panes::Pane
          latitude, longitude, p->ringRadiusMeters_, QString {}, pane, p->scopeKind_);
       break;
 
+   case Tool::Drawing:
+      return -1;
+
    case Tool::None:
    default:
       return -1;
@@ -123,6 +137,48 @@ int ObjectToolController::placeAt(double latitude, double longitude, panes::Pane
    }
 
    return id;
+}
+
+void ObjectToolController::beginDrawing(double latitude, double longitude)
+{
+   p->drawingLatitudes_  = {latitude};
+   p->drawingLongitudes_ = {longitude};
+   Q_EMIT drawingChanged();
+}
+
+void ObjectToolController::appendDrawingPoint(double latitude, double longitude)
+{
+   if (p->drawingLatitudes_.isEmpty())
+   {
+      beginDrawing(latitude, longitude);
+      return;
+   }
+   p->drawingLatitudes_.append(latitude);
+   p->drawingLongitudes_.append(longitude);
+   Q_EMIT drawingChanged();
+}
+
+int ObjectToolController::commitDrawing(panes::PaneController* pane)
+{
+   const int id = MapObjectStore::Instance().addLine(p->drawingLatitudes_,
+                                                     p->drawingLongitudes_,
+                                                     QStringLiteral("D%1").arg(++p->drawingCount_),
+                                                     pane,
+                                                     p->scopeKind_);
+   cancelDrawing();
+   if (id >= 0)
+   {
+      Q_EMIT objectPlaced(id);
+   }
+   return id;
+}
+
+void ObjectToolController::cancelDrawing()
+{
+   if (p->drawingLatitudes_.isEmpty()) return;
+   p->drawingLatitudes_.clear();
+   p->drawingLongitudes_.clear();
+   Q_EMIT drawingChanged();
 }
 
 } // namespace objects

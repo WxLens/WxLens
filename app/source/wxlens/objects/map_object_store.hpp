@@ -111,6 +111,12 @@ public:
                                 wxlens::panes::PaneController* originPane,
                                 int                            scopeKind);
 
+   Q_INVOKABLE int addLine(const QVariantList&                 latitudes,
+                           const QVariantList&                 longitudes,
+                           const QString&                      label,
+                           wxlens::panes::PaneController*      originPane,
+                           int                                 scopeKind);
+
    /**
     * The id of the object under a pixel in `pane`, or -1 if nothing is close enough.
     *

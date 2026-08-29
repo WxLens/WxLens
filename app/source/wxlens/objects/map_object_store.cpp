@@ -360,6 +360,33 @@ int MapObjectStore::addRangeRing(double                 latitude,
    return Add(object);
 }
 
+int MapObjectStore::addLine(const QVariantList&          latitudes,
+                            const QVariantList&          longitudes,
+                            const QString&               label,
+                            panes::PaneController*       originPane,
+                            int                          scopeKind)
+{
+   if (latitudes.size() < 2 || latitudes.size() != longitudes.size())
+   {
+      return -1;
+   }
+
+   MapObject object;
+   object.type      = MapObjectType::Line;
+   object.label     = label;
+   object.color     = QStringLiteral("#ffb300");
+   object.lifecycle = MapObjectLifecycle::Pinned;
+   object.latitudes.reserve(latitudes.size());
+   object.longitudes.reserve(longitudes.size());
+   for (qsizetype i = 0; i < latitudes.size(); ++i)
+   {
+      object.latitudes.append(latitudes[i].toDouble());
+      object.longitudes.append(longitudes[i].toDouble());
+   }
+   ApplyOrigin(object, originPane, scopeKind);
+   return Add(object);
+}
+
 namespace
 {
 /// Shortest pixel distance from `point` to the segment ab. Degenerate segments fall back to the

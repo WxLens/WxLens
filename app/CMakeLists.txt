@@ -46,6 +46,16 @@ qt_add_executable(wxlens-app
     source/wxlens/palettes/palette_model.cpp
     source/wxlens/palettes/palette_model.hpp
     source/wxlens/products/product_descriptor.hpp
+    source/wxlens/products/level3_product_catalog.cpp
+    source/wxlens/products/level3_product_catalog.hpp
+    source/wxlens/products/level3_radial_product.cpp
+    source/wxlens/products/level3_radial_product.hpp
+    source/wxlens/products/level3_raster_product.cpp
+    source/wxlens/products/level3_raster_product.hpp
+    source/wxlens/products/level3_graphic_overlay.cpp
+    source/wxlens/products/level3_graphic_overlay.hpp
+    source/wxlens/products/level3_text_product.cpp
+    source/wxlens/products/level3_text_product.hpp
     source/wxlens/products/radar_product_status.cpp
     source/wxlens/products/radar_product_status.hpp
     source/wxlens/products/radar_sweep_product.cpp
@@ -90,6 +100,7 @@ qt_add_qml_module(wxlens-app
         qml/Panes/RadarGeometryPanel.qml
         qml/Panes/PaneGrid.qml
         qml/Panes/PaneHost.qml
+        qml/Panes/ProductBrowser.qml
         qml/Panes/WeatherOverlaysLayer.qml
     RESOURCES
         res/branding/wxlens-icon.png

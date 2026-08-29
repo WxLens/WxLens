@@ -61,6 +61,16 @@ Rectangle {
             Rectangle { anchors.centerIn: parent; width: 4; height: 4; radius: 2; color: themeManager.textPrimary }
         }
         ToolButton {
+            active: objectTools.activeTool === 3; accent: themeManager.warning; hint: "Draw line"
+            onTriggered: {
+                measurementTool.mode = 0
+                objectTools.activeTool = active ? 0 : 3
+            }
+            Rectangle { width: 20; height: 2; color: themeManager.textPrimary; anchors.centerIn: parent; rotation: -32 }
+            Rectangle { width: 5; height: 5; radius: 3; color: themeManager.textPrimary; x: 6; y: 22 }
+            Rectangle { width: 5; height: 5; radius: 3; color: themeManager.textPrimary; x: 23; y: 7 }
+        }
+        ToolButton {
             visible: objectTools.activeTool !== 0 || measurementTool.mode !== 0
             hint: "Object scope (right-click for default)"
             Text {
@@ -101,6 +111,44 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             active: root.gridModel.activePane !== null
             sourceComponent: TimeControls { paneController: root.gridModel.activePane }
+        }
+
+        ToolButton {
+            visible: root.gridModel.activePane !== null
+            width: 92
+            hint: "Radar product"
+            Text {
+                anchors.centerIn: parent
+                width: parent.width - 8; elide: Text.ElideRight
+                horizontalAlignment: Text.AlignHCenter
+                text: root.gridModel.activePane ? root.gridModel.activePane.productName : ""
+                color: themeManager.textSecondary; font.pixelSize: 9
+            }
+            onTriggered: {
+                const pane = root.gridModel.activePane
+                const products = pane.availableProducts
+                pane.productName = products[(products.indexOf(pane.productName) + 1) % products.length]
+            }
+        }
+        ToolButton {
+            visible: root.gridModel.activePane !== null
+            width: 45
+            hint: "Elevation tilt"
+            Text {
+                anchors.centerIn: parent
+                text: root.gridModel.activePane
+                    ? Number(root.gridModel.activePane.selectedElevation).toFixed(1) + "°" : "—"
+                color: themeManager.textSecondary; font.pixelSize: 9
+            }
+            onTriggered: {
+                const pane = root.gridModel.activePane
+                const cuts = pane.elevationCuts
+                if (cuts.length === 0) return
+                var current = 0
+                for (var i = 0; i < cuts.length; ++i)
+                    if (Math.abs(cuts[i] - pane.selectedElevation) < 0.01) current = i
+                pane.selectedElevation = cuts[(current + 1) % cuts.length]
+            }
         }
 
         ToolButton {

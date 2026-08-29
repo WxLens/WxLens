@@ -30,7 +30,7 @@ enum class SyncChannel
    Time,          ///< timeline cursor / archive time (no state yet)
    Animation,     ///< play/pause/speed (no state yet)
    Cursor,        ///< hover/crosshair position, for synchronized probing (no state yet)
-   SelectedStorm, ///< selected storm cell (no state yet; needs Level 3 STI)
+   SelectedStorm, ///< selected Level 3 storm-cell identity
    RadarSite,     ///< the pane's data source
    Product,       ///< the product shown from that source
    Palette        ///< colour table (no state yet)

@@ -34,6 +34,17 @@ namespace
 using scwx::wsr88d::rda::DataBlockType;
 using scwx::wsr88d::rda::ElevationScan;
 
+DataBlockType ProductBlockType(const std::string& name)
+{
+   if (name == "Velocity") return DataBlockType::MomentVel;
+   if (name == "Spectrum Width") return DataBlockType::MomentSw;
+   if (name == "Differential Reflectivity") return DataBlockType::MomentZdr;
+   if (name == "Differential Phase") return DataBlockType::MomentPhi;
+   if (name == "Correlation Coefficient") return DataBlockType::MomentRho;
+   if (name == "Clutter Filter Power Removed") return DataBlockType::MomentCfp;
+   return DataBlockType::MomentRef;
+}
+
 // Ported from Level2ProductView (level2_product_view.cpp) - see this project's
 // docs/adr/0004-maplibre-qml-integration.md and docs/ROADMAP.md §7 Phase 1 slice 3 for context on
 // why only the non-smoothing, non-CFP path is ported this slice.
@@ -466,12 +477,16 @@ public:
                  double             siteLatitude,
                  double             siteLongitude,
                  double             siteAltitudeMslMeters,
+                 const std::string& productName,
+                 float              selectedElevation,
                  std::optional<std::chrono::system_clock::time_point> archiveTime) :
        self_ {self},
        radarSite_ {radarSite},
        siteLatitude_ {siteLatitude},
        siteLongitude_ {siteLongitude},
        siteAltitudeMslMeters_ {siteAltitudeMslMeters},
+       productName_ {productName}, dataBlockType_ {ProductBlockType(productName)},
+       selectedElevation_ {selectedElevation},
        colorTable_ {LoadBundledColorTable()}, archiveTime_ {archiveTime}
    {
    }
@@ -485,6 +500,10 @@ public:
    double      siteLatitude_;
    double      siteLongitude_;
    double      siteAltitudeMslMeters_;
+   std::string productName_;
+   DataBlockType dataBlockType_;
+   float selectedElevation_;
+   std::vector<float> elevationCuts_ {};
 
    std::shared_ptr<scwx::common::ColorTable> colorTable_;
    mutable std::mutex               dataMutex_;
@@ -511,17 +530,17 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
    // need. `elevationCut` is the tilt this volume actually answered with, and slice 8's beam
    // geometry reports it rather than assuming the nominal 0.5°: a VCP's lowest cut is not always
    // 0.5°, and §4.7 forbids presenting a guessed angle as the radar's own.
-   [[maybe_unused]] auto [elevationScan, elevationCut, elevationCuts] = file->GetElevationScan(
-      DataBlockType::MomentRef, 0.0f, std::chrono::system_clock::time_point {});
+   auto [elevationScan, elevationCut, elevationCuts] = file->GetElevationScan(
+      dataBlockType_, selectedElevation_, std::chrono::system_clock::time_point {});
 
    if (elevationScan == nullptr)
    {
-      logger_->warn("No reflectivity elevation scan available for {}", radarSite_);
+      logger_->warn("No {} elevation scan available for {}", productName_, radarSite_);
       return;
    }
 
    std::shared_ptr<SweepData> sweepData =
-      ComputeSweep(*elevationScan, DataBlockType::MomentRef, siteLatitude_, siteLongitude_);
+      ComputeSweep(*elevationScan, dataBlockType_, siteLatitude_, siteLongitude_);
 
    if (sweepData == nullptr)
    {
@@ -535,6 +554,7 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
       data_                  = std::move(sweepData);
       colorTableLut_         = BuildColorTableLut(*data_, colorTable_);
       elevationAngleDegrees_ = elevationCut;
+      elevationCuts_         = std::move(elevationCuts);
    }
 
    Q_EMIT self_->SweepUpdated();
@@ -559,11 +579,14 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
                                      double             siteLatitude,
                                      double             siteLongitude,
                                      double             siteAltitudeMslMeters,
+                                     const std::string& productName,
+                                     float              selectedElevation,
                                      std::optional<std::chrono::system_clock::time_point> archiveTime,
                                      QObject*           parent) :
     QObject(parent),
     p {std::make_unique<Impl>(
-       this, radarSite, siteLatitude, siteLongitude, siteAltitudeMslMeters, archiveTime)}
+       this, radarSite, siteLatitude, siteLongitude, siteAltitudeMslMeters, productName,
+       selectedElevation, archiveTime)}
 {
    // PaletteManager is a single process-wide singleton, so every pane on every site currently
    // shares one active palette. That's a known, deliberate gap for this slice, not an oversight:
@@ -628,6 +651,8 @@ RadarSweepProduct::~RadarSweepProduct() = default;
 
 std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
    const std::string& radarSite,
+   const std::string& productName,
+   float selectedElevation,
    std::optional<std::chrono::system_clock::time_point> archiveTime)
 {
    static std::shared_mutex                                         instanceMutex;
@@ -635,7 +660,9 @@ std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
    const auto minute = archiveTime.has_value()
       ? std::chrono::duration_cast<std::chrono::minutes>(archiveTime->time_since_epoch()).count()
       : -1;
-   const std::string instanceKey = radarSite + ":" + std::to_string(minute);
+   const std::string instanceKey = radarSite + ":" + productName + ":" +
+                                   std::to_string(selectedElevation) + ":" +
+                                   std::to_string(minute);
 
    std::shared_lock readLock {instanceMutex};
    if (auto it = instances.find(instanceKey); it != instances.end())
@@ -656,9 +683,15 @@ std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
    if (auto existing = weak.lock()) return existing;
    auto created = std::make_shared<RadarSweepProduct>(
       radarSite, siteInfo->latitude, siteInfo->longitude, siteInfo->altitudeMslMeters,
-      archiveTime);
+      productName, selectedElevation, archiveTime);
    weak = created;
    return created;
+}
+
+std::vector<float> RadarSweepProduct::elevation_cuts() const
+{
+   std::scoped_lock lock {p->dataMutex_};
+   return p->elevationCuts_;
 }
 
 bool RadarSweepProduct::is_archive() const { return p->archiveTime_.has_value(); }

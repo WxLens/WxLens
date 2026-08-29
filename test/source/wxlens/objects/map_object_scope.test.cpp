@@ -79,6 +79,22 @@ TEST_F(MapObjectScopeTest, PinnedObjectsAreStored)
    EXPECT_EQ(store_.Find(id)->lifecycle, MapObjectLifecycle::Pinned);
 }
 
+TEST_F(MapObjectScopeTest, DrawingHelperPinsGeographicLineAndRejectsOnePoint)
+{
+   EXPECT_EQ(store_.addLine({35.0}, {-97.0}, {}, Pane(0),
+                            static_cast<int>(MapObjectScopeKind::CurrentPaneOnly)), -1);
+
+   const int id = store_.addLine({35.0, 35.2, 35.4}, {-97.0, -96.8, -96.6},
+                                 QStringLiteral("D1"), Pane(0),
+                                 static_cast<int>(MapObjectScopeKind::AllPanes));
+   ASSERT_GT(id, 0);
+   const MapObject* line = store_.Find(id);
+   ASSERT_NE(line, nullptr);
+   EXPECT_EQ(line->type, MapObjectType::Line);
+   EXPECT_EQ(line->latitudes.size(), 3);
+   EXPECT_EQ(line->scope.kind, MapObjectScopeKind::AllPanes);
+}
+
 TEST_F(MapObjectScopeTest, GeometryIsValidated)
 {
    MapObject object = MakeMarker(Pane(0), MapObjectScopeKind::AllPanes);

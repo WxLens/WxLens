@@ -278,6 +278,51 @@ TEST_F(PaneSyncTest, TimeChannelPropagatesArchiveSelectionWithoutLinkingOtherSta
    EXPECT_TRUE(Pane(1)->liveMode());
 }
 
+TEST_F(PaneSyncTest, LevelTwoProductSelectionIsPerPaneAndSynchronizable)
+{
+   EXPECT_TRUE(Pane(0)->availableProducts().contains(QStringLiteral("Velocity")));
+   Pane(0)->setProductName(QStringLiteral("Velocity"));
+   EXPECT_EQ(Pane(0)->productName(), QStringLiteral("Velocity"));
+   EXPECT_EQ(Pane(1)->productName(), QStringLiteral("Reflectivity"));
+
+   Pane(0)->setSyncGroup(SyncChannel::Product, 1);
+   Pane(1)->setSyncGroup(SyncChannel::Product, 1);
+   Pane(0)->setProductName(QStringLiteral("Correlation Coefficient"));
+   EXPECT_EQ(Pane(1)->productName(), QStringLiteral("Correlation Coefficient"));
+}
+
+TEST_F(PaneSyncTest, ProductCatalogCarriesStableLevelTwoIdentity)
+{
+   const QVariantList catalog = Pane(0)->productCatalog();
+   ASSERT_EQ(catalog.size(), 7);
+   const QVariantMap reflectivity = catalog.front().toMap();
+   EXPECT_EQ(reflectivity.value(QStringLiteral("identityKind")).toString(),
+             QStringLiteral("level2"));
+   EXPECT_EQ(reflectivity.value(QStringLiteral("identity")).toString(),
+             QStringLiteral("REF"));
+   EXPECT_TRUE(reflectivity.value(QStringLiteral("available")).toBool());
+}
+
+TEST_F(PaneSyncTest, PaletteChannelIsPerPaneAndSynchronizable)
+{
+   Pane(0)->setPaletteName(QStringLiteral("DV"));
+   EXPECT_EQ(Pane(0)->paletteName(), QStringLiteral("DV"));
+   EXPECT_TRUE(Pane(1)->paletteName().isEmpty());
+
+   Pane(0)->setSyncGroup(SyncChannel::Palette, 4);
+   Pane(1)->setSyncGroup(SyncChannel::Palette, 4);
+   Pane(0)->setPaletteName(QStringLiteral("ZDR"));
+   EXPECT_EQ(Pane(1)->paletteName(), QStringLiteral("ZDR"));
+}
+
+TEST_F(PaneSyncTest, ElevationSelectionRejectsNoRealCutButRetainsRequestedCut)
+{
+   Pane(0)->setSelectedElevation(1.5);
+   EXPECT_NEAR(Pane(0)->selectedElevation(), 1.5, 0.001);
+   EXPECT_TRUE(Pane(0)->elevationCuts().isEmpty())
+      << "an unbound source must not fabricate elevation cuts";
+}
+
 TEST_F(PaneSyncTest, InvalidAndFutureArchiveTimesAreRejected)
 {
    EXPECT_FALSE(Pane(0)->selectArchiveTime(QStringLiteral("not a date")));
@@ -298,6 +343,30 @@ TEST_F(PaneSyncTest, ChannelsWithoutStateArePropagationNoOps)
    // Applying an invalid value must be inert rather than corrupting anything.
    Pane(1)->applyChannelValue(SyncChannel::Animation, QVariant {}, ChangeOrigin::ProgrammaticSync);
    SUCCEED();
+}
+
+TEST_F(PaneSyncTest, SelectedStormSynchronizesWithoutFeedback)
+{
+   Pane(0)->setSyncGroup(SyncChannel::SelectedStorm, 1);
+   Pane(1)->setSyncGroup(SyncChannel::SelectedStorm, 1);
+   int sourceChanges = 0;
+   int targetChanges = 0;
+   ChangeOrigin targetOrigin = ChangeOrigin::UserInput;
+   QObject::connect(Pane(0), &PaneController::channelChanged,
+                    [&](SyncChannel, ChangeOrigin) { ++sourceChanges; });
+   QObject::connect(Pane(1), &PaneController::channelChanged,
+                    [&](SyncChannel, ChangeOrigin origin) {
+                       ++targetChanges;
+                       targetOrigin = origin;
+                    });
+
+   Pane(0)->selectStorm(QStringLiteral("A1"));
+
+   EXPECT_EQ(Pane(0)->selectedStorm(), QStringLiteral("A1"));
+   EXPECT_EQ(Pane(1)->selectedStorm(), QStringLiteral("A1"));
+   EXPECT_EQ(sourceChanges, 1);
+   EXPECT_EQ(targetChanges, 1);
+   EXPECT_EQ(targetOrigin, ChangeOrigin::ProgrammaticSync);
 }
 
 } // namespace wxlens::panes::test

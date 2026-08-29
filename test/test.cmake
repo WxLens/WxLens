@@ -113,6 +113,11 @@ add_executable(wxlens-app-test
     source/wxlens/overlays/overlay_manager.test.cpp
     source/wxlens/palettes/palette_model.test.cpp
     source/wxlens/palettes/palette_manager.test.cpp
+    source/wxlens/products/level3_product_catalog.test.cpp
+    source/wxlens/products/level3_radial_product.test.cpp
+    source/wxlens/products/level3_raster_product.test.cpp
+    source/wxlens/products/level3_graphic_overlay.test.cpp
+    source/wxlens/products/level3_text_product.test.cpp
     source/wxlens/panes/pane_sync.test.cpp
     source/wxlens/panes/source_probe.test.cpp
     source/wxlens/settings/settings_store.test.cpp
@@ -136,6 +141,11 @@ add_executable(wxlens-app-test
     ${WXLENS_APP_SRC}/palettes/palette_manager.cpp
     ${WXLENS_APP_SRC}/palettes/palette_model.cpp
     ${WXLENS_APP_SRC}/products/radar_sweep_product.cpp
+    ${WXLENS_APP_SRC}/products/level3_product_catalog.cpp
+    ${WXLENS_APP_SRC}/products/level3_radial_product.cpp
+    ${WXLENS_APP_SRC}/products/level3_raster_product.cpp
+    ${WXLENS_APP_SRC}/products/level3_graphic_overlay.cpp
+    ${WXLENS_APP_SRC}/products/level3_text_product.cpp
     ${WXLENS_APP_SRC}/render/radar_sweep_layer.cpp
     ${WXLENS_APP_SRC}/settings/app_settings.cpp
     ${WXLENS_APP_SRC}/settings/settings_store.cpp
