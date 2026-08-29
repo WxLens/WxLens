@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-set(PROJECT_NAME nimbus-aws-sdk-cpp)
+set(PROJECT_NAME wxlens-aws-sdk-cpp)
 
 set(AWS_SDK_WARNINGS_ARE_ERRORS OFF)
 set(BUILD_ONLY         "s3")

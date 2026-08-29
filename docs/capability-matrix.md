@@ -1,7 +1,7 @@
 # Capability & interaction-taxonomy audit (Phase 0.5)
 
 Per `docs/ROADMAP.md` §7 Phase 0.5: a side-by-side of current Supercell Wx, publicly documented
-AWIPS/CAVE capability, and planned Nimbus capability, plus a product taxonomy and a tool/
+AWIPS/CAVE capability, and planned WxLens capability, plus a product taxonomy and a tool/
 interaction taxonomy — so later phases extend a stable vocabulary instead of inventing one ad hoc
 per feature. This is a research/documentation deliverable, not code.
 
@@ -11,7 +11,7 @@ material was used. See Sources at the end.
 
 ## Capability matrix
 
-| Capability | Current Supercell Wx | AWIPS/CAVE (public docs) | Planned Nimbus |
+| Capability | Current Supercell Wx | AWIPS/CAVE (public docs) | Planned WxLens |
 |---|---|---|---|
 | Multi-pane display | Linked/unlinked grid, per-site data sharing (`docs/ROADMAP.md` §2 Context) | Configurable perspectives with groups of editors; sites have moved from fixed side-panes toward flexible multi-editor layouts on larger monitors | Per-channel sync (§4.1), pane = generic View not fixed radar viewport (§4.6) — a superset of both prior models |
 | Camera/view linking | Single linked/unlinked boolean per pane group (`map_link_policy.cpp`) | Editors can be grouped, but public docs don't describe a granular per-property sync model | Per-channel (`Location`/`Zoom`/`Bearing`/`Product`/... independently groupable), §4.1 — no public precedent for this granularity in either prior system |
@@ -22,13 +22,13 @@ material was used. See Sources at the end.
 | Soundings | None | NsharpEditor Skew-T, driven by the Volume Browser's Interactive Points Tool, for both observed and model soundings | Phase 3 — Wyoming/RUC observed soundings; tabular-vs-diagram form factor is `[OPEN QUESTION]` #5 in `docs/ROADMAP.md` §9 |
 | Cross-section / time-height | None | Core Volume Browser feature, loopable through time or space | Not in the Phase 0-4 scope this roadmap plans; flagged below as a Phase 3+ candidate, not a second-class add-on |
 | Storm tracking / STI | None surfaced in UI (STI is parsed but unused) | Storm-relative tools, SCAN, WarnGen's "drag me to storm" centroid workflow | Phase 1 builds the `SelectedStorm` sync channel + basic STI-based selection UI (§4.1); full SCAN-equivalent analytics not planned |
-| Warnings/watches overlay | Yes, via `wxdata/awips` text-product parsing | Full WarnGen issuance + display workflow (issuance is out of scope for Nimbus, a viewer not a forecast-ops tool) | Phase 1 — display only, reusing `wxdata/awips`, no issuance workflow (Nimbus is a viewer, not a WFO ops tool) |
+| Warnings/watches overlay | Yes, via `wxdata/awips` text-product parsing | Full WarnGen issuance + display workflow (issuance is out of scope for WxLens, a viewer not a forecast-ops tool) | Phase 1 — display only, reusing `wxdata/awips`, no issuance workflow (WxLens is a viewer, not a WFO ops tool) |
 | Measurement / interrogation | Implicit radar-relative range/azimuth via `radar_coordinate_table.cpp`; no general point-to-point tool | "All Tilts" products, multi-volume-scan interrogation (SAILS/MRLE-aware), sampling readouts | Phase 1 — explicit point-to-point/radar-to-point/multi-segment measurement framework (§4.4), radar beam-height interrogation (§4.7); SAILS/MRLE-aware "last actual volume" browsing is not separately planned but isn't precluded by the architecture |
-| Palette/color-table editing | Advanced `.pal` editor (per-stop customization) | Fixed, admin-configured color tables; no public end-user color-table editor is documented | Phase 1 — QML rewrite of the existing editor, same `.pal` engine (§5.1); this is a capability Nimbus already exceeds AWIPS on |
+| Palette/color-table editing | Advanced `.pal` editor (per-stop customization) | Fixed, admin-configured color tables; no public end-user color-table editor is documented | Phase 1 — QML rewrite of the existing editor, same `.pal` engine (§5.1); this is a capability WxLens already exceeds AWIPS on |
 | UI theming | Native `QPalette`/`QStyle`, identified as the core limitation motivating this rewrite | Fixed CAVE look, not end-user themeable per public docs | Phase 1 — full QML `ThemeManager`, ≥2 bundled themes (§5.2) |
 | Placefile overlays | Yes, GR-format via `wxdata/gr/placefile.cpp` | Not applicable — GR placefiles are a GRLevelX-ecosystem community format, not an AWIPS concept | Phase 1 — reused unmodified |
 | 3D storm structure | None | No public-facing volumetric storm rendering in CAVE's documented D2D feature set | Phase 4, explicitly last priority (§7 Phase 4) |
-| Multi-user/server | None | AWIPS is inherently a networked, multi-workstation system (EDEX/CAVE architecture) but that's operational infrastructure, not an end-user feature comparable to Nimbus's stretch goal | Phase 5, explicitly unscoped stretch goal |
+| Multi-user/server | None | AWIPS is inherently a networked, multi-workstation system (EDEX/CAVE architecture) but that's operational infrastructure, not an end-user feature comparable to WxLens's stretch goal | Phase 5, explicitly unscoped stretch goal |
 
 ## Product taxonomy
 

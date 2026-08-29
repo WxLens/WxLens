@@ -132,9 +132,8 @@ Rectangle {
         // clicks in a pane.
         Repeater {
             model: [
-                { label: "↔", mode: 1, hint: "Point to point" },
-                { label: "◄", mode: 2, hint: "Radar to point" },
-                { label: "⋯", mode: 3, hint: "Path" }
+                { label: "↔", mode: 1, hint: "Distance / bearing" },
+                { label: "⋯", mode: 2, hint: "Path" }
             ]
 
             delegate: Rectangle {

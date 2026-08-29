@@ -42,10 +42,10 @@ QML path.
   `src/location`.** It's BSD-2-Clause end to end, sidesteps the LGPL/GPL triple-license path
   entirely (simpler than "link dynamically and pick the LGPL option," which the `QtLocation` path
   would require), and doesn't need the extra `QtLocation`/`QtPositioning` plugin registration
-  machinery Nimbus has no other use for.
-- Nimbus's own `external/maplibre-native-qt` submodule points at the upstream
+  machinery WxLens has no other use for.
+- WxLens's own `external/maplibre-native-qt` submodule points at the upstream
   `maplibre/maplibre-native-qt` repo (not the `dpaulat` Supercell-Wx-specific fork) at its current
-  HEAD (library version 4.0.0), since Nimbus has no dependency on that fork's Supercell-Wx-specific
+  HEAD (library version 4.0.0), since WxLens has no dependency on that fork's Supercell-Wx-specific
   patches. Its nested `vendor/maplibre-native` submodule (the native rendering core) is initialized
   shallow (`--depth 1`) for the same clone-cost reasons as ADR 0002.
 
@@ -66,7 +66,7 @@ app target. **It only works for the `find_package(QMapLibre)` (pre-built/install
 path** — it reads `IMPORTED_LOCATION_<config>`/`IMPORTED_CONFIGURATIONS` off the `QMapLibre::*`
 targets, properties that only exist on targets created by a package's exported/imported config
 (what `find_package` generates), not on ordinary in-tree targets from `add_subdirectory` in the
-same CMake run (what Nimbus and the legacy Supercell Wx repo's `external/` both use for every other
+same CMake run (what WxLens and the legacy Supercell Wx repo's `external/` both use for every other
 vendored dependency).
 
 There's no existing precedent to copy in this codebase either: the legacy `scwx-qt` app never uses
@@ -75,8 +75,8 @@ QWidgets renderer, which is exactly the architecture this whole rewrite is movin
 
 **Concrete next-slice work (§7 Phase 1 slice 1/2 territory, not resolved yet):** wire the
 `declarative_maplibre` QML plugin target (`MLN_QT_QML_PLUGIN` in
-`src/quick/plugins/CMakeLists.txt`, aliased `QMapLibre::PluginQml`) into an in-tree `nimbus-app`
-build by hand — likely `target_link_libraries(nimbus-app PRIVATE declarative_maplibre)` plus
+`src/quick/plugins/CMakeLists.txt`, aliased `QMapLibre::PluginQml`) into an in-tree `wxlens-app`
+build by hand — likely `target_link_libraries(wxlens-app PRIVATE declarative_maplibre)` plus
 pointing `QT_QML_IMPORT_PATH`/`QML_IMPORT_PATH` at that plugin's build output directory (it's fixed
 to `<build-dir>/.../src/quick/plugins/MapLibre` via `OUTPUT_DIRECTORY "MapLibre"` in that
 CMakeLists.txt) rather than relying on `qmaplibre_quick_setup_plugins`. This needs an actual
@@ -91,10 +91,10 @@ reproducible failure: `external/maplibre-native-qt/src/quick/plugins/CMakeLists.
 `Plugin_Sources` list (lines 6-14) and its `target_include_directories` (lines 66-69) using
 `${CMAKE_SOURCE_DIR}/src/quick/...`. `CMAKE_SOURCE_DIR` is **always the outermost project's root**
 in a CMake build — it does not change per-subdirectory. That's correct when MapLibre Native Qt is
-built standalone (its own examples and CI do exactly that), but Nimbus consumes it via
+built standalone (its own examples and CI do exactly that), but WxLens consumes it via
 `add_subdirectory` from `external/maplibre-native-qt.cmake`, so `CMAKE_SOURCE_DIR` resolves to
-Nimbus's own repo root, not `external/maplibre-native-qt/`. The configure fails with "Cannot find
-source file: `<nimbus-root>/src/quick/common/declarative_style_parameter.hpp`" — a real path that
+WxLens's own repo root, not `external/maplibre-native-qt/`. The configure fails with "Cannot find
+source file: `<wxlens-root>/src/quick/common/declarative_style_parameter.hpp`" — a real path that
 doesn't exist, since the actual file lives under `external/maplibre-native-qt/src/quick/common/`.
 This should have been `${CMAKE_CURRENT_SOURCE_DIR}` (relative to whichever directory the calling
 `CMakeLists.txt` is in) or `${PROJECT_SOURCE_DIR}` (relative to the nearest enclosing `project()`
@@ -104,8 +104,8 @@ same library via `add_subdirectory` too, but with `MLN_QT_WITH_LOCATION OFF` and
 `MLN_QT_WITH_QUICK_PLUGIN` (defaults ON upstream) - actually it does default ON and would hit this
 same bug, except the legacy app never actually *uses* any QML surface, so it's plausible this
 exact configuration was never exercised there either, or an older library version (3.0.0 vs. the
-4.0.0 Nimbus vendors) didn't have this bug. Not root-caused further than "confirmed reproducible
-on 4.0.0, not something Nimbus's own CMake glue got wrong."
+4.0.0 WxLens vendors) didn't have this bug. Not root-caused further than "confirmed reproducible
+on 4.0.0, not something WxLens's own CMake glue got wrong."
 
 **Workaround adopted for now:** `external/maplibre-native-qt.cmake` sets
 `MLN_QT_WITH_QUICK_PLUGIN OFF`, skipping this broken target entirely. `MLNQtCore` and
@@ -113,7 +113,7 @@ on 4.0.0, not something Nimbus's own CMake glue got wrong."
 `src/quick/plugins/map_quick_item.*`) still build fine — only the QML module *registration*
 plugin (`declarative_maplibre`, which makes `import MapLibre` resolve at runtime) is disabled.
 This does not touch `external/`'s vendored source at all (consistent with "never edit external/ in
-place") — it's a build-option choice in Nimbus's own glue file.
+place") — it's a build-option choice in WxLens's own glue file.
 
 **Concrete options for whoever picks up the actual `import MapLibre` wiring (supersedes the
 previous section's plan once this was found):**
@@ -122,7 +122,7 @@ previous section's plan once this was found):**
    submodule update - fastest, but breaks the "external/ is pristine" invariant unless the patch
    is itself tracked (e.g. a `.patch` file applied by a CMake step, not a raw in-place edit).
 2. Build `maplibre-native-qt` as its own genuinely-standalone CMake project (e.g. via
-   `ExternalProject_Add` or a separate configure+install step invoked from Nimbus's build), then
+   `ExternalProject_Add` or a separate configure+install step invoked from WxLens's build), then
    consume the installed result via `find_package(QMapLibre)` as the library's own examples and
    `qmaplibre_quick_setup_plugins` helper expect. This is the "supported" consumption path and
    sidesteps the bug entirely (since `CMAKE_SOURCE_DIR` would correctly point at MapLibre Native
@@ -143,7 +143,7 @@ build (option 2).
 - The fix: `src/quick/plugins/CMakeLists.txt`'s `Plugin_Sources` list and
   `target_include_directories` call both replace `${CMAKE_SOURCE_DIR}/src/quick/...` with
   `${CMAKE_CURRENT_SOURCE_DIR}/../...`-relative paths (root cause confirmed exactly as diagnosed
-  above - `CMAKE_SOURCE_DIR` resolves to Nimbus's own repo root under `add_subdirectory`, not
+  above - `CMAKE_SOURCE_DIR` resolves to WxLens's own repo root under `add_subdirectory`, not
   MapLibre Native Qt's). The `${CMAKE_BINARY_DIR}/src/core/include` entry on the same line block
   was investigated too (same-looking bug) but left untouched: `src/quick/CMakeLists.txt` uses the
   identical `${CMAKE_SOURCE_DIR}/src/core` + `${CMAKE_BINARY_DIR}/src/core/include` pair for the
@@ -168,10 +168,10 @@ build (option 2).
   `declarative_maplibre` directly, not a `QMapLibre::` alias.
   `qmaplibre_quick_setup_plugins()` (the upstream-recommended helper, used by the vendored
   `examples/quick-standalone`) still doesn't apply here for the same reason noted above - it needs
-  `find_package`-imported targets. Instead: `nimbus-app` sets its `QT_QML_IMPORT_PATH` target
+  `find_package`-imported targets. Instead: `wxlens-app` sets its `QT_QML_IMPORT_PATH` target
   property to `$<TARGET_FILE_DIR:declarative_maplibre>/..` (for build-time QML tooling), and a
   `POST_BUILD` step copies the plugin's output directory (already named `MapLibre` via that
-  target's own `OUTPUT_DIRECTORY` setting) to `$<TARGET_FILE_DIR:nimbus-app>/qml/MapLibre`. This
+  target's own `OUTPUT_DIRECTORY` setting) to `$<TARGET_FILE_DIR:wxlens-app>/qml/MapLibre`. This
   mirrors exactly where `windeployqt` already places Qt's own QML modules
   (`<exe-dir>/qml/QtQuick/Window`, etc., confirmed present after Phase 0's verified launch) -
   `QQmlEngine`'s default import path list includes `<app-dir>/qml`, no `qt.conf` needed (confirmed
@@ -189,7 +189,7 @@ build (option 2).
 
 Three more discoveries while wiring the first custom layer (the Phase 1 slice 3 rendering-seam
 proof), each now a tracked patch under `external/patches/` applied by the same configure-time
-mechanism (generalized into `nimbus_apply_mln_qt_patch()` in `external/maplibre-native-qt.cmake`):
+mechanism (generalized into `wxlens_apply_mln_qt_patch()` in `external/maplibre-native-qt.cmake`):
 
 1. **Patch 0005 — `MapQuickItem` exposes no path to the core `Map`.** The QML item keeps its
    `QMapLibre::Map` entirely private, so an app can't call `Map::addCustomLayer`. Patch adds
@@ -221,7 +221,7 @@ mechanism (generalized into `nimbus_apply_mln_qt_patch()` in `external/maplibre-
 `maplibre/maplibre-native-qt`. Check these before touching a patch or bumping the submodule — if
 one is fixed upstream, drop the corresponding patch rather than carrying it forever:
 
-| Nimbus patch / finding | Upstream | Notes |
+| WxLens patch / finding | Upstream | Notes |
 | --- | --- | --- |
 | 0004 (CMake `CMAKE_SOURCE_DIR`) | [#304](https://github.com/maplibre/maplibre-native-qt/issues/304) | New issue |
 | 0005 (no way to reach the core `Map`) | [#296](https://github.com/maplibre/maplibre-native-qt/issues/296) | Commented on an existing feature request — another user had independently hit the same wall |
@@ -276,6 +276,6 @@ basemap changes stuck on the already-loaded style.
 
 The patch forwards a changed style to `Map::setStyleUrl()` whenever the map already exists. Its
 normal `mapChanged` events reset the style-loaded state, and patch 0005's `styleLoaded()` signal
-lets Nimbus reattach the radar custom layer after the replacement style finishes loading. Keep
+lets WxLens reattach the radar custom layer after the replacement style finishes loading. Keep
 this patch with the QML-facing Quick integration; recreating every pane would discard map state
 and hide a genuine missing setter behavior in the dependency.

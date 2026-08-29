@@ -1,7 +1,7 @@
 Acknowledgements
 ================
 
-Nimbus reuses `wxdata` and its dependency/attribution discipline from
+WxLens reuses `wxdata` and its dependency/attribution discipline from
 [Supercell Wx](https://github.com/dpaulat/supercell-wx) by Dan Paulat (see
 `docs/adr/0002-wxdata-reuse-strategy.md`). This table starts from Supercell Wx's own
 `ACKNOWLEDGEMENTS.md` and will keep growing as later phases add dependencies — see that project's
@@ -10,7 +10,7 @@ file for the full list this one will eventually approach.
 Dependencies
 ------------
 
-Nimbus uses code from the following dependencies (as of Phase 0 — empty app shell + `wxdata` +
+WxLens uses code from the following dependencies (as of Phase 0 — empty app shell + `wxdata` +
 map renderer):
 
 | Dependency | License | Notes |
@@ -22,7 +22,7 @@ map renderer):
 | [cmake-conan](https://github.com/conan-io/cmake-conan) | [MIT License](https://spdx.org/licenses/MIT.html) |
 | [cpr](https://github.com/libcpr/cpr) | [MIT License](https://spdx.org/licenses/MIT.html) |
 | [Date](https://github.com/HowardHinnant/date) | [MIT License](https://spdx.org/licenses/MIT.html) |
-| [GeographicLib](https://geographiclib.sourceforge.io/) | [MIT License](https://spdx.org/licenses/MIT.html) | WGS84 geodesic direct problem, radar radial/gate geo-positioning (`nimbus::util::GeodesicDirect`) |
+| [GeographicLib](https://geographiclib.sourceforge.io/) | [MIT License](https://spdx.org/licenses/MIT.html) | WGS84 geodesic direct problem, radar radial/gate geo-positioning (`wxlens::util::GeodesicDirect`) |
 | [glm](https://github.com/g-truc/glm) | [MIT License](https://spdx.org/licenses/MIT.html) | MVP-matrix construction shared by every MapLibre custom layer |
 | [GoogleTest](https://google.github.io/googletest/) | [BSD 3-Clause "New" or "Revised" License](https://spdx.org/licenses/BSD-3-Clause.html) |
 | [HSLuv](https://www.hsluv.org/) | [MIT License](https://spdx.org/licenses/MIT.html) |
@@ -42,7 +42,7 @@ map renderer):
 Source
 ------
 
-Nimbus derives code from the following sources (carried forward via `wxdata`):
+WxLens derives code from the following sources (carried forward via `wxdata`):
 
 | Source | License |
 | ------ | ------- |
@@ -52,7 +52,7 @@ Nimbus derives code from the following sources (carried forward via `wxdata`):
 Map data
 --------
 
-Nimbus's default base map (`app/qml/Panes/PaneHost.qml`, see `docs/data-sources.md`) is served by
+WxLens's default base map (`app/qml/Panes/PaneHost.qml`, see `docs/data-sources.md`) is served by
 [OpenFreeMap](https://openfreemap.org), free/no-API-key vector tile hosting of OpenStreetMap data:
 
 | Source | License | Notes |
@@ -63,9 +63,9 @@ Nimbus's default base map (`app/qml/Panes/PaneHost.qml`, see `docs/data-sources.
 Assets
 ------
 
-Nimbus bundles the following assets:
+WxLens bundles the following assets:
 
 | Source | License | Notes |
 | ------ | ------- | ----- |
 | [NOAA's Weather and Climate Toolkit](https://www.ncdc.noaa.gov/wct/) | Public Domain | Default Color Tables - the complete `scwx-qt/res/palettes/wct/` set is bundled unmodified as Qt resources; the active product subset grows as products are wired up |
-| [Supercell Wx](https://github.com/dpaulat/supercell-wx) `scwx-qt/res/config/radar_sites.json` | [MIT License](https://spdx.org/licenses/MIT.html) | Radar site location/elevation/time-zone data, compiled from public NOAA/NWS sources — copied unmodified into `app/res/config/`, used by `nimbus::data::FindRadarSite` |
+| [Supercell Wx](https://github.com/dpaulat/supercell-wx) `scwx-qt/res/config/radar_sites.json` | [MIT License](https://spdx.org/licenses/MIT.html) | Radar site location/elevation/time-zone data, compiled from public NOAA/NWS sources — copied unmodified into `app/res/config/`, used by `wxlens::data::FindRadarSite` |

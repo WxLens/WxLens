@@ -8,7 +8,7 @@ import QtQuick.Shapes
 // MapObjectStore, and disappears when the interaction ends. That separation is why it is a
 // distinct layer from MapObjectsLayer rather than a special object type inside it.
 //
-// The measurement itself lives in C++ (nimbus::objects::MeasurementController) including all the
+// The measurement itself lives in C++ (wxlens::objects::MeasurementController) including all the
 // geodesic math; this file only projects its coordinates and draws them.
 Item {
     id: root

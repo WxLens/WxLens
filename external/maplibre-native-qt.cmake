@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.24)
-set(PROJECT_NAME nimbus-mln)
+set(PROJECT_NAME wxlens-mln)
 
-# See docs/adr/0004-maplibre-qml-integration.md: Nimbus uses the BSD-2-Clause "Quick" QML item
+# See docs/adr/0004-maplibre-qml-integration.md: WxLens uses the BSD-2-Clause "Quick" QML item
 # (QMapLibre::Quick / QML type "MapLibre"), not the LGPL/GPL "Location" QtLocation plugin path
 # and not the QWidgets path.
 set(MLN_WITH_OPENGL ON)
 
-# Vendored MapLibre Native Qt needs small fixes/additions Nimbus can't make upstream directly.
+# Vendored MapLibre Native Qt needs small fixes/additions WxLens can't make upstream directly.
 # Rather than hand-editing the vendored source (external/ must stay pristine in git - see
 # docs/adr/0004-maplibre-qml-integration.md), each fix is a tracked patch under external/patches/,
 # applied idempotently at configure time (git apply --check --reverse tests whether it's already
@@ -54,17 +54,17 @@ endif()
 
 # `import MapLibre` QML module registration target uses CMAKE_SOURCE_DIR instead of
 # CMAKE_CURRENT_SOURCE_DIR, which only resolves correctly when this library is the top-level
-# CMake project - breaks under add_subdirectory, which is how Nimbus (and every other vendored
+# CMake project - breaks under add_subdirectory, which is how WxLens (and every other vendored
 # dependency here) consumes it. See ADR 0004's "upstream CMake bug" note for the full diagnosis.
 
-# MapQuickItem has no public way to reach the underlying core Map, which Nimbus's radar renderer
+# MapQuickItem has no public way to reach the underlying core Map, which WxLens's radar renderer
 # (Phase 1 slice 3) needs to register itself via Map::addCustomLayer. Adds mapLibreMap() and a
 # mapReady() signal - see ADR 0004's slice 3 resolution note and the patch file itself.
 
 # The Qt OpenGL backend's renderable bind() unconditionally cleared the framebuffer to opaque
 # black. bind() is also invoked MID-FRAME by mbgl's DrawableCustomLayerHostTweaker after every
 # style CustomLayer renders, so with any custom layer present the entire already-drawn map got
-# wiped each frame (observed: whole map black once Nimbus registered even a no-op custom layer;
+# wiped each frame (observed: whole map black once WxLens registered even a no-op custom layer;
 # base map fine without it). mbgl's own gl::RenderPass constructor performs the proper pass-start
 # clear right after bind() anyway, so the removed clear was redundant there and only ever
 # destructive. See ADR 0004's slice 3 resolution note.
@@ -81,7 +81,7 @@ endif()
 # MapQuickItem::setStyle() only updates the string used during initialize(); changing the QML
 # `style` property after the map exists therefore does nothing. Theme-driven basemap changes need
 # the setter to forward the new URL to the live core Map, whose normal mapChanged/styleLoaded
-# signals then rebuild Nimbus's custom layers. Found during the live-review follow-up to slice 10.
+# signals then rebuild WxLens's custom layers. Found during the live-review follow-up to slice 10.
 
 set(MLN_QT_WITH_QUICK_PLUGIN ON)
 set(MLN_QT_WITH_LOCATION OFF)
@@ -91,14 +91,14 @@ add_subdirectory(maplibre-native-qt)
 
 # src/quick/plugins/CMakeLists.txt sets LIBRARY_OUTPUT_DIRECTORY/RUNTIME_OUTPUT_DIRECTORY to a
 # "MapLibre" subfolder (containing the plugin DLL, qmldir, and qmltypes together), but only as
-# generic (non-per-config) properties - Nimbus's own tools/nimbus_config.cmake sets per-config
+# generic (non-per-config) properties - WxLens's own tools/wxlens_config.cmake sets per-config
 # CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE/etc. globally, and CMake applies those to every new
 # target's per-config property *at creation time*, which then wins over a later generic-property
 # override on a multi-config generator (confirmed: declarative_maplibre.dll actually lands in
 # Release/lib, not .../MapLibre, despite that later set_target_properties call - $<TARGET_FILE_DIR>
 # on the target reflects this and is NOT usable to locate the plugin's own qmldir/qmltypes).
 # Capture the real, always-correct path directly instead.
-set(NIMBUS_MLN_QT_QML_PLUGIN_DIR
+set(WXLENS_MLN_QT_QML_PLUGIN_DIR
     "${CMAKE_CURRENT_BINARY_DIR}/maplibre-native-qt/src/quick/plugins/MapLibre"
     CACHE INTERNAL "Build output dir holding the MapLibre QML plugin's qmldir/dll/qmltypes")
 

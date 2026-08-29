@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
 
-// The pane grid (docs/ROADMAP.md §4.6), driven by nimbus::panes::PaneGridModel. A 1x1 grid is
+// The pane grid (docs/ROADMAP.md §4.6), driven by wxlens::panes::PaneGridModel. A 1x1 grid is
 // just the degenerate case of the same layout, not a separate code path.
 //
 // Cross-pane synchronization (§4.1-4.2) is slice 5 - every pane here is fully independent.
 Item {
     id: root
 
-    // The nimbus::panes::PaneGridModel backing this grid.
+    // The wxlens::panes::PaneGridModel backing this grid.
     required property var model
 
     // A quick control inside some pane asked to open Settings at a section (§4.5). Forwarded up

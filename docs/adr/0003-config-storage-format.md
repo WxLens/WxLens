@@ -10,7 +10,7 @@ portable, plain-text, shareable format for settings, pane-layout persistence, an
 "pick one" between TOML and JSON and left it open for Phase 0.
 
 ## Decision
-TOML, via a small typed C++ wrapper in `app/source/nimbus/settings/` that preserves the current
+TOML, via a small typed C++ wrapper in `app/source/wxlens/settings/` that preserves the current
 `settings_variable`/`settings_interface` *pattern* (validated defaults, Qt-signal change
 notification) but retargets storage to TOML files under `QStandardPaths::AppConfigLocation`.
 
@@ -28,7 +28,7 @@ notification) but retargets storage to TOML files under `QStandardPaths::AppConf
   hand-editable and shareable like `.pal` already is.
 
 ## Consequences
-- `app/source/nimbus/settings/` depends on a TOML library (to be added to `conanfile.py` when the
+- `app/source/wxlens/settings/` depends on a TOML library (to be added to `conanfile.py` when the
   first real settings file is implemented — not needed for the Phase 0 empty-shell milestone).
 - Pane-layout persistence (§4.6) and theme files (§5.2) both serialize through this same wrapper.
 - If a future need arises for config data to interoperate with a JSON-only external tool, add a

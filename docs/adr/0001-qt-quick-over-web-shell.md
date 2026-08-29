@@ -4,7 +4,7 @@
 Accepted (2026-08-21)
 
 ## Context
-Nimbus is a full, from-scratch rewrite of Supercell Wx's UI/app architecture (the one piece
+WxLens is a full, from-scratch rewrite of Supercell Wx's UI/app architecture (the one piece
 carried forward unchanged is `wxdata`). Three UI stacks were considered: Qt 6/QML, a web shell
 (Tauri/Electron + MapLibre GL JS), and Flutter. See `docs/ROADMAP.md` §1 for the full writeup;
 this ADR records the decision itself for fast lookup.
@@ -36,7 +36,7 @@ renderer as MapLibre custom layers.
 - All application state/business logic lives in C++, exposed to QML via `Q_PROPERTY`/
   `Q_INVOKABLE`/signals; QML is presentation-only (see `AGENTS.md`).
 - MapLibre Native Qt's QML bindings (`src/location/plugins/`) are licensed
-  `LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only`; Nimbus takes the LGPL-3.0-only option and links
+  `LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only`; WxLens takes the LGPL-3.0-only option and links
   the library dynamically only, consistent with how Qt itself is already used in the ecosystem this
   project came from. See ADR 0004 for the concrete verification of this library's QML integration.
 - This is a recommendation, not an unconditional lock-in — revisit if a hard web/browser

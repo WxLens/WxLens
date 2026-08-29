@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-set(PROJECT_NAME nimbus-hsluv-c)
+set(PROJECT_NAME wxlens-hsluv-c)
 
 set(HSLUV_C_TESTS OFF)
 add_subdirectory(hsluv-c)

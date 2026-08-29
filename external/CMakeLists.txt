@@ -15,5 +15,5 @@ include(date.cmake)
 include(hsluv-c.cmake)
 include(units.cmake)
 
-# Nimbus's own map rendering dependency - see docs/adr/0004-maplibre-qml-integration.md.
+# WxLens's own map rendering dependency - see docs/adr/0004-maplibre-qml-integration.md.
 include(maplibre-native-qt.cmake)

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-set(PROJECT_NAME nimbus-date)
+set(PROJECT_NAME wxlens-date)
 
 set(USE_SYSTEM_TZ_DB ON)
 set(BUILD_TZ_LIB     ON)

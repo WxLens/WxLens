@@ -2,7 +2,7 @@
 import QtQuick
 
 // The site/status text is real (radarStatus context property,
-// nimbus::products::RadarProductStatus, slice 2) but this is still a single hardcoded site, not
+// wxlens::products::RadarProductStatus, slice 2) but this is still a single hardcoded site, not
 // the real per-pane product binding that arrives with PaneGridModel/PaneController (slice 4+).
 Rectangle {
     id: root
@@ -13,6 +13,9 @@ Rectangle {
     // the individual quick controls, not from here.
     signal settingsRequested()
     signal paletteRequested()
+    signal mapDetailsRequested()
+    signal savedPlacesRequested()
+    signal overlaysRequested()
 
     Rectangle {
         anchors.left: parent.left
@@ -26,7 +29,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.leftMargin: 16
         anchors.verticalCenter: parent.verticalCenter
-        text: "Nimbus"
+        text: "WxLens"
         color: themeManager.textPrimary
         font.pixelSize: 16
         font.bold: true
@@ -80,6 +83,54 @@ Rectangle {
             cursorShape: Qt.PointingHandCursor
             onClicked: root.paletteRequested()
         }
+    }
+
+    Rectangle {
+        anchors.right: parent.right
+        anchors.rightMargin: 174
+        anchors.verticalCenter: parent.verticalCenter
+        width: mapDetailsText.implicitWidth + 20
+        height: 28
+        radius: themeManager.cornerRadius
+        color: mapDetailsArea.containsMouse ? themeManager.controlHover : themeManager.control
+        border.color: themeManager.border
+
+        Text {
+            id: mapDetailsText
+            anchors.centerIn: parent
+            text: "Map details"
+            color: themeManager.textSecondary
+            font.pixelSize: 11
+        }
+        MouseArea {
+            id: mapDetailsArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.mapDetailsRequested()
+        }
+    }
+
+    Rectangle {
+        anchors.right: parent.right
+        anchors.rightMargin: 278
+        anchors.verticalCenter: parent.verticalCenter
+        width: placesText.implicitWidth + 20; height: 28; radius: themeManager.cornerRadius
+        color: placesArea.containsMouse ? themeManager.controlHover : themeManager.control
+        border.color: themeManager.border
+        Text { id: placesText; anchors.centerIn: parent; text: "Saved places"; color: themeManager.textSecondary; font.pixelSize: 11 }
+        MouseArea { id: placesArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.savedPlacesRequested() }
+    }
+
+    Rectangle {
+        anchors.right: parent.right
+        anchors.rightMargin: 390
+        anchors.verticalCenter: parent.verticalCenter
+        width: overlaysText.implicitWidth + 20; height: 28; radius: themeManager.cornerRadius
+        color: overlaysArea.containsMouse ? themeManager.controlHover : themeManager.control
+        border.color: themeManager.border
+        Text { id: overlaysText; anchors.centerIn: parent; text: "Overlays"; color: themeManager.textSecondary; font.pixelSize: 11 }
+        MouseArea { id: overlaysArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.overlaysRequested() }
     }
 
     Text {

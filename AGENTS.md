@@ -1,6 +1,6 @@
-# Nimbus AI Agent Instructions
+# WxLens AI Agent Instructions
 
-Nimbus is a from-scratch, C++20/Qt 6 Quick (QML) rewrite of Supercell Wx: a free, open source
+WxLens is a from-scratch, C++20/Qt 6 Quick (QML) rewrite of Supercell Wx: a free, open source
 weather radar viewer. **`docs/ROADMAP.md` is the architectural source of truth** — read it before
 making any non-trivial change, especially §0 (ground rules) and §0.1/§0.2 (locked principles and
 agent execution rules). This file is a fast-lookup companion, not a replacement for it.
@@ -13,8 +13,8 @@ agent execution rules). This file is a fast-lookup companion, not a replacement 
   via `add_subdirectory` (see `docs/adr/0002-wxdata-reuse-strategy.md`). **Never edit files under
   `external/`** — that's the read-only reference/reused-dependency tree. If `wxdata` needs a
   change, it belongs upstream in the legacy repo first, then the submodule pin advances.
-- **`app/`** — the new Qt Quick application. `app/qml/` is presentation-only; `app/source/nimbus/`
-  is C++20 owning all state/business logic, namespace `nimbus`. See `docs/ROADMAP.md` §3.2 for the
+- **`app/`** — the new Qt Quick application. `app/qml/` is presentation-only; `app/source/wxlens/`
+  is C++20 owning all state/business logic, namespace `wxlens`. See `docs/ROADMAP.md` §3.2 for the
   full intended directory layout (`data/`, `products/`, `render/`, `panes/`, `objects/`, `theme/`,
   `settings/`, `log/`) — most of these are still empty pending Phase 1 slices (§7).
 
@@ -34,7 +34,7 @@ Panes synchronize per-property (`Location`, `Zoom`, `Bearing`, `Product`, `Palet
 list in §4.1), never via one global linked flag. See §4.1-§4.2 before touching any sync code.
 
 ### Namespace convention
-`namespace nimbus { namespace X { ... } }`, nested, with closing comments. Fully qualified
+`namespace wxlens { namespace X { ... } }`, nested, with closing comments. Fully qualified
 namespaces in headers; no `using namespace` in headers.
 
 ## Build system
@@ -54,17 +54,17 @@ reason — see `docs/adr/0004-maplibre-qml-integration.md`.
 
 **Manual CMake configuration:**
 ```bash
-conan config install ./tools/conan/profiles/nimbus-windows_vs2026_x64 -tf profiles
+conan config install ./tools/conan/profiles/wxlens-windows_vs2026_x64 -tf profiles
 mkdir build && cd build
 conan install ../ --remote conancenter --build missing \
-    --profile:all nimbus-windows_vs2026_x64 --settings:all build_type=Release \
+    --profile:all wxlens-windows_vs2026_x64 --settings:all build_type=Release \
     --output-folder ./conan/
 cmake ../ -G Ninja -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=../external/cmake-conan/conan_provider.cmake \
-    -DCONAN_HOST_PROFILE=nimbus-windows_vs2026_x64 \
-    -DCONAN_BUILD_PROFILE=nimbus-windows_vs2026_x64 \
+    -DCONAN_HOST_PROFILE=wxlens-windows_vs2026_x64 \
+    -DCONAN_BUILD_PROFILE=wxlens-windows_vs2026_x64 \
     -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64
-cmake --build . --target nimbus-app
+cmake --build . --target wxlens-app
 ```
 
 CMake Presets are in `CMakePresets.json` (`windows-vs2026-x64-release`/`-debug`,
@@ -87,7 +87,7 @@ install already (confirmed during Phase 0).
 - `maplibre-native-qt/` (+ its nested `vendor/maplibre-native`) — the map rendering engine. Use its
   `src/quick` (`QMapLibre::Quick`, QML type `MapLibre`, BSD-2-Clause) integration, **not**
   `src/location` (QtLocation plugin, LGPL/GPL) or `src/widgets`. Needs real bug/missing-API
-  fixes applied as tracked patches (see below) to build and work correctly under Nimbus's
+  fixes applied as tracked patches (see below) to build and work correctly under WxLens's
   `add_subdirectory` consumption — see ADR 0004, including its "Slice 3 findings" section.
 - `cmake-conan/` — the Conan 2 CMake provider glue.
 
@@ -97,11 +97,11 @@ install already (confirmed during Phase 0).
 lost-signal race that strands every map after the first — see ADR 0004). Rather than hand-editing
 the vendored source, each fix is a tracked `.patch` file under
 `external/patches/`, applied idempotently at CMake configure time by
-`nimbus_apply_mln_qt_patch()` in `external/maplibre-native-qt.cmake` (checks
+`wxlens_apply_mln_qt_patch()` in `external/maplibre-native-qt.cmake` (checks
 `git apply --check --reverse` first, so re-configuring is safe and `external/` stays pristine in
 git). If a future submodule bump breaks one of these patches, that function's `FATAL_ERROR`
 will say so at configure time — reconcile the patch against the new upstream source, don't just
-delete it. Follow this same pattern for any other vendored-dependency fix that isn't a Nimbus-side
+delete it. Follow this same pattern for any other vendored-dependency fix that isn't a WxLens-side
 bug.
 
 ### License discipline
@@ -110,16 +110,16 @@ new dependency needs a license check against this rule first (see `docs/ROADMAP.
 
 ## Testing
 
-`test/test.cmake` builds `nimbus-wxdata-test`: the wxdata-only slice of the legacy repo's GTest
-suite (the `scwx::qt::*` test groups are excluded since Nimbus doesn't link `scwx-qt`), referencing
+`test/test.cmake` builds `wxlens-wxdata-test`: the wxdata-only slice of the legacy repo's GTest
+suite (the `scwx::qt::*` test groups are excluded since WxLens doesn't link `scwx-qt`), referencing
 `.test.cpp` files directly from `external/legacy-supercell-wx/test/source/scwx/` rather than
 duplicating them. Fixture data comes from `external/legacy-supercell-wx/test/data` (a nested
 submodule of the legacy repo). Run via:
 ```bash
-cmake --build . --target nimbus-wxdata-test
+cmake --build . --target wxlens-wxdata-test
 ctest --output-on-failure
 ```
-As `app/source/nimbus/` grows in Phase 1, its own tests belong under `test/source/nimbus/`,
+As `app/source/wxlens/` grows in Phase 1, its own tests belong under `test/source/wxlens/`,
 mirroring the directory tree, per `docs/ROADMAP.md`'s "test the C++ models independently of QML"
 rule.
 
@@ -175,15 +175,15 @@ until an unrelated pan/scroll forces a frame, which reads as "the data never loa
 ### Adding a new overlay draw primitive
 Port the *behavior* of the matching class in
 `external/legacy-supercell-wx/scwx-qt/source/scwx/qt/gl/draw/` to a Qt RHI custom render node
-under `app/source/nimbus/render/` — don't port the code line-for-line (the rendering backend is
+under `app/source/wxlens/render/` — don't port the code line-for-line (the rendering backend is
 different), and don't add the primitive as a MapLibre custom layer without checking whether it
 belongs in the unified `MapObjectsLayer` instead (`docs/ROADMAP.md` §4.3).
 
 ### Adding new NEXRAD product support
-This is a `wxdata` change, not a Nimbus one — it belongs upstream in the legacy repo
+This is a `wxdata` change, not a WxLens one — it belongs upstream in the legacy repo
 (`external/legacy-supercell-wx/wxdata/source/scwx/wsr88d/rpg/level3_message_factory.cpp` for
-ICD-defined Level 3 products), then the submodule pin advances. Nimbus's own work is wiring the
-new product into `app/source/nimbus/products/` and a renderer under `app/source/nimbus/render/`.
+ICD-defined Level 3 products), then the submodule pin advances. WxLens's own work is wiring the
+new product into `app/source/wxlens/products/` and a renderer under `app/source/wxlens/render/`.
 
 ## Updating dependencies
 Modify `conanfile.py`'s `requires` tuple for Conan packages; advance the relevant submodule pin

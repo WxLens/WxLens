@@ -2,14 +2,14 @@
 import QtQuick
 import QtQuick.Window
 
-import Nimbus.App
+import WxLens.App
 
 Window {
     id: mainWindow
     width: 1280
     height: 800
     visible: true
-    title: "Nimbus"
+    title: "WxLens"
     color: themeManager.background
 
     Column {
@@ -20,22 +20,30 @@ Window {
             width: parent.width
             onSettingsRequested: settingsDialog.open()
             onPaletteRequested: paletteDialog.open()
+            onMapDetailsRequested: settingsDialog.openAt("map-details")
+            onSavedPlacesRequested: savedPlacesDialog.open()
+            onOverlaysRequested: overlaysDialog.open()
         }
 
-        Row {
+        Item {
             width: parent.width
             height: parent.height - 48
-            spacing: 0
 
-            SideRail {
-                height: parent.height
+            PaneGrid {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: appSettings.controlBarDocked ? bottomBar.top : parent.bottom
+                model: paneGridModel
                 onConfigureRequested: (sectionId) => settingsDialog.openAt(sectionId)
             }
 
-            PaneGrid {
-                width: parent.width - 56
-                height: parent.height
-                model: paneGridModel
+            BottomControlBar {
+                id: bottomBar
+                gridModel: paneGridModel
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: appSettings.controlBarDocked ? 0 : 14
                 onConfigureRequested: (sectionId) => settingsDialog.openAt(sectionId)
             }
         }
@@ -49,4 +57,6 @@ Window {
     }
 
     PaletteDialog { id: paletteDialog }
+    SavedPlacesDialog { id: savedPlacesDialog }
+    OverlaysDialog { id: overlaysDialog }
 }

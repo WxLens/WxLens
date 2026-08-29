@@ -67,7 +67,7 @@ Item {
                                                               modelData.longitudes[0])
             }
 
-            // 0 = Marker, 3 = RangeRing (nimbus::objects::MapObjectType)
+            // 0 = Marker, 3 = RangeRing (wxlens::objects::MapObjectType)
             readonly property bool isMarker: objectType === 0
             readonly property bool isRangeRing: objectType === 3
             // 1 = Line, 5 = Measurement: both draw as a projected polyline through their vertices.

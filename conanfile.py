@@ -3,7 +3,7 @@ from conan.tools.cmake import CMake
 from conan.tools.files import copy
 import os
 
-class NimbusConan(ConanFile):
+class WxLensConan(ConanFile):
     # Dependencies needed to link wxdata (external/legacy-supercell-wx/wxdata) and its GTest
     # suite unmodified, per docs/ROADMAP.md §3.1/§7 Phase 0. MapLibre Native Qt (the map renderer)
     # is built from its vendored submodule directly, not through Conan - see
@@ -21,7 +21,7 @@ class NimbusConan(ConanFile):
                   "range-v3/cci.20240905",
                   "re2/20251105",
                   "spdlog/1.17.0",
-                  # toml++ (header-only, MIT) backs app/source/nimbus/settings - the structured
+                  # toml++ (header-only, MIT) backs app/source/wxlens/settings - the structured
                   # config store chosen in docs/adr/0003-config-storage-format.md. That ADR
                   # deferred adding it until the first real settings file existed; Phase 1
                   # slice 17 is that point.

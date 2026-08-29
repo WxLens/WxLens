@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
-project(nimbus-app CXX)
+project(wxlens-app CXX)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick OpenGL)
+find_package(Qt6 REQUIRED COMPONENTS Quick OpenGL Network)
 qt_standard_project_setup(REQUIRES 6.5)
 
 # Boost::timer/Boost::json are used by wxdata (boost::timer::cpu_timer in
@@ -15,75 +15,84 @@ find_package(glm REQUIRED)
 # toml++ backs the structured config store (docs/adr/0003-config-storage-format.md).
 find_package(tomlplusplus REQUIRED)
 
-qt_add_executable(nimbus-app
-    source/nimbus/main/main.cpp
-    source/nimbus/log/logger.cpp
-    source/nimbus/log/logger.hpp
-    source/nimbus/data/radar_site_data_service.cpp
-    source/nimbus/data/radar_site_data_service.hpp
-    source/nimbus/data/radar_site_database.cpp
-    source/nimbus/data/radar_site_database.hpp
-    source/nimbus/objects/map_object.hpp
-    source/nimbus/objects/map_object_store.cpp
-    source/nimbus/objects/map_object_store.hpp
-    source/nimbus/objects/measurement_controller.cpp
-    source/nimbus/objects/measurement_controller.hpp
-    source/nimbus/objects/object_tool_controller.cpp
-    source/nimbus/objects/object_tool_controller.hpp
-    source/nimbus/panes/pane_controller.cpp
-    source/nimbus/panes/pane_controller.hpp
-    source/nimbus/panes/pane_grid_model.cpp
-    source/nimbus/panes/pane_grid_model.hpp
-    source/nimbus/panes/sync_types.hpp
-    source/nimbus/palettes/palette_manager.cpp
-    source/nimbus/palettes/palette_manager.hpp
-    source/nimbus/palettes/palette_model.cpp
-    source/nimbus/palettes/palette_model.hpp
-    source/nimbus/products/product_descriptor.hpp
-    source/nimbus/products/radar_product_status.cpp
-    source/nimbus/products/radar_product_status.hpp
-    source/nimbus/products/radar_sweep_product.cpp
-    source/nimbus/products/radar_sweep_product.hpp
-    source/nimbus/render/radar_sweep_layer.cpp
-    source/nimbus/render/radar_sweep_layer.hpp
-    source/nimbus/settings/app_settings.cpp
-    source/nimbus/settings/app_settings.hpp
-    source/nimbus/settings/settings_store.cpp
-    source/nimbus/settings/settings_store.hpp
-    source/nimbus/theme/theme_manager.cpp
-    source/nimbus/theme/theme_manager.hpp
-    source/nimbus/util/crash_handler.cpp
-    source/nimbus/util/crash_handler.hpp
-    source/nimbus/util/geodesic.cpp
-    source/nimbus/util/geodesic.hpp
-    source/nimbus/util/radar_geometry.cpp
-    source/nimbus/util/radar_geometry.hpp
-    source/nimbus/util/unit_format.cpp
-    source/nimbus/util/unit_format.hpp
+qt_add_executable(wxlens-app
+    source/wxlens/main/main.cpp
+    source/wxlens/log/logger.cpp
+    source/wxlens/log/logger.hpp
+    source/wxlens/data/radar_site_data_service.cpp
+    source/wxlens/data/radar_site_data_service.hpp
+    source/wxlens/data/radar_site_database.cpp
+    source/wxlens/data/radar_site_database.hpp
+    source/wxlens/objects/map_object.hpp
+    source/wxlens/objects/map_object_store.cpp
+    source/wxlens/objects/map_object_store.hpp
+    source/wxlens/objects/measurement_controller.cpp
+    source/wxlens/objects/measurement_controller.hpp
+    source/wxlens/objects/object_tool_controller.cpp
+    source/wxlens/objects/object_tool_controller.hpp
+    source/wxlens/objects/snap_target_registry.cpp
+    source/wxlens/objects/snap_target_registry.hpp
+    source/wxlens/objects/saved_place_manager.cpp
+    source/wxlens/objects/saved_place_manager.hpp
+    source/wxlens/overlays/overlay_manager.cpp
+    source/wxlens/overlays/overlay_manager.hpp
+    source/wxlens/panes/pane_controller.cpp
+    source/wxlens/panes/pane_controller.hpp
+    source/wxlens/panes/pane_grid_model.cpp
+    source/wxlens/panes/pane_grid_model.hpp
+    source/wxlens/panes/sync_types.hpp
+    source/wxlens/palettes/palette_manager.cpp
+    source/wxlens/palettes/palette_manager.hpp
+    source/wxlens/palettes/palette_model.cpp
+    source/wxlens/palettes/palette_model.hpp
+    source/wxlens/products/product_descriptor.hpp
+    source/wxlens/products/radar_product_status.cpp
+    source/wxlens/products/radar_product_status.hpp
+    source/wxlens/products/radar_sweep_product.cpp
+    source/wxlens/products/radar_sweep_product.hpp
+    source/wxlens/render/radar_sweep_layer.cpp
+    source/wxlens/render/radar_sweep_layer.hpp
+    source/wxlens/settings/app_settings.cpp
+    source/wxlens/settings/app_settings.hpp
+    source/wxlens/settings/settings_store.cpp
+    source/wxlens/settings/settings_store.hpp
+    source/wxlens/theme/theme_manager.cpp
+    source/wxlens/theme/theme_manager.hpp
+    source/wxlens/util/crash_handler.cpp
+    source/wxlens/util/crash_handler.hpp
+    source/wxlens/util/geodesic.cpp
+    source/wxlens/util/geodesic.hpp
+    source/wxlens/util/radar_geometry.cpp
+    source/wxlens/util/radar_geometry.hpp
+    source/wxlens/util/unit_format.cpp
+    source/wxlens/util/unit_format.hpp
     $<$<PLATFORM_ID:Windows>:res/branding/app.rc>
 )
 
-target_include_directories(nimbus-app PRIVATE source)
+target_include_directories(wxlens-app PRIVATE source)
 
-qt_add_qml_module(nimbus-app
-    URI Nimbus.App
+qt_add_qml_module(wxlens-app
+    URI WxLens.App
     VERSION 1.0
     QML_FILES
         qml/Main.qml
         qml/Chrome/TopBar.qml
-        qml/Chrome/SideRail.qml
+        qml/Chrome/BottomControlBar.qml
         qml/Chrome/TimeControls.qml
         qml/Dialogs/SettingsChoice.qml
         qml/Dialogs/SettingsDialog.qml
         qml/Dialogs/PaletteDialog.qml
+        qml/Dialogs/SavedPlacesDialog.qml
+        qml/Dialogs/OverlaysDialog.qml
         qml/Controls/ColorPicker.qml
         qml/Panes/MapObjectsLayer.qml
         qml/Panes/MeasurementLayer.qml
         qml/Panes/RadarGeometryPanel.qml
         qml/Panes/PaneGrid.qml
         qml/Panes/PaneHost.qml
+        qml/Panes/WeatherOverlaysLayer.qml
     RESOURCES
-        res/branding/nimbus-icon.png
+        res/branding/wxlens-icon.png
         res/config/radar_sites.json
         res/themes/operational-dark.toml
         res/themes/daylight.toml
@@ -93,30 +102,30 @@ qt_add_qml_module(nimbus-app
 
 # NOAA Weather and Climate Toolkit defaults, carried forward unmodified with the attribution in
 # ACKNOWLEDGEMENTS.md. Referencing the vendored copies as resource inputs keeps external/ pristine
-# and prevents Nimbus's copies drifting from the reused legacy dependency.
-set(NIMBUS_WCT_PALETTE_DIR
+# and prevents WxLens's copies drifting from the reused legacy dependency.
+set(WXLENS_WCT_PALETTE_DIR
     "${CMAKE_SOURCE_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct")
-qt_add_resources(nimbus-app "nimbus-wct-palettes"
-    PREFIX "/qt/qml/Nimbus/App/res/palettes/wct"
-    BASE "${NIMBUS_WCT_PALETTE_DIR}"
+qt_add_resources(wxlens-app "wxlens-wct-palettes"
+    PREFIX "/qt/qml/WxLens/App/res/palettes/wct"
+    BASE "${WXLENS_WCT_PALETTE_DIR}"
     FILES
-        "${NIMBUS_WCT_PALETTE_DIR}/CC.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/Default16.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/DOD_DSD.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/DR.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/DV.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/ET.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/HC.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/KDP.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/KDP2.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/OHP.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/SRV.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/STP.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/SW.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/VIL.pal"
-        "${NIMBUS_WCT_PALETTE_DIR}/ZDR.pal")
+        "${WXLENS_WCT_PALETTE_DIR}/CC.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/Default16.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/DOD_DSD.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/DR.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/DV.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/ET.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/HC.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/KDP.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/KDP2.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/OHP.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/SRV.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/STP.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/SW.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/VIL.pal"
+        "${WXLENS_WCT_PALETTE_DIR}/ZDR.pal")
 
-set_target_properties(nimbus-app PROPERTIES
+set_target_properties(wxlens-app PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
@@ -124,9 +133,10 @@ set_target_properties(nimbus-app PROPERTIES
     MACOSX_BUNDLE ON
 )
 
-target_link_libraries(nimbus-app PRIVATE
+target_link_libraries(wxlens-app PRIVATE
     Qt6::Quick
     Qt6::OpenGL
+    Qt6::Network
     wxdata
     Boost::timer
     Boost::json
@@ -134,7 +144,7 @@ target_link_libraries(nimbus-app PRIVATE
     glm::glm-header-only
     tomlplusplus::tomlplusplus
     QMapLibre::Core
-    # DbgHelp backs nimbus::util::InstallCrashHandler's symbolized stack walk. It ships with
+    # DbgHelp backs wxlens::util::InstallCrashHandler's symbolized stack walk. It ships with
     # Windows itself, so this adds a link dependency, not a redistributable.
     $<$<PLATFORM_ID:Windows>:dbghelp>
 )
@@ -146,41 +156,41 @@ target_link_libraries(nimbus-app PRIVATE
 # below runs. QT_QML_IMPORT_PATH helps build-time QML tooling (qmllint, IDEs) find it; the copy
 # step places it at <exe-dir>/qml/MapLibre so it resolves at runtime the same way Qt's own QML
 # modules already do (QQmlEngine's default import path list includes "<app-dir>/qml" - confirmed
-# during Phase 0, no qt.conf needed). NIMBUS_MLN_QT_QML_PLUGIN_DIR (set in
+# during Phase 0, no qt.conf needed). WXLENS_MLN_QT_QML_PLUGIN_DIR (set in the read-only
 # external/maplibre-native-qt.cmake), not $<TARGET_FILE_DIR:declarative_maplibre>, is the correct
 # source - see that file's comment for why the generator-expression path is wrong on this
 # multi-config generator.
-add_dependencies(nimbus-app declarative_maplibre)
+add_dependencies(wxlens-app declarative_maplibre)
 
-set_target_properties(nimbus-app PROPERTIES
-    QT_QML_IMPORT_PATH "${NIMBUS_MLN_QT_QML_PLUGIN_DIR}/.."
+set_target_properties(wxlens-app PROPERTIES
+    QT_QML_IMPORT_PATH "${WXLENS_MLN_QT_QML_PLUGIN_DIR}/.."
 )
 
 # The plugin's qmldir/qmltypes (written by configure_file, unaffected by the output-dir bug
-# above) live in NIMBUS_MLN_QT_QML_PLUGIN_DIR, but its actual .dll doesn't - that got redirected
+# above) live in WXLENS_MLN_QT_QML_PLUGIN_DIR, but its actual .dll doesn't - that got redirected
 # by the same per-config-property bug to wherever CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE points
 # (confirmed: Release/lib, not .../MapLibre). $<TARGET_FILE:...> always finds the real artifact
 # regardless of which directory it landed in, so copy that explicitly alongside the qmldir/types.
-add_custom_command(TARGET nimbus-app
+add_custom_command(TARGET wxlens-app
                    POST_BUILD
                    COMMAND "${CMAKE_COMMAND}" -E copy_directory
-                       "${NIMBUS_MLN_QT_QML_PLUGIN_DIR}"
-                       "$<TARGET_FILE_DIR:nimbus-app>/qml/MapLibre"
+                       "${WXLENS_MLN_QT_QML_PLUGIN_DIR}"
+                       "$<TARGET_FILE_DIR:wxlens-app>/qml/MapLibre"
                    COMMAND "${CMAKE_COMMAND}" -E copy
                        "$<TARGET_FILE:declarative_maplibre>"
-                       "$<TARGET_FILE_DIR:nimbus-app>/qml/MapLibre/"
-                   COMMENT "Deploying MapLibre QML plugin next to nimbus-app...")
+                       "$<TARGET_FILE_DIR:wxlens-app>/qml/MapLibre/"
+                   COMMENT "Deploying MapLibre QML plugin next to wxlens-app...")
 
 if (MSVC)
-    target_compile_options(nimbus-app PRIVATE "/MP")
+    target_compile_options(wxlens-app PRIVATE "/MP")
     # wxdata.cmake sets this PRIVATE on wxdata itself (external/, read-only) so it doesn't
     # propagate to consumers - matches test/test.cmake's identical fix. Without it, an unguarded
-    # <windows.h> in nimbus-app's own compilation (pulled in transitively, e.g. via
+    # <windows.h> in wxlens-app's own compilation (pulled in transitively, e.g. via
     # scwx/util/time.hpp -> date/tz.h) leaks min/max macros into external/units's templated
     # operator==, producing a cascade of unrelated-looking syntax errors in units/core.h -
-    # confirmed while adding Phase 1 slice 2's radar_product_status.cpp, the first nimbus-app
+    # confirmed while adding Phase 1 slice 2's radar_product_status.cpp, the first wxlens-app
     # source to pull in scwx::util::TimeString.
-    target_compile_options(nimbus-app PRIVATE -DNOMINMAX)
+    target_compile_options(wxlens-app PRIVATE -DNOMINMAX)
 endif()
 
 if (WIN32)
@@ -189,11 +199,11 @@ if (WIN32)
     # run during Phase 0 failing to load QML with "module QtQuick.Window is not installed" until
     # this ran. --qmldir scans our own QML sources so windeployqt deploys exactly the QML modules
     # actually imported, not a guess.
-    add_custom_command(TARGET nimbus-app
+    add_custom_command(TARGET wxlens-app
                        POST_BUILD
                        COMMAND "${WINDEPLOYQT_EXECUTABLE}"
                            --no-translations
                            --qmldir "${CMAKE_CURRENT_SOURCE_DIR}/qml"
-                           $<TARGET_FILE:nimbus-app>
-                       COMMENT "Running windeployqt for nimbus-app...")
+                           $<TARGET_FILE:wxlens-app>
+                       COMMENT "Running windeployqt for wxlens-app...")
 endif()

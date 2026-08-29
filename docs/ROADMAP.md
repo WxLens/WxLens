@@ -1,4 +1,4 @@
-# Nimbus — Ground-Up Rewrite Roadmap
+# WxLens — Ground-Up Rewrite Roadmap
 
 ## Context
 
@@ -27,19 +27,19 @@ This document is meant to be saved and reused as the working roadmap for a multi
 multi-phase effort, handed to other AI planning/coding agents (including small-context ones) so
 minimal re-planning is needed as work proceeds. Confirmed user decisions baked into this plan:
 **full rewrite** of UI/app architecture, **reuse `wxdata` as a library** (not re-derived),
-**app named `Nimbus`** (namespace token `nimbus` used throughout the C++ code and directory
+**app named `WxLens`** (namespace token `wxlens` used throughout the C++ code and directory
 layout), **multi-user/server/login is a long-term stretch goal only**
 (don't build it now, don't design around excluding it), and this **feature priority order**:
 (1) modernized single-site radar UI, (2) multi-site mesh/mosaic radar, (3) other data layers
 (satellite, soundings, jet stream/pressure) + velocity improvements as a lower-priority
 sub-track, (4) 3D storm structure rendering — explicitly last.
 
-**New workspace location (confirmed):** `C:\Users\sherw\OneDrive\Apps\Nimbus`. This is a new,
+**New workspace location (confirmed):** `C:\Users\sherw\OneDrive\Apps\WxLens`. This is a new,
 separate directory/repo from the current app at `C:\Users\sherw\OneDrive\Apps\Supercell Wx` — the
 latter stays in place, untouched, as the read-only reference source described throughout this
 document (§2, and via Option A's submodule/reference approach in §3.1). The very first action
 once implementation begins (start of Phase 0) is standing up this new directory and saving this
-roadmap to `C:\Users\sherw\OneDrive\Apps\Nimbus\docs\ROADMAP.md`, per §3.2's layout.
+roadmap to `C:\Users\sherw\OneDrive\Apps\WxLens\docs\ROADMAP.md`, per §3.2's layout.
 
 **Architecture framing (added after a dedicated architecture audit, see §0.1):** don't build a
 radar application that later has to become a weather workstation — build the weather-workstation
@@ -241,7 +241,7 @@ NEXT SLICE — what comes next
 
 **The most important rule:** don't optimize for volume of code written. Optimize for correct
 architecture, small reviewable changes, reproducible builds, tested behavior, and clear
-documentation. The goal isn't just to make `Nimbus` work — it's to make it possible for
+documentation. The goal isn't just to make `WxLens` work — it's to make it possible for
 many different AI agents, over a long period of time, to keep developing the same application
 without gradually destroying its architecture.
 
@@ -305,7 +305,7 @@ deployment requirement emerges later, since that would flip the calculus.
 Full detail lives in this repo's own `AGENTS.md`/`CLAUDE.md` — don't duplicate-maintain it, but
 an agent working in the *new* repo needs this condensed pointer list without switching context.
 **All paths in this section are relative to the Supercell Wx repo root,
-`C:\Users\sherw\OneDrive\Apps\Supercell Wx`** (not the Nimbus repo this roadmap now lives in) —
+`C:\Users\sherw\OneDrive\Apps\Supercell Wx`** (not the WxLens repo this roadmap now lives in) —
 resolve them against that location.
 
 - **[wxdata/](wxdata/)** — Qt-free C++20 library, **reused as-is or lightly adapted**.
@@ -422,7 +422,7 @@ momentum**:
 ### 3.2 Proposed directory layout (new repo)
 
 ```
-nimbus/
+wxlens/
 ├── AGENTS.md                       # primary agent guide — mirrors current AGENTS.md structure
 ├── CLAUDE.md                       # thin pointer + directory map, mirrors current CLAUDE.md
 ├── docs/
@@ -447,7 +447,7 @@ nimbus/
 │   │   ├── Dialogs/                # settings, palette editor, about
 │   │   ├── Controls/               # shared custom Qt Quick Controls style
 │   │   └── Theme/                  # theme singleton + built-in theme definitions
-│   ├── source/nimbus/               # C++20 backend, namespace `nimbus`
+│   ├── source/wxlens/               # C++20 backend, namespace `wxlens`
 │   │   ├── main/                   # entry point, app bootstrap, CLI args
 │   │   ├── data/                   # Data Source layer: per-source data services (successor to
 │   │   │                            #   radar_product_manager); radar today, satellite/model/
@@ -471,7 +471,7 @@ nimbus/
 │   │   └── util/
 │   ├── res/                        # icons, fonts, bundled .pal files (carry forward res/palettes/wct/)
 │   └── CMakeLists.txt
-├── test/                           # GTest, mirrors app/source/nimbus/ tree
+├── test/                           # GTest, mirrors app/source/wxlens/ tree
 ├── tools/                          # setup scripts, conan profiles — copy pattern from current repo
 └── .github/workflows/ci.yml        # copy current matrix, add qtdeclarative/qtquickcontrols2/qtshadertools
 ```
@@ -610,7 +610,7 @@ ask: `map_annotation_types.hpp`'s `MapAnnotationObject{id, payload, style}` with
 variant over `Polyline`/`Circle`/`Rectangle`/`Measure`, all geo-anchored via `common::Coordinate`
 (see §2). Separately, `marker_manager`/`marker_types.hpp` implements simple named/iconed markers
 as an unrelated, globally-scoped system. The new app unifies both into one `MapObject` family
-(`app/source/nimbus/objects/`):
+(`app/source/wxlens/objects/`):
 
 - **Type:** `Marker | Line | Drawing (freehand/polyline) | Measurement (point-to-point,
   radar-to-point, or multi-segment path) | Polygon | Circle/RangeRing | TextAnnotation |
@@ -744,16 +744,16 @@ the *interfaces* they'll eventually plug into).
 
 - **Per-site data sharing stays a service singleton, not a pane property:** port
   `RadarProductManager`'s pattern (`Instance(siteId)` singleton, shared product cache,
-  Qt-signal update notification) into a new `RadarSiteDataService` in `app/source/nimbus/data/`,
+  Qt-signal update notification) into a new `RadarSiteDataService` in `app/source/wxlens/data/`,
   implementing the Data Source role for radar. Multiple panes showing the same site — synced or
   not on any channel — share one instance and one download/cache. Generalize this *pattern*
   (per-source-key singleton + shared cache) to the Phase 2/3 non-radar providers too
   (`MosaicDataService`, `SatelliteDataService`) as they're added, without changing the pipeline
   shape.
-- **Pane grid model** (`app/source/nimbus/panes/`): a `QAbstractListModel`-backed `PaneGridModel`
+- **Pane grid model** (`app/source/wxlens/panes/`): a `QAbstractListModel`-backed `PaneGridModel`
   holding `N = gridWidth*gridHeight` `PaneController` instances, each owning its per-channel sync
   state (§4.1), a binding to its current Data Product (radar site+moment+tilt today, via
-  `app/source/nimbus/products/`), and its own MapLibre camera state — a pane's "what data is
+  `app/source/wxlens/products/`), and its own MapLibre camera state — a pane's "what data is
   showing" must be swappable independent of its camera state and independent of any other pane,
   unless explicitly grouped on that specific channel. Matches the user's stated need for 1×1 up
   through 3×3+custom grids.
@@ -900,7 +900,7 @@ Two distinct systems, kept distinct like the current app does:
 
 ### 5.2 App chrome theme (new capability — closes the identified gap)
 
-- A `ThemeManager` C++ singleton (`app/source/nimbus/theme/`) exposes named color/metric roles
+- A `ThemeManager` C++ singleton (`app/source/wxlens/theme/`) exposes named color/metric roles
   (background/surface/elevated-surface, primary/accent, danger/warning/success,
   text-primary/secondary, border, per-product accent colors, corner radius, spacing scale) as
   `Q_PROPERTY` values bound throughout QML — changing the active theme live-updates the whole UI
@@ -1023,7 +1023,7 @@ library is too heavy for the "modest laptop" constraint).
   license (BSD-3) before referencing its implementation at all, and prefer working from the
   published algorithm/papers to stay clean. Operates purely on already-parsed Level 2 radial
   velocity from `wxdata` — self-contained, no new data source.
-  Fits under `app/source/nimbus/render/` or a new `app/source/nimbus/velocity/`.
+  Fits under `app/source/wxlens/render/` or a new `app/source/wxlens/velocity/`.
 - **Direction-relative color mode** (the user's own idea, explicitly lower priority): instead of
   toward/away-from-radar sign, compute true wind direction (radial velocity sign + azimuth) and
   map compass bearing to a perceptually-uniform circular hue. **`hsluv-c` is already vendored in
@@ -1047,18 +1047,18 @@ linked and building, and agent-legible docs in place.
 - [x] Resolve `wxdata` reuse mechanics (§3.1) — Option A, done. See `docs/adr/0002-wxdata-reuse-strategy.md`:
   `external/legacy-supercell-wx/` (shallow submodule), only `wxdata/` built; discovered along the
   way that `wxdata` also needs `aws-sdk-cpp`/`date`/`units`/`hsluv-c` vendored (not pure-Conan as
-  originally assumed) — those four are now vendored at Nimbus's own `external/` too.
+  originally assumed) — those four are now vendored at WxLens's own `external/` too.
 - [x] Stand up `CMakeLists.txt`/`CMakePresets.json`/`conanfile.py`/`tools/` by copying and adapting
   the current repo's build tooling. Presets currently cover `windows-vs2026-x64` (verified against
   the local dev machine) and a `linux-gcc14` template (not yet verified on real Linux hardware —
   follow-up item, not done tonight).
 - [x] Confirm MapLibre Native Qt's QML-item support (§1) — **resolved, see
   `docs/adr/0004-maplibre-qml-integration.md`**: it exposes a genuine `QQuickItem` (`src/quick`,
-  BSD-2-Clause, no `QtLocation` dependency), no `QQuickWidget` fallback needed. Nimbus vendors the
+  BSD-2-Clause, no `QtLocation` dependency), no `QQuickWidget` fallback needed. WxLens vendors the
   upstream `maplibre/maplibre-native-qt` (library version 4.0.0) at `external/maplibre-native-qt`,
   not the `dpaulat` Supercell-Wx-specific fork.
 - [x] Write `AGENTS.md`/`CLAUDE.md` for the new repo (§3.3) — done, not stubs, reasonably complete.
-- [x] Wire up `util::Logger` with per-subsystem sinks (§3.4) — `app/source/nimbus/log/` wraps
+- [x] Wire up `util::Logger` with per-subsystem sinks (§3.4) — `app/source/wxlens/log/` wraps
   `scwx::util::Logger`, adding a file sink under `QStandardPaths::AppDataLocation`. Only one
   subsystem exists so far (`main`); extend the naming convention as more subsystems are added in
   Phase 1.
@@ -1066,27 +1066,27 @@ linked and building, and agent-legible docs in place.
   `docs/adr/0003-config-storage-format.md`. `settings/` itself is still an empty directory —
   implementing the wrapper is Phase 1 work (§7 Phase 1 doesn't need it until pane-layout/theme
   persistence), not Phase 0's.
-- [x] App is named **Nimbus** (repo `nimbus/`, C++ namespace `nimbus`, see §9 Q1/Q3 — resolved).
+- [x] App is named **WxLens** (repo `wxlens/`, C++ namespace `wxlens`, see §9 Q1/Q3 — resolved).
 
 **Status as of 2026-08-22 (first overnight pass, verified end-to-end):** directory scaffold, all
 vendored submodules, build tooling, and docs are in place; `docs/adr/0001`-`0004` written and
-updated as real build issues were found and fixed (see below). `nimbus-app` (empty QML shell, no
+updated as real build issues were found and fixed (see below). `wxlens-app` (empty QML shell, no
 MapLibre item wired in yet — that's explicitly the next slice, see ADR 0004's Consequences) and
-`nimbus-wxdata-test` (the wxdata-only slice of the legacy GTest suite, referenced from
+`wxlens-wxdata-test` (the wxdata-only slice of the legacy GTest suite, referenced from
 `external/legacy-supercell-wx/test/` rather than duplicated) are wired into the build.
 
 **Conan install, CMake configure, and a full build were run to completion on the Windows VS2026
 preset, and the result was launched and verified, not just compiled:**
 - `conan install` + `cmake` configure succeed cleanly (Release config).
-- `nimbus-app.exe` and `nimbus-wxdata-test.exe` both build and link.
-- `nimbus-wxdata-test`: **185 passed, 12 skipped, 3 failed** (200 total). The 3 failures
+- `wxlens-app.exe` and `wxlens-wxdata-test.exe` both build and link.
+- `wxlens-wxdata-test`: **185 passed, 12 skipped, 3 failed** (200 total). The 3 failures
   (`AwsLevel2DataProvider.Prune`, `IemApiProviderTest.ListTextProducts`/`LoadTextProducts`) are
   live-network/live-data tests hitting real AWS S3/IEM endpoints — the same category the legacy
   repo's own Cursor Cloud notes (`external/legacy-supercell-wx/AGENTS.md`) already flag as
   environment-dependent and excluded from their CI run. Nothing in the failure output points at a
-  Nimbus-introduced defect (see the git history around this date for the actual assertion text).
+  WxLens-introduced defect (see the git history around this date for the actual assertion text).
   Re-verify before assuming they're still purely environmental if this is re-run much later.
-- `nimbus-app.exe` was launched for real (not just built): a genuine OS window titled "Nimbus"
+- `wxlens-app.exe` was launched for real (not just built): a genuine OS window titled "WxLens"
   appears, `Responding: True`, no crash, runs indefinitely until closed. Visual pixel content
   couldn't be screenshotted this session (the dev machine's session was locked, so screen capture
   only showed the lock screen) — functional launch is verified, pixel-level rendering isn't.
@@ -1106,7 +1106,7 @@ update with full detail — read those before touching the same areas):
    by adding both to `app/CMakeLists.txt`/`test/test.cmake` directly (not editing `wxdata.cmake`).
    Also needed pinning `external/units` to the exact commit the legacy repo uses (ADR 0002) after
    a newer `units` release introduced an MSVC `/W4 /WX` warning-as-error in `wxdata`'s build.
-4. `windeployqt` is not optional on Windows — without it, `nimbus-app.exe` can't find Qt's DLLs or
+4. `windeployqt` is not optional on Windows — without it, `wxlens-app.exe` can't find Qt's DLLs or
    the QML plugins backing even `QtQuick.Window` (`import QtQuick.Window` failed at runtime with
    "module ... is not installed" until this ran with `--qmldir` pointing at `app/qml`). Added as an
    automatic `POST_BUILD` step in `app/CMakeLists.txt`, not a manual step to remember.
@@ -1122,7 +1122,7 @@ exercised for real. The MapLibre QML plugin wiring (making `import MapLibre` act
 comparable professional tool (AWIPS) publicly documents as capability, and what this app plans —
 so later phases have a stable taxonomy to extend instead of inventing one ad hoc per feature.
 **Scope:** `docs/capability-matrix.md` containing (a) a capability matrix — current Supercell Wx
-capabilities, publicly documented AWIPS capabilities, and planned `Nimbus` capabilities,
+capabilities, publicly documented AWIPS capabilities, and planned `WxLens` capabilities,
 side by side; (b) a **product taxonomy** (the kinds of Data Products the pipeline in §4.6 will
 eventually carry — radar moments, satellite bands, model fields, soundings, etc., even though
 only radar ships soon); (c) a **tool/interaction taxonomy** covering the map-interaction
@@ -1275,9 +1275,9 @@ delivered as the 13 slices above rather than one monolithic build.
   in git), applied idempotently by `external/maplibre-native-qt.cmake` via
   `execute_process(COMMAND git apply ...)` guarded by a `git apply --check --reverse` idempotency
   check. `MLN_QT_WITH_QUICK_PLUGIN` is back to `ON`.
-- Second, separate bug found while wiring the plugin into `nimbus-app`: the plugin's own
+- Second, separate bug found while wiring the plugin into `wxlens-app`: the plugin's own
   `set_target_properties(... LIBRARY_OUTPUT_DIRECTORY/RUNTIME_OUTPUT_DIRECTORY ...)` call (generic,
-  non-per-config properties) loses to Nimbus's own `tools/nimbus_config.cmake`, which sets
+  non-per-config properties) loses to WxLens's own `tools/wxlens_config.cmake`, which sets
   per-config `CMAKE_*_OUTPUT_DIRECTORY_RELEASE` globally - CMake applies those to every new
   target's per-config property *at creation time*, and a per-config property always wins over a
   later generic-property override on a multi-config generator (confirmed empirically: the actual
@@ -1287,10 +1287,10 @@ delivered as the 13 slices above rather than one monolithic build.
   effect: `$<TARGET_FILE_DIR:declarative_maplibre>` is **not** a reliable way to locate this
   plugin's QML module folder in this build. Worked around by having
   `external/maplibre-native-qt.cmake` capture the real, always-correct qmldir/qmltypes path
-  directly as `NIMBUS_MLN_QT_QML_PLUGIN_DIR`, and `app/CMakeLists.txt`'s `POST_BUILD` deploy step
+  directly as `WXLENS_MLN_QT_QML_PLUGIN_DIR`, and `app/CMakeLists.txt`'s `POST_BUILD` deploy step
   copies that directory *plus* the actual dll (via `$<TARGET_FILE:declarative_maplibre>`, which
   does correctly resolve to wherever the binary really landed) into
-  `<nimbus-app exe dir>/qml/MapLibre` - mirroring exactly where `windeployqt` already places Qt's
+  `<wxlens-app exe dir>/qml/MapLibre` - mirroring exactly where `windeployqt` already places Qt's
   own QML modules (`QQmlEngine`'s default import path list includes `<app-dir>/qml`, confirmed
   during Phase 0, no `qt.conf` involved).
 - Chrome shell built: `app/qml/Chrome/TopBar.qml` (app name + placeholder site/product/time text)
@@ -1305,23 +1305,23 @@ delivered as the 13 slices above rather than one monolithic build.
   free, no API key, real OSM detail, dark/light styles from one tile source; swapped in after the
   initial `demotiles.maplibre.org` placeholder proved too sparse for real use (user feedback).
   Not yet a real base-map *provider choice* setting (e.g. an optional user-supplied MapTiler key).
-- **Verified for real, not just built:** `nimbus-app.exe` launched, stayed running, and a
+- **Verified for real, not just built:** `wxlens-app.exe` launched, stayed running, and a
   screenshot (both self-captured and one supplied directly by the user) confirms the chrome
   (top bar, side rail) renders correctly and the map renders actual basemap tiles (US outline,
   state/lake borders, labels), centered on CONUS as configured, after a few seconds for the
   network fetch - an earlier screenshot taken too soon after launch showed a black pane before
-  tiles loaded, which is expected load latency, not a bug. `nimbus-wxdata-test` still builds
+  tiles loaded, which is expected load latency, not a bug. `wxlens-wxdata-test` still builds
   clean after these changes (not re-run in full this slice - nothing touched wxdata or its test
   wiring, so this was a build-only sanity check, not a full 200-test re-verification).
 - **Not verified this slice:** pan/zoom/pinch interaction (handlers are wired per the ported
   example pattern, but not manually exercised), Linux/macOS (Windows-only session, as with Phase
   0), the CI workflow (still unexercised per Phase 0's status).
 - **Next slice:** slice 2, one functional radar pane - wire `RadarSiteDataService`
-  (`app/source/nimbus/data/`) to `wxdata`'s existing providers and get one hardcoded product from
+  (`app/source/wxlens/data/`) to `wxdata`'s existing providers and get one hardcoded product from
   one site flowing end-to-end, still with no pane grid/sync yet.
 
 **Status as of 2026-08-22 — Slice 2 (one functional radar pane) done, verified end-to-end:**
-- `app/source/nimbus/data/radar_site_data_service.hpp/.cpp`: a deliberately minimal first version
+- `app/source/wxlens/data/radar_site_data_service.hpp/.cpp`: a deliberately minimal first version
   of the Data Source role for radar (§4.6) - per-site singleton (`Instance(radarSite)`), fetches
   the latest Level 2 volume via `wxdata`'s existing `NexradDataProviderFactory`/`AwsLevel2DataProvider`
   on a background thread (`scwx::util::async`, wxdata's shared `io_context` helper - reused, not a
@@ -1329,12 +1329,12 @@ delivered as the 13 slices above rather than one monolithic build.
   not** RadarProductManager's full port: no caching, no multi-product/elevation tracking, no
   refresh scheduling, no `Cleanup()` - those are follow-up work as the pattern matures (slice 3+),
   not deferred by oversight.
-- `app/source/nimbus/data/radar_site_database.hpp/.cpp`: loads `res/config/radar_sites.json`
+- `app/source/wxlens/data/radar_site_database.hpp/.cpp`: loads `res/config/radar_sites.json`
   (bundled, carried forward unmodified from `scwx-qt/res/config/radar_sites.json` - lat/lon/
   elevation/IANA time zone per site) for lookup by site ID. Also the intended home for the site
   lat/lon/elevation §4.7's beam-height work will need later - reuse this, don't rebuild it then.
-- `app/source/nimbus/products/radar_product_status.hpp/.cpp`: a minimal, explicitly temporary
-  bridge (`nimbus::products::RadarProductStatus`) exposing site/status text to QML via a
+- `app/source/wxlens/products/radar_product_status.hpp/.cpp`: a minimal, explicitly temporary
+  bridge (`wxlens::products::RadarProductStatus`) exposing site/status text to QML via a
   `radarStatus` context property (`main.cpp`) - **not** the real Data Product layer, which arrives
   with `PaneGridModel`/`PaneController` in slice 4 and should supersede this, not extend it.
   Displays elevation-scan/message counts and the volume start time in UTC, the radar site's own
@@ -1348,18 +1348,18 @@ delivered as the 13 slices above rather than one monolithic build.
   1. `main.cpp` needed the shared `scwx::util::io_context()` actually started on a worker thread
      pool (with a `work_guard`, exception-recovering `run()` loop) and `Aws::InitAPI`/
      `Aws::ShutdownAPI` around the app's lifetime - ported directly from the legacy app's
-     `main.cpp`. Neither existed before since nothing in `nimbus-app` made a network/AWS call
+     `main.cpp`. Neither existed before since nothing in `wxlens-app` made a network/AWS call
      until this slice's S3-backed provider.
   2. A real NOMINMAX/Windows.h `min`/`max` macro collision: `wxdata.cmake` sets `-DNOMINMAX`
      `PRIVATE` on `wxdata` itself (`external/`, read-only), so it doesn't propagate to consumers.
      `test/test.cmake` already had the same fix for the test target; `app/CMakeLists.txt` never
-     needed it until this slice's `radar_product_status.cpp` became the first `nimbus-app` source
+     needed it until this slice's `radar_product_status.cpp` became the first `wxlens-app` source
      to pull in `scwx::util::TimeString` (→ `date/tz.h` transitively). Fixed by adding the
-     identical `target_compile_options(nimbus-app PRIVATE -DNOMINMAX)` under `if (MSVC)` -
+     identical `target_compile_options(wxlens-app PRIVATE -DNOMINMAX)` under `if (MSVC)` -
      produces a cascade of unrelated-looking `units/core.h` template syntax errors if missed;
      worth recognizing the signature (`warning C4003: not enough arguments for function-like
      macro invocation 'min'` immediately preceding the cascade) if it recurs elsewhere.
-- **Verified for real, not just built:** launched `nimbus-app.exe` repeatedly against the live
+- **Verified for real, not just built:** launched `wxlens-app.exe` repeatedly against the live
   NOAA `noaa-nexrad-level2` S3 bucket for KTLX - actual volumes loaded successfully each run
   (9729-9730 messages, 19 elevation scans), confirmed via both the log file and the rendered top
   bar text (screenshots supplied by the user). Station/Local time zones confirmed correct (CDT for
@@ -1392,15 +1392,15 @@ vertex-geometry and shader logic) - that full port is still ahead, not done this
 site switched from KTLX to KEAX (Pleasant Hill, MO / Kansas City) per user request; no
 architectural significance, just a different demo site.
 
-- `app/source/nimbus/render/radar_site_marker_layer.hpp/.cpp`
-  (`nimbus::render::RadarSiteMarkerLayer`): draws one fixed-size colored point at a hardcoded geo
+- `app/source/wxlens/render/radar_site_marker_layer.hpp/.cpp`
+  (`wxlens::render::RadarSiteMarkerLayer`): draws one fixed-size colored point at a hardcoded geo
   coordinate via a real `QMapLibre::CustomLayerHostInterface` custom layer - proves registration,
   GL context access, and the lat/lon-to-screen projection (ported unchanged from the legacy app's
   `gl/radar.vert`, minus its `precision mediump float;` line - see below) all work through
-  Nimbus's actual QML-hosted map, not a synthetic test. Explicitly temporary/superseded once the
+  WxLens's actual QML-hosted map, not a synthetic test. Explicitly temporary/superseded once the
   real radar sweep renderer exists, not extended in place.
-- `app/source/nimbus/render/radar_layer_controller.hpp/.cpp`
-  (`nimbus::render::RadarLayerController`): minimal QML-facing bridge, `Q_INVOKABLE
+- `app/source/wxlens/render/radar_layer_controller.hpp/.cpp`
+  (`wxlens::render::RadarLayerController`): minimal QML-facing bridge, `Q_INVOKABLE
   attachSiteMarker(QMapLibre::Map*, lat, lon)` called from `PaneHost.qml`'s `onStyleLoaded`.
   Same temporary status as the marker layer.
 - **New dependency: glm 1.0.1** (Conan, MIT) - needed for the same MVP-matrix construction the
@@ -1435,11 +1435,11 @@ architectural significance, just a different demo site.
      from `bind()`, keep the FBO rebind + viewport set. All three patches are documented as
      upstream-candidate in ADR 0004; not filed upstream yet.
   4. **Also found:** the legacy shader's `precision mediump float;` line (an ES-only convention)
-     is a hard syntax error on this desktop GL 3.3 core driver - omitted from Nimbus's copy. Flag
+     is a hard syntax error on this desktop GL 3.3 core driver - omitted from WxLens's copy. Flag
      this when porting `gl/radar.frag` for real; don't carry that line over verbatim.
 - **Verified for real:** with all three patches applied, the orange marker renders at KEAX's
   actual coordinates (confirmed against real Kansas City-area geography in a user screenshot),
-  the base map renders normally alongside it, and `nimbus-wxdata-test` still builds clean.
+  the base map renders normally alongside it, and `wxlens-wxdata-test` still builds clean.
 - **Not verified this slice:** the actual radar sweep vertex/shader pipeline (not started - this
   pass was entirely the custom-layer plumbing prerequisite), Level 3, sites other than KEAX,
   Linux/macOS (these patches are platform-generic C++/GL fixes with no Windows-specific code, but
@@ -1455,11 +1455,11 @@ architectural significance, just a different demo site.
 completing the Data Source → Data Product → Visualization Layer → View pipeline (§0.1 principle
 #4) for one product on one site.
 
-- `app/source/nimbus/products/radar_sweep_product.hpp/.cpp`
-  (`nimbus::products::RadarSweepProduct`): the Data Product layer. Listens for
+- `app/source/wxlens/products/radar_sweep_product.hpp/.cpp`
+  (`wxlens::products::RadarSweepProduct`): the Data Product layer. Listens for
   `RadarSiteDataService::LevelTwoDataLoaded`, then ports `view::Level2ProductView`'s
   `ComputeCoordinates`/`ComputeSweep`/`UpdateColorTableLut` (level2_product_view.cpp) - WGS84
-  geodesic per-gate lat/lon via the new `nimbus::util::GeodesicDirect` (GeographicLib), the
+  geodesic per-gate lat/lon via the new `wxlens::util::GeodesicDirect` (GeographicLib), the
   triangle-quad/origin-fan vertex layout, the parallel data-moment buffer, and the color-table
   LUT - into an immutable `SweepData` snapshot (`std::shared_ptr<const SweepData>`, published
   under a mutex). Deliberately narrow, matching `RadarSiteDataService`'s own "minimal first
@@ -1472,7 +1472,7 @@ completing the Data Source → Data Product → Visualization Layer → View pip
   its fixed color table, loaded via `QFile` + `ColorTable::Load(std::istream&)` since
   `ColorTable::Load(filename)` is a plain `std::ifstream` (wxdata is Qt-free) that can't see
   Qt-resource `:/...` paths directly.
-- `app/source/nimbus/render/radar_sweep_layer.hpp/.cpp` (`nimbus::render::RadarSweepLayer`): the
+- `app/source/wxlens/render/radar_sweep_layer.hpp/.cpp` (`wxlens::render::RadarSweepLayer`): the
   Visualization Layer, replacing `RadarSiteMarkerLayer` as the registered custom layer. Ported
   from `map::RadarProductLayer` (radar_product_layer.cpp): same MVP construction as the marker
   layer proved, two VBOs (vertices, data moments) + a `GL_TEXTURE_1D` color-table texture bound to
@@ -1485,8 +1485,8 @@ completing the Data Source → Data Product → Visualization Layer → View pip
   `gl/radar.frag`, minus `radar.frag`'s `precision mediump float;` line - confirmed during the
   marker-layer proof-of-concept (see the "Slice 3 findings" ADR 0004 section above) to be an
   ES-only convention that's a hard syntax error on this desktop GL 3.3 core driver.
-- **New dependency: GeographicLib 2.6** (Conan, MIT) - `nimbus::util::GeodesicDirect`
-  (`app/source/nimbus/util/geodesic.hpp/.cpp`) wraps just `GeographicLib::Geodesic::WGS84().
+- **New dependency: GeographicLib 2.6** (Conan, MIT) - `wxlens::util::GeodesicDirect`
+  (`app/source/wxlens/util/geodesic.hpp/.cpp`) wraps just `GeographicLib::Geodesic::WGS84().
   Direct()`, the one operation this slice needs, not a full port of the legacy app's
   `qt/util/geographic_lib.hpp` wrapper (`Inverse`/`GetDistance`/beam-height etc. belong to later
   measurement/beam-height work, §4.4/§4.8, and should extend this same file rather than
@@ -1518,8 +1518,8 @@ completing the Data Source → Data Product → Visualization Layer → View pip
   state than the legacy `RadarProductLayer::Render` does. Don't re-add them speculatively.
 - **Verified for real, not just built:** launched against live KEAX data - the reflectivity sweep
   renders correctly positioned/projected over the base map, appears without any interaction, and
-  is solid/correctly colored when zoomed in (screenshots confirmed by the user). `nimbus-app` and
-  `nimbus-wxdata-test` both build clean.
+  is solid/correctly colored when zoomed in (screenshots confirmed by the user). `wxlens-app` and
+  `wxlens-wxdata-test` both build clean.
 - **Next slice:** slice 4, `PaneGridModel`/`PaneController` - the real multi-pane grid these
   bridging context properties/objects (`radarStatus`, `radarLayerController`,
   `radarSiteLatitude`/`radarSiteLongitude` in `main.cpp`) are explicitly temporary stand-ins for.
@@ -1529,15 +1529,15 @@ completing the Data Source → Data Product → Visualization Layer → View pip
 was built - that's slice 5, layered onto a working grid rather than designed against a single-pane
 special case.
 
-- `app/source/nimbus/panes/pane_controller.hpp/.cpp` (`nimbus::panes::PaneController`): one pane =
+- `app/source/wxlens/panes/pane_controller.hpp/.cpp` (`wxlens::panes::PaneController`): one pane =
   one View. Holds a `products::ProductDescriptor` and its own camera state - deliberately **no
   `radarSite` field**, per §4.6's audit note. `attachLayers(QMapLibre::Map*)` is the single place
   that dispatches on product kind, and is where a second data domain would branch.
-- `app/source/nimbus/products/product_descriptor.hpp`: the generic `{kind, sourceKey, product}`
+- `app/source/wxlens/products/product_descriptor.hpp`: the generic `{kind, sourceKey, product}`
   value type that keeps the pane domain-agnostic. Deliberately *not* a class hierarchy - the point
   is that PaneController never names a radar site, not that speculative satellite/model types get
   modelled now (§0's no-premature-later-phase-tech rule).
-- `app/source/nimbus/panes/pane_grid_model.hpp/.cpp`: `QAbstractListModel` of PaneControllers.
+- `app/source/wxlens/panes/pane_grid_model.hpp/.cpp`: `QAbstractListModel` of PaneControllers.
   Panes **persist across grid resizes** (growing appends, shrinking drops trailing panes), so
   resizing doesn't discard cameras/sites a user already set up.
 - `RadarSweepProduct` gained a per-site `Instance()` singleton mirroring `RadarSiteDataService`'s
@@ -1576,7 +1576,7 @@ special case.
   `hasController` check (verified: 0 TypeErrors across the 13-resize stress test).
 
 > **OPEN DEFECT — crash on application exit (not slice-4-specific, predates it).**
-> `nimbus-app.exe` access-violates (`0xc0000005`) inside `Qt6Gui.dll` at a consistent fault offset
+> `wxlens-app.exe` access-violates (`0xc0000005`) inside `Qt6Gui.dll` at a consistent fault offset
 > when the window is closed. **The window closes first, so this is an exit-path crash, not a
 > data-loss or in-session failure** - but it is real and must not be shipped.
 >
@@ -1584,7 +1584,7 @@ special case.
 > from a prior run is an easy false positive here):
 > - Untouched 1×1 grid, closed immediately → crashes. **Not** caused by resizing.
 > - Radar custom layer disabled entirely (`attachLayers` short-circuited) → **still crashes.**
->   So Nimbus's own `RadarSweepLayer` is not the cause.
+>   So WxLens's own `RadarSweepLayer` is not the cause.
 > - No `MapLibre` item instantiated at all → **clean exit, no crash event.**
 >
 > So it is MapLibre Native Qt's own teardown, and it would have been present since slice 1's bare
@@ -1598,17 +1598,17 @@ special case.
 > point where a GL context is guaranteed current.
 >
 > **Blocked on tooling, not ideas:** this machine has no debugger (no VS, no cdb/WinDbg), no Qt
-> PDBs, and the Release build produces no PDB for `nimbus-app` either, so the fault offset cannot
+> PDBs, and the Release build produces no PDB for `wxlens-app` either, so the fault offset cannot
 > be resolved to a symbol. Minidumps *are* being written to
-> `%LOCALAPPDATA%\CrashDumps\nimbus-app.exe.*.dmp`. Next step is to make the crash legible rather
+> `%LOCALAPPDATA%\CrashDumps\wxlens-app.exe.*.dmp`. Next step is to make the crash legible rather
 > than keep guessing: enable PDB generation for Release (`/Zi` + `/DEBUG`), and/or install a
 > DbgHelp-based unhandled-exception handler that logs a module+offset backtrace through the
 > existing logger. Do that before attempting another blind fix.
 
 > **Update (2026-08-23): done, and it paid for itself immediately.** Release builds now emit PDBs
 > (`/Zi` with `/DEBUG /OPT:REF /OPT:ICF`, so codegen stays a real Release build), and
-> `app/source/nimbus/util/crash_handler.*` installs a DbgHelp/StackWalk64 unhandled-exception
-> handler writing a symbolized backtrace to `logs/nimbus-crash.log`, plus an all-thread dump armed
+> `app/source/wxlens/util/crash_handler.*` installs a DbgHelp/StackWalk64 unhandled-exception
+> handler writing a symbolized backtrace to `logs/wxlens-crash.log`, plus an all-thread dump armed
 > on `aboutToQuit` for hangs (a deadlock produces no crash and no output otherwise). It writes
 > with plain Win32 calls, not spdlog, since the fault happens after the logger's sinks may be gone.
 >
@@ -1651,7 +1651,7 @@ special case.
 - Per-pane "Unlinked / Link A / Link B" control in the pane chrome (§4.5's "reachable without
   opening Settings"). Two groups, not one, so the UI actually demonstrates that groups are
   independent of each other.
-- **New test target `nimbus-app-test`** (`test/source/nimbus/`, per this roadmap's "test the C++
+- **New test target `wxlens-app-test`** (`test/source/wxlens/`, per this roadmap's "test the C++
   models independently of QML" rule) with 13 tests covering per-channel independence, group
   propagation, cross-group isolation, the no-echo guard, one-shot copy, leaving a group, and
   groups surviving a resize. It compiles the app's sources directly; **if that source list grows
@@ -1709,7 +1709,7 @@ rather than reproducing the split.
   `Q_INVOKABLE`-ownership hazard contained to `attachLayers`. `util::GeodesicInverse` was added
   alongside the existing `GeodesicDirect`, as that header anticipated - slice 7's measurement work
   should reuse both rather than reinventing them.
-- **Verified for real:** 14 new tests (27 total in `nimbus-app-test`) covering tier-1 rejection,
+- **Verified for real:** 14 new tests (27 total in `wxlens-app-test`) covering tier-1 rejection,
   geometry validation, every scope kind, the author-leaves-group case, `SameLocation` tolerance,
   filtering, post-creation scope changes, and revision bumping. Then end-to-end in the running
   app: markers and a range ring placed through the actual UI render correctly over live KEAX
@@ -1765,7 +1765,7 @@ built on slice 6's object infrastructure rather than as a radar-only utility.
   *preference*, not the measurement). Showing both beats silently picking one.
 - Selecting a measurement mode disarms the object tools and vice versa, so the two families can
   never both act on one click.
-- **Verified:** 16 new measurement tests (43 total in `nimbus-app-test`), then end-to-end in the
+- **Verified:** 16 new measurement tests (43 total in `wxlens-app-test`), then end-to-end in the
   running app - live rubber-band with midpoint distance, commit to a pinned green measurement, and
   the pinned line staying geographically anchored across a zoom-out. Zero QML warnings.
 - **Observed, not fixed:** on this run the basemap rendered white until a scroll forced a repaint,
@@ -1826,7 +1826,7 @@ measurement tool.
   already in the data we parse:** Message 31's volume data block carries site height (m MSL) and
   feedhorn height (m AGL), and `wsr88d/rda/digital_radar_data_generic.cpp` reads both into private
   members with no accessor. Adding those accessors is a wxdata change, so per AGENTS.md it belongs
-  upstream in the legacy repo, then the submodule pin advances - it is not a Nimbus-side edit.
+  upstream in the legacy repo, then the submodule pin advances - it is not a WxLens-side edit.
 - `util/unit_format.*` now owns distance/altitude/bearing formatting, with
   `MeasurementController::formatDistance` delegating to it. One implementation, because the range
   the geometry panel reports and the distance the measurement reports are the same number, and the
@@ -1839,7 +1839,7 @@ measurement tool.
   `probeSourceAt` is a method call, so a QML binding cannot know its answer went stale when the
   sweep finally loads. A readout left open across a data load would otherwise sit on "waiting for
   sweep data" until the cursor next moved.
-- **Verified:** 17 new tests (60 total in `nimbus-app-test`, all passing) - the beam model pinned
+- **Verified:** 17 new tests (60 total in `wxlens-app-test`, all passing) - the beam model pinned
   against independently computed 4/3-earth values (0.5° at 100 km = 1461.5 m, and three more),
   against the flat-earth ray it must exceed *and* by how much that gap grows with range, plus
   compass-azimuth normalisation, the MSL/ARL separation, the no-elevation-angle path, and the site
@@ -1909,9 +1909,9 @@ and editor, connected to the real radar renderer rather than implemented as an i
   the last decoded volume, rebuilds its immutable sweep/LUT snapshot, and emits the existing
   update signal—no network refetch and no renderer-specific mutation from QML.
 - The complete NOAA WCT palette set already carried by the legacy dependency is compiled into
-  Nimbus resources without modifying `external/`; its existing public-domain attribution is
+  WxLens resources without modifying `external/`; its existing public-domain attribution is
   retained in `ACKNOWLEDGEMENTS.md`.
-- **Verified:** release builds of `nimbus-app` and `nimbus-app-test`; all 84 Nimbus model tests
+- **Verified:** release builds of `wxlens-app` and `wxlens-app-test`; all 84 WxLens model tests
   pass, including three focused tests for real-parser preview generation, preservation/save-as,
   and invalid input. A launch stayed healthy through live radar startup with no QML/error
   diagnostics. The wider inherited 285-test CTest run had 280 passing/skipped and five unrelated
@@ -1934,7 +1934,7 @@ system now owns the semantic colors and core metrics used by all chrome built th
   the C++ API. The addressable `appearance` settings section provides the live bundled/custom
   theme picker.
 - Existing hand-built Qt Quick controls remain fully custom and are now driven by semantic roles;
-  Nimbus does not currently use Qt Quick Controls 2, so there is no native `Fusion`, `Material`, or
+  WxLens does not currently use Qt Quick Controls 2, so there is no native `Fusion`, `Material`, or
   platform widget style to leak through. Literal colors that remain in QML are content colors
   (palette values, map-object translucency, map label outlines, and modal scrims), not chrome roles.
 - Follow-up from live review: Appearance has an independently persisted map-theme choice: `Same
@@ -1942,7 +1942,7 @@ system now owns the semantic colors and core metrics used by all chrome built th
   `dark` or `positron` basemap style. Reloads are assigned explicitly because MapLibre consumes
   the initial QML binding during its first style change; the existing `onStyleLoaded` path then
   reattaches the radar custom layer after MapLibre replaces the style.
-- **Verified:** Release builds of `nimbus-app` and `nimbus-app-test`; all 92 Nimbus model tests pass,
+- **Verified:** Release builds of `wxlens-app` and `wxlens-app-test`; all 92 WxLens model tests pass,
   including focused coverage for bundled themes, live notification, persisted selection,
   import/export round-tripping, and rejection of malformed/version-incompatible themes.
 - **Next slice:** slice 11, archive/time controls. Then slice 12 (warnings/placefiles) and slice 13
@@ -1967,15 +1967,43 @@ latest volume no later than the requested time, and reports the actual returned 
 - **Test coverage added:** time-channel propagation, returning to Live, and invalid/future input.
 - The per-site service refreshes Live data once a minute and suppresses overlapping refreshes.
   Worker completions are marshalled back to the QObject thread before notifying products.
-- **Verified:** Release `nimbus-app-test` build and all 94 Nimbus model tests pass. The Release app
-  and every QML cache unit compile; its final link could not replace `nimbus-app.exe` because the
-  user's existing Nimbus process was still running. Close that process and rerun the app target
+- **Verified:** Release `wxlens-app-test` build and all 94 WxLens model tests pass. The Release app
+  and every QML cache unit compile; its final link could not replace `wxlens-app.exe` because the
+  user's existing WxLens process was still running. Close that process and rerun the app target
   to complete link/launch verification.
 - The build also fixed the MapLibre patch driver's idempotence check: later tracked patches overlap
   earlier ones, so the ordered series now uses its final patch as the completion marker instead of
   incorrectly reverse-checking every earlier patch in isolation. `external/` source remains
   unmodified beyond the already-applied tracked patches.
 - **Next slice after verification:** slice 12, warnings/placefiles.
+
+**Status as of 2026-08-25 — Slice 13 implemented, Phase 1 acceptance audited.** Multi-pane chrome
+now exposes both persistent camera grouping and a distinct one-shot **Match pane 1 view** action.
+The latter copies all four camera channels without creating group membership, preserving §4.1's
+important link-vs-copy distinction.
+
+- A shared, persisted **Map details** surface adds `Operational`, `Minimal`, and `Detailed`
+  presets plus a `Custom` state and grouped toggles for roads, city/town labels, boundaries,
+  buildings, points of interest, water labels, and terrain/hillshade. `Operational` ships with
+  roads, places, boundaries, water, and terrain enabled while buildings and POIs stay out of the
+  radar's way. It is independent of both chrome theme and dark/light basemap selection.
+- The policy is C++ settings state, not QML business logic. Every pane applies the same policy to
+  matching layers in its active MapLibre style after style load and on live changes. Unsupported
+  groups simply match no layer, as required; switching map style reapplies the policy.
+- The top bar provides a direct Map-details deep-link. Existing per-pane camera-group and rail
+  object-scope controls remain the uncluttered quick surface; right-click pane actions hold the
+  less frequent one-shot camera match.
+- **Verified:** Release `wxlens-app-test` build and all 96 model tests pass. QML cache generation
+  for every changed surface succeeds. The app target reached final link, which could not replace
+  `wxlens-app.exe` because the user's existing WxLens process is running, so live visual
+  confirmation of OpenFreeMap's current layer-id classification remains unverified.
+- **§4.8 audit:** criteria 1, 4, 5, 7–14, 16, and 17 are represented by the current model/UI and
+  automated coverage. Criteria 2, 3, 6, 15, and 18 are not yet fully closed: per-channel advanced
+  sync configuration is not exposed, storm selection is not implemented, and tier-3 saved object
+  persistence belongs to slice 15. These are recorded gaps, not silently accepted as Phase 1
+  complete. Slice 12 (warnings/placefiles) is also still outstanding.
+- **Next slice:** slice 12 for the original sequence, or slice 14/15 where their explicit
+  dependency ordering takes precedence. Phase 1 acceptance must be rerun after those gaps close.
 
 **Status as of 2026-08-24 — Slice 17 complete: the settings foundation.** §3.2's structured config
 store, ADR 0003's TOML backing, and §4.5's addressable sections - built out of order, ahead of
@@ -2021,7 +2049,7 @@ preferences into it.
   which `probeSourceAt` key it displays, and when it should render dimmed - so the settings
   checklist and the readout cannot disagree about what rows exist, and the QML needs no id-to-key
   mapping of its own.
-- **Verified:** 20 new tests (80 total in `nimbus-app-test`, all passing), covering the hand-edited
+- **Verified:** 20 new tests (80 total in `wxlens-app-test`, all passing), covering the hand-edited
   -file failure modes end to end (wrong type, out of range, malformed, unknown keys preserved,
   malformed category not blocking healthy ones), persistence across a simulated relaunch, the
   §4.7 default-visible constraint, section-id stability, and that the unit preference actually
@@ -2034,6 +2062,111 @@ preferences into it.
   which is now unblocked (its tolerance and suppress-modifier preferences have somewhere to live)
   and which slice 8's `probeSourceAt` already serves: a measurement whose origin snapped to a radar
   site can ask the probe for range/azimuth framing instead of needing a separate Radar→Point mode.
+
+**Status as of 2026-08-25 — Slice 14 complete: unified measurement and snap targets.** The separate
+Point→Point and Radar→Point tools are now one Distance/Bearing tool. Its origin and endpoint use
+the same geodesic path; when the origin snaps to a radar site the readout automatically switches
+to radar-native Range/Azimuth wording.
+
+- `SnapTargetRegistry` is a generic C++ screen-space resolver. It currently supplies every bundled
+  radar site and the vertices/centres of visible `MapObject`s; saved places join the same registry
+  when slice 15 adds that object kind. Candidates are projected through the active pane and ranked
+  in pixels, so zoom never changes the apparent magnetic radius.
+- Snapping is visible before commit: the live endpoint jumps to the resolved coordinate and a
+  labelled halo marks the target. Holding Alt suppresses snapping for one placement.
+- Measurement settings now expose Off/Subtle/Strong rather than a raw pixel field. These map to
+  0/10/18 pixels in the typed settings model, persist in `measurement.toml`, and reset to Subtle.
+- The path tool remains multi-point and uses the same registry for every vertex. All measurement
+  geometry remains geographic and WGS84 geodesic; only target selection occurs in screen space.
+- **Verified:** Release `wxlens-app-test` builds and all 96 model tests pass. Every changed QML
+  cache unit and the app's C++ sources compile. Final linking could not replace `wxlens-app.exe`
+  because the user's existing WxLens process is running; live visual gesture confirmation remains
+  unverified until that process is closed and the app target is rebuilt/launched.
+- **Next slice:** slice 15, saved places, which adds its locations as another snap-target provider.
+
+**Status as of 2026-08-25 — Slice 15 complete: saved places.** Personal locations are durable
+`Saved` marker objects in the existing singleton `MapObjectStore`, default to `AllPanes`, and
+participate in slice 14's snap registry as labelled `saved-place` targets. `SavedPlaceManager`
+adds the distinct taxonomy and management behavior without introducing a parallel render store:
+named groups own inherited colors and visibility, places may override their group color, and
+group changes immediately update rendering and snapping. A searchable QML management surface
+supports create/rename/edit/delete, group visibility toggles, inherited and per-place colors via
+the shared slice-9 color picker, and versioned JSON
+import/export; the same JSON is atomically persisted under the structured config directory.
+
+- **Verified:** the Release app target and QML cache compile/link successfully and the packaged
+  executable remained healthy through an eight-second startup smoke test. Six focused model
+  tests cover unified-store/lifecycle/scope defaults, group color inheritance and overrides,
+  visibility, persistence/import/export, search, coordinate validation, and malformed imports.
+- **Not verified:** manual pointer/keyboard interaction with the management dialog and native file
+  pickers on screen.
+- **Next slice:** slice 16, control-surface relocation, unless dependency ordering or a newly
+  discovered acceptance gap takes precedence.
+
+**Status as of 2026-08-29 — Slice 16 complete: bottom control surface.** The left tool rail and
+per-pane time islands are replaced by one bottom-centred zone. Marker, range-ring, measurement,
+scope, time, site, active-pane and layout controls now share a single theme-driven surface.
+
+- Layout buttons use drawn split-pane glyphs rather than numeric labels and expose 1x1, 2x1,
+  1x2, 2x2 and 3x3 presets. The underlying generic width/height model remains unchanged.
+- Archive/live controls target an explicit active pane. The pane selector cycles that target,
+  and shrinking a layout clamps it to a surviving pane rather than leaving a dangling QObject.
+- Floating remains the shipped default, with idle fade. The adjacent dock control persists the
+  user's choice in `appearance.toml`; docked mode reserves layout space while floating mode lets
+  the panes remain full-bleed underneath.
+- **Verified:** Release app and QML cache units build; all 103 WxLens model tests pass, including
+  active-pane shrink safety and floating/docked persistence. Live visual review is still needed
+  to assess the open 3x3 occlusion question in §9.
+- **Next slice:** slice 12 warnings/placefiles remains outstanding; rerun Phase 1 acceptance after
+  it and the remaining recorded gaps close.
+
+**Status as of 2026-08-29 — Slice 12 complete: warnings/watch and placefile overlays.** A shared
+`OverlayManager` now owns meteorological overlay state independently of panes, radar products,
+and the user-analysis `MapObjectStore`. Every pane projects the same geographic data in the
+locked stack position radar → warnings/placefiles → user analysis.
+
+- Live warnings refresh asynchronously once a minute from the established COD endpoint through wxdata's
+  `WarningsProvider`; AWIPS text-product files can also be imported. Canceled, expired, and
+  locationless segments are excluded, and active polygons use phenomenon-specific outlines.
+- Local files and HTTP(S) placefile URLs are managed through an Overlays surface. The existing
+  `scwx::gr::Placefile` parser remains unmodified; line, triangle, polygon, text, and icon-sheet
+  primitives are flattened into a presentation-neutral geographic model and reproject after
+  every camera change. Unsupported image/image-XY primitives are parsed but not rendered yet;
+  those need a texture-capable render node rather than silently turning screen-relative geometry
+  into geographic geometry.
+- Warning and placefile visibility are independent, and remote placefiles can be refreshed or
+  removed without affecting radar or analysis objects.
+- **Verified:** Release `wxlens-app` compiles, links, deploys Qt Network/Controls/Dialogs, and all
+  QML cache units compile. All 105 WxLens model tests pass, including a real wxdata parse of the
+  legacy placefile fixture and independent visibility-channel coverage. The packaged app stayed
+  alive through an eight-second startup smoke test.
+- **Not verified:** live visual appearance and interaction, current COD warning contents, remote
+  placefile resource loading, and image/image-XY placefile primitives.
+- **Next:** rerun the Phase 1 acceptance audit and close the remaining §4.8 gaps recorded after
+  slice 13.
+
+**Acceptance rerun as of 2026-08-29.** The previously unexercised paths above were driven in the
+packaged Release application on Windows, with the real MapLibre surface and network providers:
+
+- A KEAX archive request for `2024-05-01 00:00 UTC` selected, decoded, and rendered the real
+  `00:03 UTC` Level 2 volume; returning to Live remained available from the same control.
+- Two panes were joined to camera group A through their pane chrome and an actual map drag in the
+  first pane propagated to the second. The first pane's archive time remained independent, as it
+  must because the quick control links camera channels rather than Time.
+- Distance measurement was exercised as press-drag-release with the left button held throughout;
+  MapLibre did not steal the grab and release committed the visible pinned geodesic measurement.
+- The saved-place Import and Export actions opened the Windows native open/save pickers with the
+  JSON filter. Acceptance found that the management surface itself ignored Escape; it now takes
+  focus when opened, closes on Escape, and provides Ctrl+F search focus. The fixed Release build
+  was launched and the keyboard path rerun successfully.
+- Floating and docked control bars both switch correctly in a real 3x3 grid, and docked mode
+  reserves its intended layout strip. The measured floating bar spans and obscures a substantial
+  portion of all three bottom panes at the reference 1280x800 window size. This closes the factual
+  uncertainty in open question 11 but not the product choice: retaining the user's preferred
+  floating default accepts that occlusion; shipping docked by default avoids it.
+- **Verified:** Release app/QML cache build succeeds and all 105 WxLens model tests pass. The broad
+  wxdata CTest pass has two unrelated live IEM endpoint failures and one unbuilt optional MapLibre
+  test; these do not fail the WxLens model suite or the acceptance paths above.
 
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.
@@ -2126,16 +2259,16 @@ config/data-model choices don't accidentally preclude it later.
 
 ## 9. Open questions for the user / other planning agents
 
-1. ~~Final app/brand name~~ — **RESOLVED: the app is named `Nimbus`.** (Before registering a
+1. ~~Final app/brand name~~ — **RESOLVED: the app is named `WxLens`.** (Before registering a
    domain/GitHub org, do a basic trademark/name-collision check against RadarOmega, RadarScope,
-   GRLevelX/GR2Analyst, and any existing "Nimbus" weather software, as a normal due-diligence
+   GRLevelX/GR2Analyst, and any existing "WxLens" weather software, as a normal due-diligence
    step — not expected to be a blocker, just unverified as of this roadmap.)
 2. **`wxdata` extraction timing** (§3.1): start with Option A and defer the live-repo extraction
    (Option B), or do the extraction against the current shipping app's repo immediately? This
    touches the *existing* repo, so it's the user's call — recommend deferring.
-3. ~~Namespace/directory token~~ — **RESOLVED: C++ namespace and directory token is `nimbus`**
-   (e.g. `namespace nimbus { ... }`, repo root `nimbus/`, backend source at
-   `app/source/nimbus/`).
+3. ~~Namespace/directory token~~ — **RESOLVED: C++ namespace and directory token is `wxlens`**
+   (e.g. `namespace wxlens { ... }`, repo root `wxlens/`, backend source at
+   `app/source/wxlens/`).
 4. **Cross-site mesh/edge-blending vs. mosaic-layer-is-sufficient** (Phase 2) — decide after the
    mosaic layer is usable in practice, not before, per the recommendation in §7 Phase 2.
 5. **Skew-T/sounding UI form factor** (Phase 3) — full interactive diagram, or simpler
@@ -2148,17 +2281,18 @@ config/data-model choices don't accidentally preclude it later.
    explicitly not to be decided now, listed only so it isn't lost.
 9. ~~MapLibre Native Qt's current QML-item support~~ — **RESOLVED, see
    `docs/adr/0004-maplibre-qml-integration.md`**: confirmed genuine `QQuickItem` support via
-   `src/quick` (BSD-2-Clause), no `QQuickWidget` fallback needed. Nimbus uses the `Quick` module
+   `src/quick` (BSD-2-Clause), no `QQuickWidget` fallback needed. WxLens uses the `Quick` module
    (QML type `MapLibre`), not the `Location` (QtLocation, LGPL/GPL) or `Widgets` module.
 
 10. **Grid-layout icon sketches** (§5.5) — the user is drawing reference glyphs for the pane-
     layout buttons. Open until those arrive: whether the layout picker is a fixed preset row, or
     a short preset row plus a custom rows×columns picker for arrangements the presets don't
     cover.
-11. **Floating vs. docked default for the bottom control cluster** (§5.4) — shipping floating
-    per the user's preference, but the occlusion cost over the bottom-center pane in a 3×3 grid
-    is unmeasured. Revisit once slice 16 is usable with a real 3×3 layout rather than deciding
-    it from the mockup.
+11. **Floating vs. docked default for the bottom control cluster** (§5.4) — **MEASURED, PRODUCT
+    CHOICE STILL OPEN:** at 1280x800 in a real 3×3 layout the floating bar obscures a substantial
+    strip across all three bottom panes; docked mode correctly reserves 54 px and obscures none.
+    Shipping floating follows the user's earlier preference but accepts that cost; docked is the
+    acceptance recommendation for dense layouts. Do not silently choose between them.
 
 ---
 

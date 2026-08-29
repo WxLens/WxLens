@@ -217,12 +217,72 @@ Item {
                     onSelected: (index) => themeManager.activeTheme = themeManager.availableThemes[index]
                 }
 
+                // -- Map details -------------------------------------------------------------
+                SettingsChoice {
+                    visible: root.currentSection === "map-details"
+                    width: contentColumn.width
+                    label: "Detail preset"
+                    explanation: "Operational keeps useful geographic context without allowing " +
+                                 "minor features to compete with weather data. Changing a group " +
+                                 "below creates a custom preset shared by every pane."
+                    options: ["Operational", "Minimal", "Detailed", "Custom"]
+                    currentIndex: appSettings.mapDetailsPreset
+                    onSelected: (index) => appSettings.mapDetailsPreset = index
+                }
+
+                Column {
+                    visible: root.currentSection === "map-details"
+                    width: contentColumn.width
+                    spacing: 7
+
+                    Repeater {
+                        model: appSettings.mapDetailGroups
+
+                        delegate: Item {
+                            required property var modelData
+                            width: contentColumn.width - 20
+                            height: 22
+
+                            Rectangle {
+                                id: mapCheck
+                                width: 14
+                                height: 14
+                                anchors.verticalCenter: parent.verticalCenter
+                                radius: 3
+                                color: parent.modelData.visible ? themeManager.controlActive : themeManager.control
+                                border.color: parent.modelData.visible ? themeManager.primary : themeManager.border
+                                Text {
+                                    anchors.centerIn: parent
+                                    visible: parent.parent.modelData.visible
+                                    text: "✓"
+                                    color: themeManager.textPrimary
+                                    font.pixelSize: 10
+                                }
+                            }
+                            Text {
+                                anchors.left: mapCheck.right
+                                anchors.leftMargin: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: parent.modelData.label
+                                color: themeManager.textPrimary
+                                font.pixelSize: 12
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: appSettings.setMapDetailVisible(
+                                    parent.modelData.id, !parent.modelData.visible)
+                            }
+                        }
+                    }
+                }
+
                 SettingsChoice {
                     visible: root.currentSection === "appearance"
                     width: contentColumn.width
                     label: "Map theme"
                     explanation: "Same as app is the default. Dark and Light override only the " +
-                                 "basemap, independently of the Nimbus chrome theme."
+                                 "basemap, independently of the WxLens chrome theme."
                     options: ["Same as app", "Dark", "Light"]
                     currentIndex: appSettings.mapTheme
                     onSelected: (index) => appSettings.mapTheme = index
@@ -239,6 +299,17 @@ Item {
                     currentIndex: (typeof appSettings !== "undefined" && appSettings !== null)
                         ? appSettings.measurementGesture : 0
                     onSelected: (index) => appSettings.measurementGesture = index
+                }
+
+                SettingsChoice {
+                    visible: root.currentSection === "measurement"
+                    width: contentColumn.width
+                    label: "Endpoint snapping"
+                    explanation: "Subtle snaps within 10 pixels; Strong uses 18. Hold Alt while " +
+                                 "placing an endpoint to suppress snapping for that placement."
+                    options: ["Off", "Subtle", "Strong"]
+                    currentIndex: appSettings.snapStrength
+                    onSelected: (index) => appSettings.snapStrength = index
                 }
 
                 // -- Map objects --------------------------------------------------------------

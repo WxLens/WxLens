@@ -21,7 +21,7 @@
 +    // one's now-cached style) can emit MapChangeDidFinishLoadingStyle before anything is
 +    // listening. That event is then lost entirely: m_styleLoaded stays false, syncStyleChanges()
 +    // never runs, and styleLoaded() never fires, so a host waiting on it to register a custom
-+    // layer waits forever. Reproduced in Nimbus by growing a 1x1 pane grid to 2x2 - the first
++    // layer waits forever. Reproduced in WxLens by growing a 1x1 pane grid to 2x2 - the first
 +    // pane worked, every later pane silently never got its radar layer.
 +    QObject::connect(m_map.get(), &Map::needsRendering, q, &QQuickItem::update);
 +    QObject::connect(m_map.get(), &Map::mapChanged, q, &MapQuickItem::onMapChanged);

@@ -6,7 +6,7 @@
     -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES="%script_dir%\..\..\external\cmake-conan\conan_provider.cmake" ^
     -DCONAN_HOST_PROFILE=%conan_profile% ^
     -DCONAN_BUILD_PROFILE=%conan_profile% ^
-    -DNIMBUS_VIRTUAL_ENV=%venv_path% ^
+    -DWXLENS_VIRTUAL_ENV=%venv_path% ^
     -DCMAKE_EXPORT_COMPILE_COMMANDS=on
 
 @if defined build_type (

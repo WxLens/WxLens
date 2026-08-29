@@ -33,7 +33,7 @@ jobs:
             qt_version: 6.11.1
             qt_arch_aqt: win64_msvc2022_64
             qt_arch_dir: msvc2022_64
-            conan_profile: nimbus-windows_vs2026_x64
+            conan_profile: wxlens-windows_vs2026_x64
             artifact_suffix: windows-vs2026-x64
           - name: linux_gcc-14_x64
             os: ubuntu-24.04
@@ -43,7 +43,7 @@ jobs:
             qt_version: 6.11.1
             qt_arch_aqt: linux_gcc_64
             qt_arch_dir: gcc_64
-            conan_profile: nimbus-linux_gcc-14
+            conan_profile: wxlens-linux_gcc-14
             artifact_suffix: linux-gcc-14-x64
             compiler_packages: g++-14
 
@@ -56,7 +56,7 @@ jobs:
         with:
           submodules: false
 
-      # Only the submodules Nimbus actually builds are initialized - see
+      # Only the submodules WxLens actually builds are initialized - see
       # docs/adr/0002-wxdata-reuse-strategy.md and docs/adr/0004-maplibre-qml-integration.md for
       # why these are the ones needed (and why the rest of external/legacy-supercell-wx's own
       # nested submodules are deliberately skipped).
@@ -121,8 +121,8 @@ jobs:
             -DCONAN_BUILD_PROFILE=${{ matrix.conan_profile }}
 
       - name: Build
-        run: cmake --build build --target nimbus-app nimbus-wxdata-test
+        run: cmake --build build --target wxlens-app wxlens-wxdata-test
 
       - name: Test (wxdata suite)
         working-directory: build
-        run: ctest --output-on-failure -R nimbus-wxdata-test
+        run: ctest --output-on-failure -R wxlens-wxdata-test

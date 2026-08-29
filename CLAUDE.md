@@ -1,4 +1,4 @@
-# Nimbus — Repo Map
+# WxLens — Repo Map
 
 See [AGENTS.md](AGENTS.md) for full architecture, build workflow, and conventions, and
 [docs/ROADMAP.md](docs/ROADMAP.md) for the complete multi-phase architectural plan. This file is
@@ -7,7 +7,7 @@ just a directory map.
 ## Directory map
 
 ```
-nimbus/
+wxlens/
 ├── AGENTS.md                     # primary agent guide
 ├── CLAUDE.md                     # this file
 ├── docs/
@@ -33,7 +33,7 @@ nimbus/
 │   │   ├── Dialogs/               # (Phase 1) settings, palette editor, about
 │   │   ├── Controls/               # (Phase 1) shared custom Qt Quick Controls style
 │   │   └── Theme/                 # (Phase 1) theme singleton + built-in themes
-│   ├── source/nimbus/             # C++20 backend, namespace nimbus
+│   ├── source/wxlens/             # C++20 backend, namespace wxlens
 │   │   ├── main/                  # entry point (implemented)
 │   │   ├── data/                  # (Phase 1) Data Source layer
 │   │   ├── provider/              # (Phase 2/3) satellite/sounding/model/mosaic providers
@@ -46,11 +46,11 @@ nimbus/
 │   │   ├── log/                    # thin wrapper over wxdata's util::Logger
 │   │   └── util/
 │   ├── res/                        # icons, fonts, bundled .pal files
-│   │   └── branding/                # app icon/lockup/monochrome PNGs + generated nimbus.ico
+│   │   └── branding/                # app icon/lockup/monochrome PNGs + generated wxlens.ico
 │   └── CMakeLists.txt
-├── test/                          # GTest, mirrors app/source/nimbus/ tree once it has code
-│   ├── CMakeLists.txt / test.cmake # currently: nimbus-wxdata-test (reused wxdata test slice)
-│   └── source/nimbus/
+├── test/                          # GTest, mirrors app/source/wxlens/ tree once it has code
+│   ├── CMakeLists.txt / test.cmake # currently: wxlens-wxdata-test (reused wxdata test slice)
+│   └── source/wxlens/
 └── tools/                         # setup scripts, conan profiles
 ```
 

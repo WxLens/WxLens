@@ -1,19 +1,19 @@
 cmake_minimum_required(VERSION 3.24)
-set(PROJECT_NAME nimbus)
+set(PROJECT_NAME wxlens)
 
-include(tools/nimbus_config.cmake)
+include(tools/wxlens_config.cmake)
 
 project(${PROJECT_NAME}
         VERSION      0.1.0
-        DESCRIPTION  "Nimbus is a free, open source, modern weather radar viewer."
-        HOMEPAGE_URL "https://github.com/Screen4639/nimbus"
+        DESCRIPTION  "WxLens is a free, open source, modern weather radar viewer."
+        HOMEPAGE_URL "https://github.com/Screen4639/wxlens"
         LANGUAGES    C CXX)
 
 set(CMAKE_POLICY_DEFAULT_CMP0054 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0079 NEW)
 
-nimbus_output_dirs_setup()
+wxlens_output_dirs_setup()
 
 enable_testing()
 
@@ -42,8 +42,8 @@ if (MSVC)
                      $<$<CONFIG:Release>:/OPT:ICF>)
 endif()
 
-set(NIMBUS_DIR ${PROJECT_SOURCE_DIR})
-set(NIMBUS_VERSION "0.1.0")
+set(WXLENS_DIR ${PROJECT_SOURCE_DIR})
+set(WXLENS_VERSION "0.1.0")
 
 # wxdata reuse: docs/adr/0002-wxdata-reuse-strategy.md (Option A) - link the legacy Supercell Wx
 # repo's Qt-free wxdata library unmodified. Only wxdata is added; the rest of the legacy repo

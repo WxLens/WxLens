@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
-import Nimbus.App
+import WxLens.App
 import MapLibre 4.0
 
-// One pane's map surface, bound to a nimbus::panes::PaneController (docs/ROADMAP.md §4.6).
+// One pane's map surface, bound to a wxlens::panes::PaneController (docs/ROADMAP.md §4.6).
 // Everything pane-specific comes from `paneController` - this item holds no radar/site state of
 // its own, and several of these exist at once inside PaneGrid.
 //
@@ -16,7 +16,7 @@ Rectangle {
     id: root
     color: "#000000"
 
-    // The nimbus::panes::PaneController this pane renders.
+    // The wxlens::panes::PaneController this pane renders.
     required property var paneController
 
     // Shrinking the grid destroys PaneControllers while their delegates are still being torn
@@ -76,6 +76,11 @@ Rectangle {
         Connections {
             target: appSettings
             function onMapThemeChanged() { map.style = root.mapStyle }
+            function onMapDetailsChanged() {
+                if (root.hasController) {
+                    root.paneController.applyMapDetails(appSettings.mapDetailVisibility)
+                }
+            }
         }
 
         // Seeded imperatively rather than bound, because the camera is written back below:
@@ -145,6 +150,7 @@ Rectangle {
         onStyleLoaded: {
             if (root.hasController) {
                 root.paneController.attachLayers(map.mapLibreMap())
+                root.paneController.applyMapDetails(appSettings.mapDetailVisibility)
             }
         }
 
@@ -175,6 +181,15 @@ Rectangle {
         }
     }
 
+    // Meteorological overlays sit above radar and below user analysis (§4.3's locked stack).
+    WeatherOverlaysLayer {
+        anchors.fill: parent
+        paneController: root.paneController
+        manager: typeof overlayManager !== "undefined" ? overlayManager : null
+        cameraTick: objectsLayer.cameraTick
+        visible: root.hasController
+    }
+
     // The User Analysis Layer (§4.3), above the map and its radar rendering but below the pane
     // chrome, so objects never obscure the controls.
     MapObjectsLayer {
@@ -199,7 +214,23 @@ Rectangle {
 
     // MeasurementController::Mode::Path. Path is the one mode that cannot be a drag: it has no
     // fixed number of vertices, so it stays click-to-add with right-click to finish.
-    readonly property int measurementModePath: 3
+    readonly property int measurementModePath: 2
+    property var snapHighlight: ({ "snapped": false })
+
+    function measurementPlacement(x, y, modifiers) {
+        const snap = snapTargets.resolve(root.paneController, x, y,
+                                         appSettings.snapTolerancePixels,
+                                         (modifiers & Qt.AltModifier) !== 0)
+        root.snapHighlight = snap
+        if (snap.snapped) {
+            return snap
+        }
+        const geo = root.paneController.coordinateForPixel(x, y)
+        return geo.length === 2
+            ? { "snapped": false, "latitude": geo[0], "longitude": geo[1],
+                "kind": "", "label": "" }
+            : null
+    }
 
     // Press-drag-release measurement state. Drag is the primary gesture - every comparable tool
     // measures that way, and click-then-click-again is the thing users coming from them trip
@@ -274,9 +305,10 @@ Rectangle {
                 return
             }
 
-            const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
-            if (geo.length === 2) {
-                measurementTool.beginDrag(geo[0], geo[1], root.paneController)
+            const point = root.measurementPlacement(mouse.x, mouse.y, mouse.modifiers)
+            if (point !== null) {
+                measurementTool.beginDrag(point.latitude, point.longitude, root.paneController,
+                                          point.kind, point.label)
             }
         }
 
@@ -314,17 +346,18 @@ Rectangle {
                 return
             }
 
-            const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
-            if (geo.length === 2) {
-                measurementTool.addPoint(geo[0], geo[1], root.paneController)
+            const point = root.measurementPlacement(mouse.x, mouse.y, mouse.modifiers)
+            if (point !== null) {
+                measurementTool.addPoint(point.latitude, point.longitude, root.paneController,
+                                         point.kind, point.label)
             }
             measurementTool.commit(root.paneController, objectTools.scopeKind)
             measurementTool.cancel()
         }
 
         onClicked: (mouse) => {
-            const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
-            if (geo.length !== 2) {
+            const point = root.measurementPlacement(mouse.x, mouse.y, mouse.modifiers)
+            if (point === null) {
                 return
             }
 
@@ -343,7 +376,8 @@ Rectangle {
                 // entirely from onPressed/onReleased above, and would otherwise add the far end
                 // twice.
                 if (measurementTool.mode === root.measurementModePath) {
-                    measurementTool.addPoint(geo[0], geo[1], root.paneController)
+                    measurementTool.addPoint(point.latitude, point.longitude, root.paneController,
+                                             point.kind, point.label)
                 }
                 return
             }
@@ -358,6 +392,7 @@ Rectangle {
         onCanceled: {
             root.measureDragActive = false
             root.measureOriginPlaced = false
+            root.snapHighlight = ({ "snapped": false })
         }
 
         // Live rubber-band while measuring - drives both the drag and the hover half of
@@ -366,10 +401,37 @@ Rectangle {
             if (!root.measuringActive || !measurementTool.active) {
                 return
             }
-            const geo = root.paneController.coordinateForPixel(mouse.x, mouse.y)
-            if (geo.length === 2) {
-                measurementTool.updateCursor(geo[0], geo[1])
+            const point = root.measurementPlacement(mouse.x, mouse.y, mouse.modifiers)
+            if (point !== null) {
+                measurementTool.updateCursor(point.latitude, point.longitude,
+                                             point.kind, point.label)
             }
+        }
+    }
+
+    // Visible pre-commit feedback: the endpoint jumps in MeasurementLayer and this halo names
+    // the magnetic target. A coordinate rewrite with no cue feels like pointer inaccuracy.
+    Rectangle {
+        visible: root.measuringActive && root.snapHighlight.snapped === true
+        x: visible ? root.snapHighlight.pixelX - width / 2 : 0
+        y: visible ? root.snapHighlight.pixelY - height / 2 : 0
+        width: 18
+        height: 18
+        radius: 9
+        color: "transparent"
+        border.color: themeManager.measurementAccent
+        border.width: 2
+        z: 5
+
+        Text {
+            anchors.left: parent.right
+            anchors.leftMargin: 5
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.snapHighlight.label || ""
+            color: themeManager.measurementAccent
+            font.pixelSize: 10
+            style: Text.Outline
+            styleColor: "#c0000000"
         }
     }
 
@@ -419,7 +481,7 @@ Rectangle {
 
         readonly property var store: objectsLayer.objectStore
 
-        // nimbus::objects::MapObjectType. Named for the menu so the entry reads "Delete
+        // wxlens::objects::MapObjectType. Named for the menu so the entry reads "Delete
         // measurement", not "Delete object" - useful precisely when objects overlap.
         function nameForType(type) {
             switch (type) {
@@ -452,7 +514,8 @@ Rectangle {
             }
 
             // Nothing to act on - don't flash an empty menu at the user.
-            if (contextMenu.targetObjectId < 0 && contextMenu.visibleObjectCount === 0) {
+            if (contextMenu.targetObjectId < 0 && contextMenu.visibleObjectCount === 0 &&
+                !root.showLabel) {
                 return
             }
 
@@ -482,6 +545,10 @@ Rectangle {
                                 : "Clear " + contextMenu.visibleObjectCount +
                                   " objects from this pane",
                              action: "clearPane" })
+            }
+            if (root.showLabel && root.hasController &&
+                root.paneController.paneId !== paneGridModel.firstPaneId) {
+                items.push({ label: "Match pane 1 view (one time)", action: "matchFirst" })
             }
             return items
         }
@@ -522,6 +589,9 @@ Rectangle {
                                 contextMenu.store.removeObject(contextMenu.targetObjectId)
                             } else if (parent.modelData.action === "clearPane") {
                                 contextMenu.store.removeObjectsInPane(root.paneController)
+                            } else if (parent.modelData.action === "matchFirst") {
+                                paneGridModel.copyCamera(
+                                    paneGridModel.firstPaneId, root.paneController.paneId)
                             }
                             contextMenu.close()
                         }
@@ -663,13 +733,6 @@ Rectangle {
         }
     }
 
-    TimeControls {
-        visible: root.hasController
-        paneController: root.paneController
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 20
-    }
 
     // Minimal per-pane identification while the grid has more than one pane. Full pane chrome
     // (site/product pickers) still lands later.

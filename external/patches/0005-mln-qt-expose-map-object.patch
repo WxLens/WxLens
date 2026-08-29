@@ -42,7 +42,7 @@ index d98d604..6f1131e 100644
      Q_INVOKABLE void setCoordinateFromPixel(const QPointF &pixel);
  
 +    // Not upstream: exposes the underlying core Map so a host application can register its own
-+    // CustomLayerHostInterface layers (e.g. a radar renderer) - see Nimbus's
++    // CustomLayerHostInterface layers (e.g. a radar renderer) - see WxLens's
 +    // docs/adr/0004-maplibre-qml-integration.md and external/patches/. Null until mapReady() has
 +    // fired at least once. Q_INVOKABLE + a QObject-derived return type (Map is a QObject) so this
 +    // is safely callable from C++ that only has this item as a QObject* obtained via QML (e.g.

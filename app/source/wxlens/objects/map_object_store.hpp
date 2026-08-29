@@ -1,0 +1,154 @@
+#pragma once
+
+#include <wxlens/objects/map_object.hpp>
+
+#include <memory>
+
+#include <QAbstractListModel>
+#include <QVariantMap>
+
+namespace wxlens
+{
+namespace panes
+{
+class PaneController;
+}
+
+namespace objects
+{
+
+/**
+ * The single store for every map object (docs/ROADMAP.md §4.3) - one object family and one store,
+ * replacing the legacy app's parallel marker and annotation systems.
+ *
+ * Scope resolution lives here rather than in the view: whether an object belongs in a given pane
+ * is a property of the object and that pane's state, not of how it happens to be drawn.
+ */
+class MapObjectStore : public QAbstractListModel
+{
+   Q_OBJECT
+
+   Q_PROPERTY(int revision READ revision NOTIFY revisionChanged)
+
+public:
+   enum Roles
+   {
+      IdRole = Qt::UserRole + 1,
+      TypeRole,
+      LabelRole,
+      ColorRole,
+      RadiusRole,
+      LatitudesRole,
+      LongitudesRole,
+      ScopeKindRole,
+      OriginPaneRole,
+      LifecycleRole
+   };
+
+   explicit MapObjectStore(QObject* parent = nullptr);
+   ~MapObjectStore() override;
+
+   MapObjectStore(const MapObjectStore&)            = delete;
+   MapObjectStore& operator=(const MapObjectStore&) = delete;
+   MapObjectStore(MapObjectStore&&)                 = delete;
+   MapObjectStore& operator=(MapObjectStore&&)      = delete;
+
+   /** Process-wide store, matching the roadmap's "one store" requirement. */
+   static MapObjectStore& Instance();
+
+   [[nodiscard]] int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+   [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
+   [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
+
+   /**
+    * Bumped on every change. QML bindings that call the scope-resolution methods below reference
+    * it so they know when to re-evaluate, since a method result cannot be tracked for staleness.
+    */
+   [[nodiscard]] int revision() const;
+
+   /**
+    * Adds an object and returns its id, or -1 if it was rejected.
+    *
+    * Temporary objects are deliberately rejected: tier 1 of the lifecycle is tool-local UI state
+    * and must never reach the store (§4.3), which is what keeps the map from filling with clutter
+    * every time someone probes a point.
+    */
+   int Add(const MapObject& object);
+
+   bool Remove(int id);
+   bool Update(int id, const MapObject& object);
+   void Clear();
+
+   [[nodiscard]] const MapObject* Find(int id) const;
+   [[nodiscard]] std::vector<MapObject> Objects() const;
+
+   /**
+    * Whether `object` should be drawn in `pane`, per its scope (§4.3). This is the resolution
+    * step that makes an object visible across "linked" panes without being global.
+    */
+   [[nodiscard]] static bool IsVisibleInPane(const MapObject&            object,
+                                             const panes::PaneController* pane);
+
+   /** QML-facing: the objects visible in one pane, as maps ready to drive a Repeater. */
+   Q_INVOKABLE QVariantList objectsForPane(wxlens::panes::PaneController* pane) const;
+
+   /**
+    * QML-facing convenience for the placement tools. Returns the new object's id, or -1.
+    *
+    * Takes the originating pane rather than just its id so the object's sync group can be
+    * captured at creation - see MapObjectScope::originGroupId.
+    */
+   Q_INVOKABLE int addMarker(double                         latitude,
+                             double                         longitude,
+                             const QString&                 label,
+                             wxlens::panes::PaneController* originPane,
+                             int                            scopeKind);
+
+   Q_INVOKABLE int addRangeRing(double                         latitude,
+                                double                         longitude,
+                                double                         radiusMeters,
+                                const QString&                 label,
+                                wxlens::panes::PaneController* originPane,
+                                int                            scopeKind);
+
+   /**
+    * The id of the object under a pixel in `pane`, or -1 if nothing is close enough.
+    *
+    * Hit-testing lives here rather than in the QML overlay because it needs the same scope
+    * resolution and geometry the store already owns, and because the roadmap keeps logic out of
+    * QML (§0.2). Geometry is projected through `pane` exactly as the overlay projects it, so what
+    * the test hits is what the user sees.
+    *
+    * Ties go to the most recently added object, matching the draw order on screen.
+    */
+   Q_INVOKABLE int objectAtPixel(wxlens::panes::PaneController* pane,
+                                 double                         x,
+                                 double                         y,
+                                 double                         tolerancePixels = 10.0) const;
+
+   /**
+    * Removes every object currently visible in `pane`, returning how many went. Scoped to the
+    * pane rather than global, because "clear my analysis off this pane" is the action a user
+    * actually wants; clearObjects() remains for wiping everything.
+    */
+   Q_INVOKABLE int removeObjectsInPane(wxlens::panes::PaneController* pane);
+
+   Q_INVOKABLE bool removeObject(int id);
+   Q_INVOKABLE void clearObjects();
+
+   /** Changes an existing object's scope, so "show this everywhere" is available after creation. */
+   Q_INVOKABLE bool setObjectScope(int id, int scopeKind);
+
+   /** Invalidates display-only values after a formatting preference changes. */
+   void refreshFormatting();
+
+signals:
+   void revisionChanged();
+
+private:
+   class Impl;
+   std::unique_ptr<Impl> p;
+};
+
+} // namespace objects
+} // namespace wxlens

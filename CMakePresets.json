@@ -13,7 +13,7 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/external/cmake-conan/conan_provider.cmake",
-        "NIMBUS_VIRTUAL_ENV": "${sourceDir}/.venv"
+        "WXLENS_VIRTUAL_ENV": "${sourceDir}/.venv"
       }
     },
     {
@@ -72,8 +72,8 @@
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CONAN_HOST_PROFILE": "nimbus-windows_vs2026_x64-debug",
-        "CONAN_BUILD_PROFILE": "nimbus-windows_vs2026_x64-debug"
+        "CONAN_HOST_PROFILE": "wxlens-windows_vs2026_x64-debug",
+        "CONAN_BUILD_PROFILE": "wxlens-windows_vs2026_x64-debug"
       }
     },
     {
@@ -86,8 +86,8 @@
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CONAN_HOST_PROFILE": "nimbus-windows_vs2026_x64",
-        "CONAN_BUILD_PROFILE": "nimbus-windows_vs2026_x64"
+        "CONAN_HOST_PROFILE": "wxlens-windows_vs2026_x64",
+        "CONAN_BUILD_PROFILE": "wxlens-windows_vs2026_x64"
       }
     },
     {
@@ -96,8 +96,8 @@
       "displayName": "Linux GCC 14 Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CONAN_HOST_PROFILE": "nimbus-linux_gcc-14-debug",
-        "CONAN_BUILD_PROFILE": "nimbus-linux_gcc-14-debug"
+        "CONAN_HOST_PROFILE": "wxlens-linux_gcc-14-debug",
+        "CONAN_BUILD_PROFILE": "wxlens-linux_gcc-14-debug"
       }
     },
     {
@@ -106,8 +106,8 @@
       "displayName": "Linux GCC 14 Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CONAN_HOST_PROFILE": "nimbus-linux_gcc-14",
-        "CONAN_BUILD_PROFILE": "nimbus-linux_gcc-14"
+        "CONAN_HOST_PROFILE": "wxlens-linux_gcc-14",
+        "CONAN_BUILD_PROFILE": "wxlens-linux_gcc-14"
       }
     }
   ],

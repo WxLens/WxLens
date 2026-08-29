@@ -16,7 +16,7 @@ import QtQuick
 Column {
     id: root
 
-    // The nimbus::panes::PaneController to interrogate.
+    // The wxlens::panes::PaneController to interrogate.
     required property var paneController
 
     // The point being interrogated - the far end of the in-progress measurement.
