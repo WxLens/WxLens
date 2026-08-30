@@ -2297,6 +2297,19 @@ coverage. Complete and verify each sub-slice independently in this order:
    family acceptance, actual performance measurements, and the phase-wide release gates remain
    open; therefore neither 3F nor Phase 1 is complete.
 
+   **RUNTIME CONTINUATION (2026-08-29):** the per-pane selection now drives the Level 3 provider
+   and binds the returned file into the existing visualization layer. Radial and BA07/BA0F raster
+   snapshots publish through the same immutable GPU contract as Level 2; decoded storm/product
+   graphics remain product-owned and render in a separate geographic overlay above radar; graphic
+   and tabular text appears in a pane-associated details surface. Per-pane palette selection uses
+   the real `.pal` parser/LUT builder and participates in the existing Palette sync channel.
+   Release compilation, QML AOT compilation, deployment, and an eight-second packaged-process
+   launch smoke check pass. The full CTest run reports 324/327 passing: the optional unbuilt
+   MapLibre test is not run and two unchanged legacy wxdata tests fail against the live IEM
+   endpoint. Live visual selection across every renderer family, storm hit-selection, actual
+   performance capture, packet 17/18 upstream accessors, and the release-readiness gates below
+   remain open, so Phase 1 is still not complete.
+
 **Level 3 completion rule:** Phase 1 cannot be marked complete until at least one real fixture or
 live/archive product from every applicable renderer family (radial, raster, graphic/vector, and
 graphic/tabular text) passes its automated tests and the packaged application's visual acceptance

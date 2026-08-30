@@ -101,6 +101,7 @@ qt_add_qml_module(wxlens-app
         qml/Panes/PaneGrid.qml
         qml/Panes/PaneHost.qml
         qml/Panes/ProductBrowser.qml
+        qml/Panes/Level3ProductLayer.qml
         qml/Panes/WeatherOverlaysLayer.qml
     RESOURCES
         res/branding/wxlens-icon.png

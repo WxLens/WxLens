@@ -54,7 +54,7 @@ Rectangle {
 
         ListView {
             width: parent.width
-            height: parent.height - y
+            height: parent.height - y - paletteRow.height - 8
             clip: true
             spacing: 3
             model: root.paneController.productCatalog
@@ -102,6 +102,46 @@ Rectangle {
                                                           parent.modelData.identity,
                                                           parent.modelData.description)
                         root.closeRequested()
+                    }
+                }
+            }
+        }
+
+        Row {
+            id: paletteRow
+            width: parent.width
+            height: 28
+            spacing: 5
+            Text {
+                text: "Palette"
+                color: themeManager.textMuted
+                font.pixelSize: 10
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Repeater {
+                model: ["Default"].concat(paletteManager.paletteNames)
+                delegate: Rectangle {
+                    required property string modelData
+                    width: paletteText.implicitWidth + 12
+                    height: 24
+                    radius: themeManager.cornerRadius
+                    readonly property bool selected:
+                        (modelData === "Default" && root.paneController.paletteName === "") ||
+                        root.paneController.paletteName === modelData
+                    color: selected ? themeManager.controlActive : themeManager.control
+                    border.color: selected ? themeManager.primary : themeManager.border
+                    Text {
+                        id: paletteText
+                        anchors.centerIn: parent
+                        text: parent.modelData
+                        color: themeManager.textSecondary
+                        font.pixelSize: 9
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.paneController.paletteName =
+                                   parent.modelData === "Default" ? "" : parent.modelData
                     }
                 }
             }

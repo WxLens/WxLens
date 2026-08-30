@@ -66,6 +66,8 @@ class PaneController : public QObject
    Q_PROPERTY(bool timeLoading READ timeLoading NOTIFY timeChanged)
    Q_PROPERTY(QString timeError READ timeError NOTIFY timeChanged)
    Q_PROPERTY(QString selectedStorm READ selectedStorm NOTIFY selectedStormChanged)
+   Q_PROPERTY(QVariantList productOverlays READ productOverlays NOTIFY productDetailsChanged)
+   Q_PROPERTY(QString productDetailsText READ productDetailsText NOTIFY productDetailsChanged)
 
 public:
    explicit PaneController(int                                 paneId,
@@ -114,6 +116,8 @@ public:
    [[nodiscard]] bool timeLoading() const;
    [[nodiscard]] QString timeError() const;
    [[nodiscard]] QString selectedStorm() const;
+   [[nodiscard]] QVariantList productOverlays() const;
+   [[nodiscard]] QString productDetailsText() const;
    Q_INVOKABLE void selectStorm(const QString& stormId);
 
    Q_INVOKABLE void selectLive();
@@ -241,6 +245,7 @@ signals:
    void sourceDataChanged();
    void timeChanged();
    void selectedStormChanged();
+   void productDetailsChanged();
 
    /**
     * Emitted only when a camera channel was changed by something other than this pane's own user

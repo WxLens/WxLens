@@ -176,12 +176,26 @@ void RadarSweepLayerBinding::setProduct(std::shared_ptr<products::RadarSweepProd
 {
    std::scoped_lock lock {mutex_};
    product_ = std::move(product);
+   snapshot_ = {};
 }
 
 std::shared_ptr<products::RadarSweepProduct> RadarSweepLayerBinding::product() const
 {
    std::scoped_lock lock {mutex_};
    return product_;
+}
+
+void RadarSweepLayerBinding::setSnapshot(products::SweepSnapshot snapshot)
+{
+   std::scoped_lock lock {mutex_};
+   product_.reset();
+   snapshot_ = std::move(snapshot);
+}
+
+products::SweepSnapshot RadarSweepLayerBinding::snapshot() const
+{
+   std::scoped_lock lock {mutex_};
+   return product_ != nullptr ? product_->sweep_snapshot() : snapshot_;
 }
 
 RadarSweepLayer::RadarSweepLayer(std::shared_ptr<RadarSweepLayerBinding> binding) :
@@ -246,8 +260,8 @@ void RadarSweepLayer::render(const QMapLibre::CustomLayerRenderParameters& param
       return;
    }
 
-   const auto product = p->binding_->product();
-   if (product == nullptr)
+   const auto snapshot = p->binding_->snapshot();
+   if (snapshot.sweep == nullptr)
    {
       p->lastUploaded_.reset();
       p->lastUploadedLut_.reset();
@@ -255,7 +269,6 @@ void RadarSweepLayer::render(const QMapLibre::CustomLayerRenderParameters& param
       return;
    }
 
-   const auto snapshot = product->sweep_snapshot();
    const std::shared_ptr<const products::SweepData>&     sweep         = snapshot.sweep;
    const std::shared_ptr<const products::ColorTableLut>& colorTableLut = snapshot.colorTableLut;
    if (sweep == nullptr || colorTableLut == nullptr)

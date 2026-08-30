@@ -1,7 +1,12 @@
 #include <wxlens/panes/pane_controller.hpp>
 #include <wxlens/log/logger.hpp>
 #include <wxlens/products/radar_sweep_product.hpp>
+#include <wxlens/products/level3_graphic_overlay.hpp>
+#include <wxlens/products/level3_radial_product.hpp>
+#include <wxlens/products/level3_raster_product.hpp>
+#include <wxlens/products/level3_text_product.hpp>
 #include <wxlens/data/radar_site_data_service.hpp>
+#include <wxlens/palettes/palette_manager.hpp>
 #include <wxlens/render/radar_sweep_layer.hpp>
 
 #include <wxlens/util/geodesic.hpp>
@@ -47,6 +52,7 @@ public:
 
    void RebindProduct();
    void ConnectProductSignals(PaneController* self);
+   void ApplyPalette();
    void SetArchiveTime(PaneController* self,
                        std::optional<std::chrono::system_clock::time_point> time);
 
@@ -61,6 +67,12 @@ public:
    QMetaObject::Connection repaintConnection_ {};
    QMetaObject::Connection sourceDataConnection_ {};
    QMetaObject::Connection loadStateConnection_ {};
+   QMetaObject::Connection level3LoadedConnection_ {};
+   QMetaObject::Connection level3FailedConnection_ {};
+   std::uint64_t level3RequestId_ {0};
+   QVariantList productOverlays_ {};
+   QString productDetailsText_ {};
+   QString defaultPalette_ {};
    std::optional<std::chrono::system_clock::time_point> archiveTime_ {};
    std::chrono::system_clock::time_point actualTime_ {};
    bool timeLoading_ {false};
@@ -88,12 +100,19 @@ public:
 void PaneController::Impl::RebindProduct()
 {
    radarProduct_.reset();
+   radarLayerBinding_->setProduct(nullptr);
+   productOverlays_.clear();
+   productDetailsText_.clear();
+   defaultPalette_.clear();
 
    if (descriptor_.kind == QStringLiteral("radar") && !descriptor_.sourceKey.isEmpty())
    {
-      radarProduct_ = products::RadarSweepProduct::Instance(
-         descriptor_.sourceKey.toStdString(), descriptor_.product.toStdString(),
-         descriptor_.elevation, archiveTime_);
+      if (descriptor_.identityKind == products::ProductDescriptor::IdentityKind::Level2Moment)
+      {
+         radarProduct_ = products::RadarSweepProduct::Instance(
+            descriptor_.sourceKey.toStdString(), descriptor_.product.toStdString(),
+            descriptor_.elevation, archiveTime_);
+      }
       if (radarProduct_ == nullptr)
       {
          logger_->error("Pane {} could not bind radar source \"{}\"",
@@ -105,14 +124,134 @@ void PaneController::Impl::RebindProduct()
    radarLayerBinding_->setProduct(radarProduct_);
 }
 
+void PaneController::Impl::ApplyPalette()
+{
+   if (descriptor_.palette.isEmpty())
+   {
+      if (radarProduct_ != nullptr) radarLayerBinding_->setProduct(radarProduct_);
+      if (radarProduct_ != nullptr) return;
+   }
+   products::SweepSnapshot snapshot = radarProduct_ != nullptr
+      ? radarProduct_->sweep_snapshot() : radarLayerBinding_->snapshot();
+   if (snapshot.sweep == nullptr) return;
+   const QString palette = descriptor_.palette.isEmpty() ? defaultPalette_ : descriptor_.palette;
+   const QString text = palettes::PaletteManager::Instance().paletteText(palette);
+   if (text.isEmpty()) return;
+   snapshot.colorTableLut = products::BuildColorTableLut(*snapshot.sweep, text);
+   radarLayerBinding_->setSnapshot(std::move(snapshot));
+}
+
 void PaneController::Impl::ConnectProductSignals(PaneController* self)
 {
    QObject::disconnect(repaintConnection_);
    QObject::disconnect(sourceDataConnection_);
    QObject::disconnect(loadStateConnection_);
+   QObject::disconnect(level3LoadedConnection_);
+   QObject::disconnect(level3FailedConnection_);
    repaintConnection_    = {};
    sourceDataConnection_ = {};
    loadStateConnection_  = {};
+   level3LoadedConnection_ = {};
+   level3FailedConnection_ = {};
+
+   if (descriptor_.identityKind == products::ProductDescriptor::IdentityKind::Level3Awips &&
+       !descriptor_.sourceKey.isEmpty())
+   {
+      dataService_ = data::RadarSiteDataService::Instance(descriptor_.sourceKey.toStdString());
+      level3LoadedConnection_ = QObject::connect(
+         dataService_.get(), &data::RadarSiteDataService::LevelThreeDataLoadedForRequest, self,
+         [this, self](std::uint64_t requestId, const QString& awipsId,
+                      std::shared_ptr<scwx::wsr88d::Level3File> file,
+                      std::chrono::system_clock::time_point actualTime)
+         {
+            if (requestId != level3RequestId_ || awipsId != descriptor_.identity || file == nullptr)
+               return;
+
+            products::SweepSnapshot renderSnapshot;
+            QString defaultPalette;
+            if (auto radial = products::BuildLevel3RadialSnapshot(*file); radial.has_value())
+            {
+               renderSnapshot.sweep = radial->sweep;
+               defaultPalette = QString::fromStdString(radial->metadata.defaultPalette);
+            }
+            else if (auto raster = products::BuildLevel3RasterSnapshot(*file); raster.has_value())
+            {
+               renderSnapshot.sweep = raster->sweep;
+               defaultPalette = QString::fromStdString(raster->metadata.defaultPalette);
+            }
+            if (renderSnapshot.sweep != nullptr)
+            {
+               auto& manager = palettes::PaletteManager::Instance();
+               defaultPalette_ = defaultPalette;
+               QString palette = descriptor_.palette.isEmpty() ? defaultPalette_ : descriptor_.palette;
+               QString text = manager.paletteText(palette);
+               if (text.isEmpty()) text = manager.activeText();
+               renderSnapshot.colorTableLut =
+                  products::BuildColorTableLut(*renderSnapshot.sweep, text);
+            }
+            radarLayerBinding_->setSnapshot(std::move(renderSnapshot));
+
+            productOverlays_.clear();
+            if (auto overlay = products::BuildLevel3GraphicOverlaySnapshot(*file); overlay.has_value())
+            {
+               for (const auto& primitive : overlay->primitives)
+               {
+                  QVariantList points;
+                  for (const auto& point : primitive.geometry)
+                     points.append(QVariantMap {{QStringLiteral("latitude"), point.latitude},
+                                                {QStringLiteral("longitude"), point.longitude}});
+                  productOverlays_.append(QVariantMap {
+                     {QStringLiteral("kind"), static_cast<int>(primitive.kind)},
+                     {QStringLiteral("points"), points},
+                     {QStringLiteral("stormId"), QString::fromStdString(primitive.stormId)},
+                     {QStringLiteral("label"), QString::fromStdString(primitive.label)},
+                     {QStringLiteral("radiusMeters"), primitive.radiusMeters},
+                     {QStringLiteral("forecast"), primitive.forecast},
+                     {QStringLiteral("past"), primitive.past}});
+               }
+            }
+
+            productDetailsText_.clear();
+            if (auto text = products::BuildLevel3TextSnapshot(*file); text.has_value())
+            {
+               auto appendPages = [this](const auto& pages)
+               {
+                  for (const auto& page : pages)
+                     for (const auto& entry : page.entries)
+                     {
+                        if (!productDetailsText_.isEmpty()) productDetailsText_ += QLatin1Char('\n');
+                        productDetailsText_ += QString::fromStdString(entry.text);
+                     }
+               };
+               appendPages(text->graphicPages);
+               appendPages(text->tabularPages);
+            }
+            actualTime_ = actualTime;
+            timeLoading_ = false;
+            timeError_.clear();
+            if (!map_.isNull()) map_->triggerRepaint();
+            Q_EMIT self->sourceDataChanged();
+            Q_EMIT self->productDetailsChanged();
+            Q_EMIT self->timeChanged();
+         });
+      level3FailedConnection_ = QObject::connect(
+         dataService_.get(), &data::RadarSiteDataService::LevelThreeRequestFailed, self,
+         [this, self](std::uint64_t requestId, const QString&, const QString& error)
+         {
+            if (requestId != level3RequestId_) return;
+            timeLoading_ = false;
+            timeError_ = error;
+            Q_EMIT self->timeChanged();
+         });
+      timeLoading_ = true;
+      timeError_.clear();
+      level3RequestId_ = archiveTime_.has_value()
+         ? dataService_->LoadLevel3DataAt(descriptor_.identity.toStdString(), *archiveTime_)
+         : dataService_->LoadLatestLevel3Data(descriptor_.identity.toStdString());
+      Q_EMIT self->timeChanged();
+      Q_EMIT self->productDetailsChanged();
+      return;
+   }
 
    if (radarProduct_ == nullptr)
    {
@@ -128,8 +267,9 @@ void PaneController::Impl::ConnectProductSignals(PaneController* self)
       repaintConnection_ = QObject::connect(radarProduct_.get(),
                                             &products::RadarSweepProduct::SweepUpdated,
                                             map_,
-                                            [map = map_]()
+                                            [this, map = map_]()
                                             {
+                                               ApplyPalette();
                                                if (!map.isNull())
                                                {
                                                   map->triggerRepaint();
@@ -252,11 +392,15 @@ bool PaneController::level3Product() const
    return p->descriptor_.identityKind == products::ProductDescriptor::IdentityKind::Level3Awips;
 }
 QString PaneController::paletteName() const { return p->descriptor_.palette; }
+QVariantList PaneController::productOverlays() const { return p->productOverlays_; }
+QString PaneController::productDetailsText() const { return p->productDetailsText_; }
 
 void PaneController::setPaletteName(const QString& name)
 {
    if (p->descriptor_.palette == name) return;
    p->descriptor_.palette = name;
+   p->ApplyPalette();
+   if (!p->map_.isNull()) p->map_->triggerRepaint();
    Q_EMIT paletteChanged();
    Q_EMIT channelChanged(SyncChannel::Palette, ChangeOrigin::UserInput);
 }

@@ -19,10 +19,13 @@ public:
 
    void setProduct(std::shared_ptr<products::RadarSweepProduct> product);
    [[nodiscard]] std::shared_ptr<products::RadarSweepProduct> product() const;
+   void setSnapshot(products::SweepSnapshot snapshot);
+   [[nodiscard]] products::SweepSnapshot snapshot() const;
 
 private:
    mutable std::mutex                            mutex_;
    std::shared_ptr<products::RadarSweepProduct> product_;
+   products::SweepSnapshot                     snapshot_ {};
 };
 
 /**

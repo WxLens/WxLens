@@ -107,6 +107,7 @@ Rectangle {
             // Tick first and unconditionally: geo-anchored objects must re-project on every map
             // movement, including one applied by sync (when the write-back below is suppressed).
             objectsLayer.cameraTick++
+            level3Layer.cameraTick++
             if (!root.hasController || root.applyingSync) {
                 return
             }
@@ -114,6 +115,7 @@ Rectangle {
         }
         onZoomLevelChanged: {
             objectsLayer.cameraTick++
+            level3Layer.cameraTick++
             if (root.hasController && !root.applyingSync) {
                 root.paneController.zoom = map.zoomLevel
             }
@@ -190,6 +192,13 @@ Rectangle {
         manager: typeof overlayManager !== "undefined" ? overlayManager : null
         cameraTick: objectsLayer.cameraTick
         visible: root.hasController
+    }
+
+    Level3ProductLayer {
+        id: level3Layer
+        anchors.fill: parent
+        paneController: root.paneController
+        z: 3
     }
 
     // The User Analysis Layer (§4.3), above the map and its radar rendering but below the pane
@@ -823,6 +832,30 @@ Rectangle {
         visible: root.productBrowserOpen && root.hasController
         paneController: root.paneController
         onCloseRequested: root.productBrowserOpen = false
+    }
+
+    Rectangle {
+        visible: root.hasController && root.paneController.productDetailsText !== ""
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.margins: 8
+        width: Math.min(420, parent.width - 16)
+        height: Math.min(180, detailsText.implicitHeight + 20)
+        z: 8
+        radius: themeManager.cornerRadius
+        color: themeManager.elevatedSurface
+        border.color: themeManager.border
+        clip: true
+        Text {
+            id: detailsText
+            anchors.fill: parent
+            anchors.margins: 10
+            text: root.hasController ? root.paneController.productDetailsText : ""
+            color: themeManager.textPrimary
+            font.pixelSize: 11
+            wrapMode: Text.Wrap
+            elide: Text.ElideRight
+        }
     }
 
     // OSM's ODbL and the OpenMapTiles schema both require attribution; MapLibre Native Qt's

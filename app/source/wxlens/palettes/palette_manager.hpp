@@ -40,6 +40,7 @@ public:
    bool confirmationRequired() const;
    PaletteModel* editor();
    QString activeText() const;
+   QString paletteText(const QString& name) const;
 
    /// Activates a palette immediately, bypassing the unsaved-changes confirmation flow. Not
    /// Q_INVOKABLE on purpose - QML must go through requestSelect() so dirty edits are never

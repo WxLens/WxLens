@@ -55,6 +55,9 @@ struct SweepSnapshot
    std::shared_ptr<const ColorTableLut> colorTableLut;
 };
 
+[[nodiscard]] std::shared_ptr<const ColorTableLut>
+BuildColorTableLut(const SweepData& sweep, const QString& paletteText);
+
 /**
  * The Data Product layer (docs/ROADMAP.md §0.1 principle #4, §4.6) for one radar site's
  * reflectivity sweep. Listens for LevelTwoDataLoaded on that site's RadarSiteDataService (the

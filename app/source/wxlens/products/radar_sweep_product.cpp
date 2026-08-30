@@ -422,7 +422,8 @@ std::shared_ptr<SweepData> ComputeSweep(const ElevationScan& radarData,
 }
 
 std::shared_ptr<ColorTableLut>
-BuildColorTableLut(const SweepData& sweep, const std::shared_ptr<scwx::common::ColorTable>& table)
+BuildColorTableLutFromTable(const SweepData& sweep,
+                           const std::shared_ptr<scwx::common::ColorTable>& table)
 {
    if (table == nullptr || !table->IsValid()) return nullptr;
    constexpr std::uint16_t rangeMin = 1;
@@ -552,7 +553,7 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
    {
       std::scoped_lock lock {dataMutex_};
       data_                  = std::move(sweepData);
-      colorTableLut_         = BuildColorTableLut(*data_, colorTable_);
+      colorTableLut_         = BuildColorTableLutFromTable(*data_, colorTable_);
       elevationAngleDegrees_ = elevationCut;
       elevationCuts_         = std::move(elevationCuts);
    }
@@ -568,7 +569,7 @@ void RadarSweepProduct::Impl::SetPaletteText(const QString& text)
    colorTable_ = std::move(table);
    {
       std::scoped_lock lock {dataMutex_};
-      if (data_ != nullptr) colorTableLut_ = BuildColorTableLut(*data_, colorTable_);
+      if (data_ != nullptr) colorTableLut_ = BuildColorTableLutFromTable(*data_, colorTable_);
    }
    // The existing signal already triggers every attached map's repaint. Render layers compare
    // the palette snapshot independently, so only the 1D texture is uploaded.
@@ -648,6 +649,13 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
 }
 
 RadarSweepProduct::~RadarSweepProduct() = default;
+
+std::shared_ptr<const ColorTableLut>
+BuildColorTableLut(const SweepData& sweep, const QString& paletteText)
+{
+   std::istringstream stream(paletteText.toStdString());
+   return BuildColorTableLutFromTable(sweep, scwx::common::ColorTable::Load(stream));
+}
 
 std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
    const std::string& radarSite,

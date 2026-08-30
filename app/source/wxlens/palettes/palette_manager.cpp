@@ -56,6 +56,11 @@ QString PaletteManager::activeName() const { return activeName_; }
 bool PaletteManager::confirmationRequired() const { return confirmationRequired_; }
 PaletteModel* PaletteManager::editor() { return &editor_; }
 QString PaletteManager::activeText() const { return activeText_; }
+QString PaletteManager::paletteText(const QString& name) const
+{
+   const auto it = entries_.find(name);
+   return it == entries_.end() ? QString {} : it->second.workingText;
+}
 
 bool PaletteManager::activeIsFactoryPalette() const
 {
