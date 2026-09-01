@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-01T16:23:16.486620+00:00",
+  "generated_at": "2026-09-01T17:19:12.090413+00:00",
   "nodes": {
     "app_source_wxlens_palettes_palette_manager_palettemanager": {
       "code_fingerprint": "1a47dffb82b6195ddd950ac619e047e63b2973ee50190e7099d18088a85fdeda",
@@ -17,7 +17,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 1.992065731,
+      "score": 1.990278956,
       "source_file": "app/source/wxlens/palettes/palette_manager.hpp",
       "status": "preferred",
       "uses": 2
@@ -33,7 +33,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 0.99584292,
+      "score": 0.994949702,
       "source_file": "app/source/wxlens/panes/pane_controller.cpp",
       "status": "tentative",
       "uses": 1
@@ -54,7 +54,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 1.992065731,
+      "score": 1.990278956,
       "source_file": "app/source/wxlens/products/radar_sweep_product.hpp",
       "status": "preferred",
       "uses": 2
@@ -70,7 +70,7 @@
           "q": "Fix the Weather Overlays contrast problem."
         }
       ],
-      "score": 0.98718853,
+      "score": 0.986303075,
       "source_file": "app/source/wxlens/theme/theme_manager.cpp",
       "status": "tentative",
       "uses": 1
@@ -86,7 +86,7 @@
           "q": "what is next"
         }
       ],
-      "score": 0.982122628,
+      "score": 0.981241717,
       "source_file": "docs/phase1-acceptance-2026-08-30.md",
       "status": "tentative",
       "uses": 1
@@ -102,7 +102,7 @@
           "q": "Fix the Weather Overlays contrast problem."
         }
       ],
-      "score": 0.98718853,
+      "score": 0.986303075,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
       "status": "tentative",
       "uses": 1
@@ -118,7 +118,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 0.963777866,
+      "score": 0.962913409,
       "source_file": "docs/ROADMAP.md",
       "status": "tentative",
       "uses": 1
@@ -139,7 +139,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 1.945900494,
+      "score": 1.944155126,
       "source_file": "docs/ROADMAP.md",
       "status": "preferred",
       "uses": 2
@@ -160,7 +160,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 1.945900494,
+      "score": 1.944155126,
       "source_file": "docs/ROADMAP.md",
       "status": "preferred",
       "uses": 2

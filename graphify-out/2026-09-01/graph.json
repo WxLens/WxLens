@@ -199,19 +199,6 @@
       "source_location": "L25"
     },
     {
-      "id": "app_source_wxlens_theme_theme_manager_settingsstore",
-      "label": "SettingsStore",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 109,
-      "community_name": "theme_manager.hpp",
-      "file_type": "code",
-      "norm_label": "settingsstore",
-      "source_file": "app/source/wxlens/theme/theme_manager.hpp",
-      "source_location": "L13"
-    },
-    {
       "id": "app_source_wxlens_panes_pane_controller_panecontroller_impl",
       "label": "PaneController::Impl",
       "_callable": true,
@@ -342,6 +329,19 @@
       "source_location": "L52"
     },
     {
+      "id": "app_source_wxlens_theme_theme_manager_settingsstore",
+      "label": "SettingsStore",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "ThemeManager",
+      "file_type": "code",
+      "norm_label": "settingsstore",
+      "source_file": "app/source/wxlens/theme/theme_manager.hpp",
+      "source_location": "L13"
+    },
+    {
       "id": "app_source_wxlens_theme_theme_manager_thememanager",
       "label": "ThemeManager",
       "_callable": true,
@@ -379,6 +379,19 @@
       "norm_label": "mapobject",
       "source_file": "app/source/wxlens/objects/map_object.hpp",
       "source_location": "L92"
+    },
+    {
+      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_impl",
+      "label": "MapObjectStore::Impl",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "MapObject",
+      "file_type": "code",
+      "norm_label": "mapobjectstore::impl",
+      "source_file": "app/source/wxlens/objects/map_object_store.cpp",
+      "source_location": "L22"
     },
     {
       "id": "app_source_wxlens_theme_theme_manager_theme",
@@ -504,7 +517,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "radarproductstatus",
       "source_file": "app/source/wxlens/products/radar_product_status.hpp",
@@ -517,7 +530,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "radarproductstatus::impl",
       "source_file": "app/source/wxlens/products/radar_product_status.cpp",
@@ -790,7 +803,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 55,
-      "community_name": "MapObjectScope",
+      "community_name": "map_object.hpp",
       "file_type": "code",
       "norm_label": "mapobjectscope",
       "source_file": "app/source/wxlens/objects/map_object.hpp",
@@ -829,7 +842,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "radarsiteinfo",
       "source_file": "app/source/wxlens/data/radar_site_database.hpp",
@@ -1029,19 +1042,6 @@
       "norm_label": "radarsitedataservice::impl",
       "source_file": "app/source/wxlens/data/radar_site_data_service.cpp",
       "source_location": "L23"
-    },
-    {
-      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_impl",
-      "label": "MapObjectStore::Impl",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 86,
-      "community_name": "MapObjectStore::Impl",
-      "file_type": "code",
-      "norm_label": "mapobjectstore::impl",
-      "source_file": "app/source/wxlens/objects/map_object_store.cpp",
-      "source_location": "L22"
     },
     {
       "id": "app_source_wxlens_overlays_overlay_manager_overlaymanager_impl",
@@ -2024,7 +2024,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\products\\radar_product_status.cpp",
       "definition_location": "L78",
       "file_type": "code",
@@ -2033,60 +2033,12 @@
       "source_location": "L30"
     },
     {
-      "id": "app_source_wxlens_log_logger_create",
-      "label": "Create()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "create()",
-      "source_file": "app/source/wxlens/log/logger.cpp",
-      "source_location": "L33"
-    },
-    {
-      "id": "app_source_wxlens_log_logger_initialize",
-      "label": "Initialize()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "initialize()",
-      "source_file": "app/source/wxlens/log/logger.cpp",
-      "source_location": "L19"
-    },
-    {
-      "id": "app_source_wxlens_log_logger_logdirectory",
-      "label": "LogDirectory()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "logdirectory()",
-      "source_file": "app/source/wxlens/log/logger.cpp",
-      "source_location": "L28"
-    },
-    {
-      "id": "app_source_wxlens_log_logger_logdirectorypath",
-      "label": "LogDirectoryPath()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "logdirectorypath()",
-      "source_file": "app/source/wxlens/log/logger.cpp",
-      "source_location": "L13"
-    },
-    {
       "id": "app_source_wxlens_products_radar_product_status_radarproductstatus_impl_impl",
       "label": ".Impl()",
       "_callable": true,
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": ".impl()",
       "source_file": "app/source/wxlens/products/radar_product_status.cpp",
@@ -2098,7 +2050,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "systemlocalzone()",
       "source_file": "app/source/wxlens/products/radar_product_status.cpp",
@@ -2110,35 +2062,11 @@
       "_callable": true,
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "trylocatezone()",
       "source_file": "app/source/wxlens/products/radar_product_status.cpp",
       "source_location": "L29"
-    },
-    {
-      "id": "test_source_wxlens_app_test_main_main",
-      "label": "main()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "main()",
-      "source_file": "test/source/wxlens/app_test_main.cpp",
-      "source_location": "L11"
-    },
-    {
-      "id": "test_source_wxlens_wxdata_test_main_main",
-      "label": "main()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "main()",
-      "source_file": "test/source/wxlens/wxdata_test_main.cpp",
-      "source_location": "L12"
     },
     {
       "id": "app_source_wxlens_palettes_palette_model_palettemodel_palettemodel",
@@ -2864,7 +2792,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "findradarsite()",
       "source_file": "app/source/wxlens/data/radar_site_database.cpp",
@@ -2876,11 +2804,71 @@
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "radarsites()",
       "source_file": "app/source/wxlens/data/radar_site_database.cpp",
       "source_location": "L85"
+    },
+    {
+      "id": "app_source_wxlens_log_logger_create",
+      "label": "Create()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "create()",
+      "source_file": "app/source/wxlens/log/logger.cpp",
+      "source_location": "L33"
+    },
+    {
+      "id": "app_source_wxlens_log_logger_initialize",
+      "label": "Initialize()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "initialize()",
+      "source_file": "app/source/wxlens/log/logger.cpp",
+      "source_location": "L19"
+    },
+    {
+      "id": "app_source_wxlens_log_logger_logdirectory",
+      "label": "LogDirectory()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "logdirectory()",
+      "source_file": "app/source/wxlens/log/logger.cpp",
+      "source_location": "L28"
+    },
+    {
+      "id": "app_source_wxlens_log_logger_logdirectorypath",
+      "label": "LogDirectoryPath()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "logdirectorypath()",
+      "source_file": "app/source/wxlens/log/logger.cpp",
+      "source_location": "L13"
+    },
+    {
+      "id": "test_source_wxlens_app_test_main_main",
+      "label": "main()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "main()",
+      "source_file": "test/source/wxlens/app_test_main.cpp",
+      "source_location": "L11"
     },
     {
       "id": "test_source_wxlens_data_radar_site_database_test_test",
@@ -2888,11 +2876,23 @@
       "_callable": true,
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "test()",
       "source_file": "test/source/wxlens/data/radar_site_database.test.cpp",
       "source_location": "L21"
+    },
+    {
+      "id": "test_source_wxlens_wxdata_test_main_main",
+      "label": "main()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "main()",
+      "source_file": "test/source/wxlens/wxdata_test_main.cpp",
+      "source_location": "L12"
     },
     {
       "id": "test_source_wxlens_products_level3_raster_product_test_fixture",
@@ -4886,11 +4886,11 @@
       "community": 105,
       "community_name": "setDefaultSourceKey",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\panes\\pane_grid_model.cpp",
-      "definition_location": "L108",
+      "definition_location": "L109",
       "file_type": "code",
       "norm_label": "rowcount",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L66"
+      "source_location": "L67"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_panegridmodel_data",
@@ -4899,11 +4899,11 @@
       "community": 105,
       "community_name": "setDefaultSourceKey",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\panes\\pane_grid_model.cpp",
-      "definition_location": "L117",
+      "definition_location": "L118",
       "file_type": "code",
       "norm_label": "data",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L67"
+      "source_location": "L68"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_panegridmodel_setdefaultsourcekey",
@@ -4912,11 +4912,11 @@
       "community": 105,
       "community_name": "setDefaultSourceKey",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\panes\\pane_grid_model.cpp",
-      "definition_location": "L133",
+      "definition_location": "L134",
       "file_type": "code",
       "norm_label": "setdefaultsourcekey",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L93"
+      "source_location": "L94"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_panegridmodel_setgridsize",
@@ -4925,11 +4925,11 @@
       "community": 105,
       "community_name": "setDefaultSourceKey",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\panes\\pane_grid_model.cpp",
-      "definition_location": "L145",
+      "definition_location": "L146",
       "file_type": "code",
       "norm_label": "setgridsize",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L70"
+      "source_location": "L71"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_cpp_qmodelindex",
@@ -5004,11 +5004,11 @@
       "community": 107,
       "community_name": "PropagateChannel",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\panes\\pane_grid_model.cpp",
-      "definition_location": "L211",
+      "definition_location": "L203",
       "file_type": "code",
       "norm_label": "propagatechannel",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L106"
+      "source_location": "L107"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_panegridmodel_copychannel",
@@ -5017,11 +5017,11 @@
       "community": 107,
       "community_name": "PropagateChannel",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\panes\\pane_grid_model.cpp",
-      "definition_location": "L246",
+      "definition_location": "L238",
       "file_type": "code",
       "norm_label": "copychannel",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L79"
+      "source_location": "L80"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_panegridmodel_copycamera",
@@ -5030,11 +5030,11 @@
       "community": 107,
       "community_name": "PropagateChannel",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\panes\\pane_grid_model.cpp",
-      "definition_location": "L273",
+      "definition_location": "L265",
       "file_type": "code",
       "norm_label": "copycamera",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L80"
+      "source_location": "L81"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_cpp_changeorigin",
@@ -5112,39 +5112,6 @@
       "norm_label": "rasterdatapacket",
       "source_file": "",
       "source_location": ""
-    },
-    {
-      "id": "app_source_wxlens_palettes_palette_manager_hpp_app_source_wxlens_palettes_palette_manager",
-      "label": "palette_manager.hpp",
-      "_origin": "ast",
-      "community": 109,
-      "community_name": "theme_manager.hpp",
-      "file_type": "code",
-      "norm_label": "palette_manager.hpp",
-      "source_file": "app/source/wxlens/palettes/palette_manager.hpp",
-      "source_location": "L1"
-    },
-    {
-      "id": "app_source_wxlens_palettes_palette_manager_hpp_qstringlist",
-      "label": "QStringList",
-      "_origin": "ast",
-      "community": 109,
-      "community_name": "theme_manager.hpp",
-      "file_type": "code",
-      "norm_label": "qstringlist",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "app_source_wxlens_theme_theme_manager_hpp_app_source_wxlens_theme_theme_manager",
-      "label": "theme_manager.hpp",
-      "_origin": "ast",
-      "community": 109,
-      "community_name": "theme_manager.hpp",
-      "file_type": "code",
-      "norm_label": "theme_manager.hpp",
-      "source_file": "app/source/wxlens/theme/theme_manager.hpp",
-      "source_location": "L1"
     },
     {
       "id": "app_source_wxlens_panes_pane_controller_cpp_shared_ptr",
@@ -5604,11 +5571,11 @@
       "community": 111,
       "community_name": "roleNames",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\panes\\pane_grid_model.cpp",
-      "definition_location": "L128",
+      "definition_location": "L129",
       "file_type": "code",
       "norm_label": "rolenames",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L68"
+      "source_location": "L69"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_cpp_qbytearray",
@@ -7319,6 +7286,17 @@
       "source_location": ""
     },
     {
+      "id": "shrunklayoutretainspanestateforrestore",
+      "label": "ShrunkLayoutRetainsPaneStateForRestore",
+      "_origin": "ast",
+      "community": 16,
+      "community_name": "TEST_F",
+      "file_type": "code",
+      "norm_label": "shrunklayoutretainspanestateforrestore",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
       "id": "timechannelpropagatesarchiveselectionwithoutlinkingotherstate",
       "label": "TimeChannelPropagatesArchiveSelectionWithoutLinkingOtherState",
       "_origin": "ast",
@@ -7389,6 +7367,17 @@
       "norm_label": "qvariantlist",
       "source_file": "",
       "source_location": ""
+    },
+    {
+      "id": "app_source_wxlens_theme_theme_manager_hpp_app_source_wxlens_theme_theme_manager",
+      "label": "theme_manager.hpp",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "ThemeManager",
+      "file_type": "code",
+      "norm_label": "theme_manager.hpp",
+      "source_file": "app/source/wxlens/theme/theme_manager.hpp",
+      "source_location": "L1"
     },
     {
       "id": "app_source_wxlens_theme_theme_manager_hpp_impl",
@@ -7897,6 +7886,19 @@
       "source_location": ""
     },
     {
+      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_update",
+      "label": "Update",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "MapObject",
+      "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\objects\\map_object_store.cpp",
+      "definition_location": "L173",
+      "file_type": "code",
+      "norm_label": "update",
+      "source_file": "app/source/wxlens/objects/map_object_store.hpp",
+      "source_location": "L79"
+    },
+    {
       "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_find",
       "label": "Find",
       "_origin": "ast",
@@ -7910,15 +7912,17 @@
       "source_location": "L82"
     },
     {
-      "id": "app_source_wxlens_objects_map_object",
-      "label": "map_object.hpp",
+      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_objects",
+      "label": "Objects",
       "_origin": "ast",
       "community": 2,
       "community_name": "MapObject",
+      "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\objects\\map_object_store.cpp",
+      "definition_location": "L214",
       "file_type": "code",
-      "norm_label": "map_object.hpp",
-      "source_file": "app/source/wxlens/objects/map_object.hpp",
-      "source_location": "L1"
+      "norm_label": "objects",
+      "source_file": "app/source/wxlens/objects/map_object_store.hpp",
+      "source_location": "L83"
     },
     {
       "id": "app_source_wxlens_objects_map_object_mapobject_color",
@@ -8053,6 +8057,50 @@
       "source_location": "L111"
     },
     {
+      "id": "app_source_wxlens_objects_map_object_store_cpp_vector",
+      "label": "vector",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "MapObject",
+      "file_type": "code",
+      "norm_label": "vector",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_impl_nextid",
+      "label": "nextId_",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "MapObject",
+      "file_type": "code",
+      "norm_label": "nextid_",
+      "source_file": "app/source/wxlens/objects/map_object_store.cpp",
+      "source_location": "L26"
+    },
+    {
+      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_impl_objects",
+      "label": "objects_",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "MapObject",
+      "file_type": "code",
+      "norm_label": "objects_",
+      "source_file": "app/source/wxlens/objects/map_object_store.cpp",
+      "source_location": "L25"
+    },
+    {
+      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_impl_revision",
+      "label": "revision_",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "MapObject",
+      "file_type": "code",
+      "norm_label": "revision_",
+      "source_file": "app/source/wxlens/objects/map_object_store.cpp",
+      "source_location": "L27"
+    },
+    {
       "id": "mapobjectlifecycle",
       "label": "MapObjectLifecycle",
       "_origin": "ast",
@@ -8073,28 +8121,6 @@
       "norm_label": "mapobjecttype",
       "source_file": "",
       "source_location": ""
-    },
-    {
-      "id": "qvector",
-      "label": "QVector",
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "MapObject",
-      "file_type": "code",
-      "norm_label": "qvector",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "test_source_wxlens_objects_map_object_scope_test",
-      "label": "map_object_scope.test.cpp",
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "MapObject",
-      "file_type": "code",
-      "norm_label": "map_object_scope.test.cpp",
-      "source_file": "test/source/wxlens/objects/map_object_scope.test.cpp",
-      "source_location": "L1"
     },
     {
       "id": "app_source_wxlens_theme_theme_manager_cpp_qbytearray",
@@ -9923,7 +9949,7 @@
       "label": "siteId",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\products\\radar_product_status.cpp",
       "definition_location": "L146",
       "file_type": "code",
@@ -9936,7 +9962,7 @@
       "label": "statusText",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\products\\radar_product_status.cpp",
       "definition_location": "L151",
       "file_type": "code",
@@ -9945,66 +9971,11 @@
       "source_location": "L36"
     },
     {
-      "id": "app_source_wxlens_log_logger_cpp_app_source_wxlens_log_logger",
-      "label": "logger.cpp",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "logger.cpp",
-      "source_file": "app/source/wxlens/log/logger.cpp",
-      "source_location": "L1"
-    },
-    {
-      "id": "app_source_wxlens_log_logger_cpp_qstring",
-      "label": "QString",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "qstring",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "app_source_wxlens_log_logger_cpp_shared_ptr",
-      "label": "shared_ptr",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "shared_ptr",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "app_source_wxlens_log_logger_cpp_string",
-      "label": "string",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "string",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "app_source_wxlens_log_logger_hpp_app_source_wxlens_log_logger",
-      "label": "logger.hpp",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "logger.hpp",
-      "source_file": "app/source/wxlens/log/logger.hpp",
-      "source_location": "L1"
-    },
-    {
       "id": "app_source_wxlens_products_radar_product_status_cpp_app_source_wxlens_products_radar_product_status",
       "label": "radar_product_status.cpp",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "radar_product_status.cpp",
       "source_file": "app/source/wxlens/products/radar_product_status.cpp",
@@ -10015,7 +9986,7 @@
       "label": "QObject",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "qobject",
       "source_file": "",
@@ -10026,7 +9997,7 @@
       "label": "QString",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "qstring",
       "source_file": "",
@@ -10037,7 +10008,7 @@
       "label": "string",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "string",
       "source_file": "",
@@ -10048,7 +10019,7 @@
       "label": "Impl",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "impl",
       "source_file": "",
@@ -10059,7 +10030,7 @@
       "label": "QObject",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "qobject",
       "source_file": "",
@@ -10070,7 +10041,7 @@
       "label": "unique_ptr",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "unique_ptr",
       "source_file": "",
@@ -10081,7 +10052,7 @@
       "label": "radarSite_",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "radarsite_",
       "source_file": "app/source/wxlens/products/radar_product_status.cpp",
@@ -10092,7 +10063,7 @@
       "label": "statusText_",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "statustext_",
       "source_file": "app/source/wxlens/products/radar_product_status.cpp",
@@ -10103,7 +10074,7 @@
       "label": "p",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "p",
       "source_file": "app/source/wxlens/products/radar_product_status.hpp",
@@ -10114,7 +10085,7 @@
       "label": "Q_PROPERTY",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "q_property",
       "source_file": "app/source/wxlens/products/radar_product_status.hpp",
@@ -10125,51 +10096,18 @@
       "label": "statusTextChanged",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "statustextchanged",
       "source_file": "app/source/wxlens/products/radar_product_status.hpp",
       "source_location": "L39"
     },
     {
-      "id": "logger",
-      "label": "logger",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "logger",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "test_source_wxlens_app_test_main",
-      "label": "app_test_main.cpp",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "app_test_main.cpp",
-      "source_file": "test/source/wxlens/app_test_main.cpp",
-      "source_location": "L1"
-    },
-    {
-      "id": "test_source_wxlens_wxdata_test_main",
-      "label": "wxdata_test_main.cpp",
-      "_origin": "ast",
-      "community": 28,
-      "community_name": "logger",
-      "file_type": "code",
-      "norm_label": "wxdata_test_main.cpp",
-      "source_file": "test/source/wxlens/wxdata_test_main.cpp",
-      "source_location": "L1"
-    },
-    {
       "id": "time_zone",
       "label": "time_zone",
       "_origin": "ast",
       "community": 28,
-      "community_name": "logger",
+      "community_name": "RadarProductStatus",
       "file_type": "code",
       "norm_label": "time_zone",
       "source_file": "",
@@ -12141,17 +12079,17 @@
       "source_location": ""
     },
     {
-      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_update",
-      "label": "Update",
+      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_revision",
+      "label": "revision",
       "_origin": "ast",
       "community": 36,
       "community_name": "map_object_store.cpp",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\objects\\map_object_store.cpp",
-      "definition_location": "L173",
+      "definition_location": "L117",
       "file_type": "code",
-      "norm_label": "update",
+      "norm_label": "revision",
       "source_file": "app/source/wxlens/objects/map_object_store.hpp",
-      "source_location": "L79"
+      "source_location": "L67"
     },
     {
       "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_clear",
@@ -12191,19 +12129,6 @@
       "norm_label": "setobjectscope",
       "source_file": "app/source/wxlens/objects/map_object_store.hpp",
       "source_location": "L146"
-    },
-    {
-      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_refreshformatting",
-      "label": "refreshFormatting",
-      "_origin": "ast",
-      "community": 36,
-      "community_name": "map_object_store.cpp",
-      "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\objects\\map_object_store.cpp",
-      "definition_location": "L605",
-      "file_type": "code",
-      "norm_label": "refreshformatting",
-      "source_file": "app/source/wxlens/objects/map_object_store.hpp",
-      "source_location": "L149"
     },
     {
       "id": "app_source_wxlens_objects_map_object_store_cpp_app_source_wxlens_objects_map_object_store",
@@ -14381,6 +14306,17 @@
       "source_location": "L73"
     },
     {
+      "id": "app_source_wxlens_palettes_palette_manager_hpp_app_source_wxlens_palettes_palette_manager",
+      "label": "palette_manager.hpp",
+      "_origin": "ast",
+      "community": 5,
+      "community_name": "PaletteManager",
+      "file_type": "code",
+      "norm_label": "palette_manager.hpp",
+      "source_file": "app/source/wxlens/palettes/palette_manager.hpp",
+      "source_location": "L1"
+    },
+    {
       "id": "app_source_wxlens_palettes_palette_manager_hpp_pendingaction",
       "label": "PendingAction",
       "_origin": "ast",
@@ -14421,6 +14357,17 @@
       "community_name": "PaletteManager",
       "file_type": "code",
       "norm_label": "qstring",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "app_source_wxlens_palettes_palette_manager_hpp_qstringlist",
+      "label": "QStringList",
+      "_origin": "ast",
+      "community": 5,
+      "community_name": "PaletteManager",
+      "file_type": "code",
+      "norm_label": "qstringlist",
       "source_file": "",
       "source_location": ""
     },
@@ -14721,17 +14668,17 @@
       "source_location": "L2239"
     },
     {
-      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_revision",
-      "label": "revision",
+      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_add",
+      "label": "Add",
       "_origin": "ast",
       "community": 51,
       "community_name": "MapObjectStore",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\objects\\map_object_store.cpp",
-      "definition_location": "L117",
+      "definition_location": "L122",
       "file_type": "code",
-      "norm_label": "revision",
+      "norm_label": "add",
       "source_file": "app/source/wxlens/objects/map_object_store.hpp",
-      "source_location": "L67"
+      "source_location": "L76"
     },
     {
       "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_remove",
@@ -14773,19 +14720,6 @@
       "source_location": "L60"
     },
     {
-      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_removeobjectsinpane",
-      "label": "removeObjectsInPane",
-      "_origin": "ast",
-      "community": 51,
-      "community_name": "MapObjectStore",
-      "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\objects\\map_object_store.cpp",
-      "definition_location": "L544",
-      "file_type": "code",
-      "norm_label": "removeobjectsinpane",
-      "source_file": "app/source/wxlens/objects/map_object_store.hpp",
-      "source_location": "L140"
-    },
-    {
       "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_removeobject",
       "label": "removeObject",
       "_origin": "ast",
@@ -14797,6 +14731,19 @@
       "norm_label": "removeobject",
       "source_file": "app/source/wxlens/objects/map_object_store.hpp",
       "source_location": "L142"
+    },
+    {
+      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_refreshformatting",
+      "label": "refreshFormatting",
+      "_origin": "ast",
+      "community": 51,
+      "community_name": "MapObjectStore",
+      "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\objects\\map_object_store.cpp",
+      "definition_location": "L605",
+      "file_type": "code",
+      "norm_label": "refreshformatting",
+      "source_file": "app/source/wxlens/objects/map_object_store.hpp",
+      "source_location": "L149"
     },
     {
       "id": "app_source_wxlens_objects_map_object_store_cpp_qmodelindex",
@@ -15065,11 +15012,22 @@
       "source_location": ""
     },
     {
+      "id": "app_source_wxlens_objects_map_object",
+      "label": "map_object.hpp",
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "map_object.hpp",
+      "file_type": "code",
+      "norm_label": "map_object.hpp",
+      "source_file": "app/source/wxlens/objects/map_object.hpp",
+      "source_location": "L1"
+    },
+    {
       "id": "app_source_wxlens_objects_map_object_hpp_mapobjectscopekind",
       "label": "MapObjectScopeKind",
       "_origin": "ast",
       "community": 55,
-      "community_name": "MapObjectScope",
+      "community_name": "map_object.hpp",
       "file_type": "code",
       "norm_label": "mapobjectscopekind",
       "source_file": "",
@@ -15080,7 +15038,7 @@
       "label": "SyncChannel",
       "_origin": "ast",
       "community": 55,
-      "community_name": "MapObjectScope",
+      "community_name": "map_object.hpp",
       "file_type": "code",
       "norm_label": "syncchannel",
       "source_file": "",
@@ -15091,7 +15049,7 @@
       "label": "SyncGroupId",
       "_origin": "ast",
       "community": 55,
-      "community_name": "MapObjectScope",
+      "community_name": "map_object.hpp",
       "file_type": "code",
       "norm_label": "syncgroupid",
       "source_file": "",
@@ -15102,7 +15060,7 @@
       "label": "channel",
       "_origin": "ast",
       "community": 55,
-      "community_name": "MapObjectScope",
+      "community_name": "map_object.hpp",
       "file_type": "code",
       "norm_label": "channel",
       "source_file": "app/source/wxlens/objects/map_object.hpp",
@@ -15113,7 +15071,7 @@
       "label": "kind",
       "_origin": "ast",
       "community": 55,
-      "community_name": "MapObjectScope",
+      "community_name": "map_object.hpp",
       "file_type": "code",
       "norm_label": "kind",
       "source_file": "app/source/wxlens/objects/map_object.hpp",
@@ -15124,7 +15082,7 @@
       "label": "originGroupId",
       "_origin": "ast",
       "community": 55,
-      "community_name": "MapObjectScope",
+      "community_name": "map_object.hpp",
       "file_type": "code",
       "norm_label": "origingroupid",
       "source_file": "app/source/wxlens/objects/map_object.hpp",
@@ -15135,11 +15093,33 @@
       "label": "originPaneId",
       "_origin": "ast",
       "community": 55,
-      "community_name": "MapObjectScope",
+      "community_name": "map_object.hpp",
       "file_type": "code",
       "norm_label": "originpaneid",
       "source_file": "app/source/wxlens/objects/map_object.hpp",
       "source_location": "L72"
+    },
+    {
+      "id": "qvector",
+      "label": "QVector",
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "map_object.hpp",
+      "file_type": "code",
+      "norm_label": "qvector",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "test_source_wxlens_objects_map_object_scope_test",
+      "label": "map_object_scope.test.cpp",
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "map_object.hpp",
+      "file_type": "code",
+      "norm_label": "map_object_scope.test.cpp",
+      "source_file": "test/source/wxlens/objects/map_object_scope.test.cpp",
+      "source_location": "L1"
     },
     {
       "id": "app_source_wxlens_products_level3_graphic_overlay_geographicpoint_latitude",
@@ -15352,7 +15332,7 @@
       "label": "AltitudeIsConvertedFromTheListsFeet",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "altitudeisconvertedfromthelistsfeet",
       "source_file": "",
@@ -15363,7 +15343,7 @@
       "label": "AltitudesAreSaneAsMetresAcrossTheExtremes",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "altitudesaresaneasmetresacrosstheextremes",
       "source_file": "",
@@ -15374,7 +15354,7 @@
       "label": "radar_site_database.cpp",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "radar_site_database.cpp",
       "source_file": "app/source/wxlens/data/radar_site_database.cpp",
@@ -15385,7 +15365,7 @@
       "label": "optional",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "optional",
       "source_file": "",
@@ -15396,7 +15376,7 @@
       "label": "string",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "string",
       "source_file": "",
@@ -15407,7 +15387,7 @@
       "label": "vector",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "vector",
       "source_file": "",
@@ -15418,7 +15398,7 @@
       "label": "altitudeMslMeters",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "altitudemslmeters",
       "source_file": "app/source/wxlens/data/radar_site_database.hpp",
@@ -15429,7 +15409,7 @@
       "label": "country",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "country",
       "source_file": "app/source/wxlens/data/radar_site_database.hpp",
@@ -15440,7 +15420,7 @@
       "label": "id",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "id",
       "source_file": "app/source/wxlens/data/radar_site_database.hpp",
@@ -15451,7 +15431,7 @@
       "label": "latitude",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "latitude",
       "source_file": "app/source/wxlens/data/radar_site_database.hpp",
@@ -15462,7 +15442,7 @@
       "label": "longitude",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "longitude",
       "source_file": "app/source/wxlens/data/radar_site_database.hpp",
@@ -15473,7 +15453,7 @@
       "label": "place",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "place",
       "source_file": "app/source/wxlens/data/radar_site_database.hpp",
@@ -15484,7 +15464,7 @@
       "label": "state",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "state",
       "source_file": "app/source/wxlens/data/radar_site_database.hpp",
@@ -15495,20 +15475,86 @@
       "label": "timeZoneId",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "timezoneid",
       "source_file": "app/source/wxlens/data/radar_site_database.hpp",
       "source_location": "L29"
     },
     {
+      "id": "app_source_wxlens_log_logger_cpp_app_source_wxlens_log_logger",
+      "label": "logger.cpp",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "logger.cpp",
+      "source_file": "app/source/wxlens/log/logger.cpp",
+      "source_location": "L1"
+    },
+    {
+      "id": "app_source_wxlens_log_logger_cpp_qstring",
+      "label": "QString",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "qstring",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "app_source_wxlens_log_logger_cpp_shared_ptr",
+      "label": "shared_ptr",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "shared_ptr",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "app_source_wxlens_log_logger_cpp_string",
+      "label": "string",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "string",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "app_source_wxlens_log_logger_hpp_app_source_wxlens_log_logger",
+      "label": "logger.hpp",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "logger.hpp",
+      "source_file": "app/source/wxlens/log/logger.hpp",
+      "source_location": "L1"
+    },
+    {
       "id": "knownsiteresolves",
       "label": "KnownSiteResolves",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "knownsiteresolves",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "logger",
+      "label": "logger",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "logger",
       "source_file": "",
       "source_location": ""
     },
@@ -15517,21 +15563,43 @@
       "label": "RadarSiteDatabaseTest",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "radarsitedatabasetest",
       "source_file": "",
       "source_location": ""
     },
     {
+      "id": "test_source_wxlens_app_test_main",
+      "label": "app_test_main.cpp",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "app_test_main.cpp",
+      "source_file": "test/source/wxlens/app_test_main.cpp",
+      "source_location": "L1"
+    },
+    {
       "id": "test_source_wxlens_data_radar_site_database_test",
       "label": "radar_site_database.test.cpp",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "radar_site_database.test.cpp",
       "source_file": "test/source/wxlens/data/radar_site_database.test.cpp",
+      "source_location": "L1"
+    },
+    {
+      "id": "test_source_wxlens_wxdata_test_main",
+      "label": "wxdata_test_main.cpp",
+      "_origin": "ast",
+      "community": 58,
+      "community_name": "logger",
+      "file_type": "code",
+      "norm_label": "wxdata_test_main.cpp",
+      "source_file": "test/source/wxlens/wxdata_test_main.cpp",
       "source_location": "L1"
     },
     {
@@ -15539,7 +15607,7 @@
       "label": "UnknownSiteResolvesToNothing",
       "_origin": "ast",
       "community": 58,
-      "community_name": "RadarSiteInfo",
+      "community_name": "logger",
       "file_type": "code",
       "norm_label": "unknownsiteresolvestonothing",
       "source_file": "",
@@ -15618,11 +15686,11 @@
       "community": 6,
       "community_name": "PaneGridModel",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\panes\\pane_grid_model.cpp",
-      "definition_location": "L281",
+      "definition_location": "L273",
       "file_type": "code",
       "norm_label": "setcamerasyncgroup",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L87"
+      "source_location": "L88"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_panegridmodel_camerasyncgroup",
@@ -15631,11 +15699,11 @@
       "community": 6,
       "community_name": "PaneGridModel",
       "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\panes\\pane_grid_model.cpp",
-      "definition_location": "L328",
+      "definition_location": "L320",
       "file_type": "code",
       "norm_label": "camerasyncgroup",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L90"
+      "source_location": "L91"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_panegridmodel_gridwidth",
@@ -15739,7 +15807,7 @@
       "file_type": "code",
       "norm_label": "setactivepaneindex",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L71"
+      "source_location": "L72"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_cpp_app_source_wxlens_panes_pane_grid_model",
@@ -15816,7 +15884,7 @@
       "file_type": "code",
       "norm_label": "activepanechanged",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L98"
+      "source_location": "L99"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_panegridmodel_gridsizechanged",
@@ -15827,7 +15895,7 @@
       "file_type": "code",
       "norm_label": "gridsizechanged",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L96"
+      "source_location": "L97"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_panegridmodel_p",
@@ -15838,7 +15906,7 @@
       "file_type": "code",
       "norm_label": "p",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L109"
+      "source_location": "L110"
     },
     {
       "id": "app_source_wxlens_panes_pane_grid_model_panegridmodel_q_property",
@@ -15860,7 +15928,7 @@
       "file_type": "code",
       "norm_label": "syncrevisionchanged",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L97"
+      "source_location": "L98"
     },
     {
       "id": "conanfile",
@@ -17632,19 +17700,6 @@
       "source_location": "L81"
     },
     {
-      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_add",
-      "label": "Add",
-      "_origin": "ast",
-      "community": 77,
-      "community_name": "PaneController",
-      "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\objects\\map_object_store.cpp",
-      "definition_location": "L122",
-      "file_type": "code",
-      "norm_label": "add",
-      "source_file": "app/source/wxlens/objects/map_object_store.hpp",
-      "source_location": "L76"
-    },
-    {
       "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_isvisibleinpane",
       "label": "IsVisibleInPane",
       "_origin": "ast",
@@ -17708,6 +17763,19 @@
       "norm_label": "objectatpixel",
       "source_file": "app/source/wxlens/objects/map_object_store.hpp",
       "source_location": "L130"
+    },
+    {
+      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_removeobjectsinpane",
+      "label": "removeObjectsInPane",
+      "_origin": "ast",
+      "community": 77,
+      "community_name": "PaneController",
+      "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\objects\\map_object_store.cpp",
+      "definition_location": "L544",
+      "file_type": "code",
+      "norm_label": "removeobjectsinpane",
+      "source_file": "app/source/wxlens/objects/map_object_store.hpp",
+      "source_location": "L140"
     },
     {
       "id": "app_source_wxlens_objects_map_object_store_cpp_panecontroller",
@@ -18591,63 +18659,6 @@
       "norm_label": "source nodes",
       "source_file": "graphify-out/memory/query_20260831_020350_ok__so_what_is_the_next_step_in_this_process.md",
       "source_location": "L20"
-    },
-    {
-      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_objects",
-      "label": "Objects",
-      "_origin": "ast",
-      "community": 86,
-      "community_name": "MapObjectStore::Impl",
-      "definition_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\source\\wxlens\\objects\\map_object_store.cpp",
-      "definition_location": "L214",
-      "file_type": "code",
-      "norm_label": "objects",
-      "source_file": "app/source/wxlens/objects/map_object_store.hpp",
-      "source_location": "L83"
-    },
-    {
-      "id": "app_source_wxlens_objects_map_object_store_cpp_vector",
-      "label": "vector",
-      "_origin": "ast",
-      "community": 86,
-      "community_name": "MapObjectStore::Impl",
-      "file_type": "code",
-      "norm_label": "vector",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_impl_nextid",
-      "label": "nextId_",
-      "_origin": "ast",
-      "community": 86,
-      "community_name": "MapObjectStore::Impl",
-      "file_type": "code",
-      "norm_label": "nextid_",
-      "source_file": "app/source/wxlens/objects/map_object_store.cpp",
-      "source_location": "L26"
-    },
-    {
-      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_impl_objects",
-      "label": "objects_",
-      "_origin": "ast",
-      "community": 86,
-      "community_name": "MapObjectStore::Impl",
-      "file_type": "code",
-      "norm_label": "objects_",
-      "source_file": "app/source/wxlens/objects/map_object_store.cpp",
-      "source_location": "L25"
-    },
-    {
-      "id": "app_source_wxlens_objects_map_object_store_mapobjectstore_impl_revision",
-      "label": "revision_",
-      "_origin": "ast",
-      "community": 86,
-      "community_name": "MapObjectStore::Impl",
-      "file_type": "code",
-      "norm_label": "revision_",
-      "source_file": "app/source/wxlens/objects/map_object_store.cpp",
-      "source_location": "L27"
     },
     {
       "id": "app_source_wxlens_overlays_overlay_manager_cpp_qtimer",
@@ -21058,7 +21069,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L169",
+      "source_location": "L165",
       "weight": 1.0
     },
     {
@@ -26446,7 +26457,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L106",
+      "source_location": "L107",
       "weight": 1.0
     },
     {
@@ -26458,7 +26469,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L109",
+      "source_location": "L110",
       "weight": 1.0
     },
     {
@@ -26566,7 +26577,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L66",
+      "source_location": "L67",
       "weight": 1.0
     },
     {
@@ -26578,7 +26589,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L67",
+      "source_location": "L68",
       "weight": 1.0
     },
     {
@@ -26590,7 +26601,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L68",
+      "source_location": "L69",
       "weight": 1.0
     },
     {
@@ -26602,7 +26613,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L70",
+      "source_location": "L71",
       "weight": 1.0
     },
     {
@@ -26614,7 +26625,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L71",
+      "source_location": "L72",
       "weight": 1.0
     },
     {
@@ -26626,7 +26637,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L79",
+      "source_location": "L80",
       "weight": 1.0
     },
     {
@@ -26638,7 +26649,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L80",
+      "source_location": "L81",
       "weight": 1.0
     },
     {
@@ -26650,7 +26661,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L87",
+      "source_location": "L88",
       "weight": 1.0
     },
     {
@@ -26662,7 +26673,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L90",
+      "source_location": "L91",
       "weight": 1.0
     },
     {
@@ -26674,7 +26685,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L93",
+      "source_location": "L94",
       "weight": 1.0
     },
     {
@@ -26686,7 +26697,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L96",
+      "source_location": "L97",
       "weight": 1.0
     },
     {
@@ -26698,7 +26709,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L97",
+      "source_location": "L98",
       "weight": 1.0
     },
     {
@@ -26710,7 +26721,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L98",
+      "source_location": "L99",
       "weight": 1.0
     },
     {
@@ -31510,7 +31521,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L109",
+      "source_location": "L110",
       "weight": 1.0
     },
     {
@@ -33022,7 +33033,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
-      "source_location": "L109",
+      "source_location": "L110",
       "weight": 1.0
     },
     {
@@ -33058,7 +33069,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L128",
+      "source_location": "L129",
       "weight": 1.0
     },
     {
@@ -37126,7 +37137,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L246",
+      "source_location": "L238",
       "weight": 1.0
     },
     {
@@ -37138,7 +37149,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L117",
+      "source_location": "L118",
       "weight": 1.0
     },
     {
@@ -37162,7 +37173,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L211",
+      "source_location": "L203",
       "weight": 1.0
     },
     {
@@ -37174,7 +37185,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L211",
+      "source_location": "L203",
       "weight": 1.0
     },
     {
@@ -37186,7 +37197,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L211",
+      "source_location": "L203",
       "weight": 1.0
     },
     {
@@ -37198,7 +37209,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L108",
+      "source_location": "L109",
       "weight": 1.0
     },
     {
@@ -37210,7 +37221,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L133",
+      "source_location": "L134",
       "weight": 1.0
     },
     {
@@ -39243,6 +39254,18 @@
     },
     {
       "source": "test_source_wxlens_panes_pane_sync_test_test_f",
+      "target": "channelsareindependent",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "parameter_type",
+      "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
+      "source_location": "L103",
+      "weight": 1.0
+    },
+    {
+      "source": "test_source_wxlens_panes_pane_sync_test_test_f",
       "target": "separategroupsdonotcrosstalk",
       "relation": "references",
       "_origin": "ast",
@@ -39250,7 +39273,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L105",
+      "source_location": "L118",
       "weight": 1.0
     },
     {
@@ -39262,7 +39285,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L119",
+      "source_location": "L132",
       "weight": 1.0
     },
     {
@@ -39274,7 +39297,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L135",
+      "source_location": "L148",
       "weight": 1.0
     },
     {
@@ -39286,7 +39309,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L169",
+      "source_location": "L182",
       "weight": 1.0
     },
     {
@@ -39298,7 +39321,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L183",
+      "source_location": "L196",
       "weight": 1.0
     },
     {
@@ -39310,7 +39333,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L199",
+      "source_location": "L212",
       "weight": 1.0
     },
     {
@@ -39322,7 +39345,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L216",
+      "source_location": "L229",
       "weight": 1.0
     },
     {
@@ -39334,7 +39357,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L237",
+      "source_location": "L250",
       "weight": 1.0
     },
     {
@@ -39346,7 +39369,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L250",
+      "source_location": "L263",
       "weight": 1.0
     },
     {
@@ -39358,7 +39381,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L267",
+      "source_location": "L280",
       "weight": 1.0
     },
     {
@@ -39370,7 +39393,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L281",
+      "source_location": "L294",
       "weight": 1.0
     },
     {
@@ -39382,7 +39405,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L294",
+      "source_location": "L307",
       "weight": 1.0
     },
     {
@@ -39394,7 +39417,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L306",
+      "source_location": "L319",
       "weight": 1.0
     },
     {
@@ -39406,7 +39429,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L318",
+      "source_location": "L331",
       "weight": 1.0
     },
     {
@@ -39418,7 +39441,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L332",
+      "source_location": "L345",
       "weight": 1.0
     },
     {
@@ -39430,7 +39453,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L344",
+      "source_location": "L357",
       "weight": 1.0
     },
     {
@@ -39442,7 +39465,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L359",
+      "source_location": "L372",
       "weight": 1.0
     },
     {
@@ -39454,7 +39477,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L367",
+      "source_location": "L380",
       "weight": 1.0
     },
     {
@@ -39466,7 +39489,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L377",
+      "source_location": "L390",
       "weight": 1.0
     },
     {
@@ -39478,7 +39501,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L389",
+      "source_location": "L402",
       "weight": 1.0
     },
     {
@@ -39519,7 +39542,7 @@
     },
     {
       "source": "test_source_wxlens_panes_pane_sync_test_test_f",
-      "target": "ungroupedpanesdonotaffecteachother",
+      "target": "shrunklayoutretainspanestateforrestore",
       "relation": "references",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -39531,6 +39554,18 @@
     },
     {
       "source": "test_source_wxlens_panes_pane_sync_test_test_f",
+      "target": "ungroupedpanesdonotaffecteachother",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "parameter_type",
+      "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
+      "source_location": "L81",
+      "weight": 1.0
+    },
+    {
+      "source": "test_source_wxlens_panes_pane_sync_test_test_f",
       "target": "panessharingalocationgroupfollowuserinput",
       "relation": "references",
       "_origin": "ast",
@@ -39538,19 +39573,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L76",
-      "weight": 1.0
-    },
-    {
-      "source": "test_source_wxlens_panes_pane_sync_test_test_f",
-      "target": "channelsareindependent",
-      "relation": "references",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "parameter_type",
-      "source_file": "test/source/wxlens/panes/pane_sync.test.cpp",
-      "source_location": "L90",
+      "source_location": "L89",
       "weight": 1.0
     },
     {
@@ -41182,7 +41205,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L117",
+      "source_location": "L118",
       "weight": 1.0
     },
     {
@@ -41206,7 +41229,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L128",
+      "source_location": "L129",
       "weight": 1.0
     },
     {
@@ -44958,7 +44981,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L108",
+      "source_location": "L109",
       "weight": 1.0
     },
     {
@@ -44969,7 +44992,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L117",
+      "source_location": "L118",
       "weight": 1.0
     },
     {
@@ -44980,7 +45003,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L128",
+      "source_location": "L129",
       "weight": 1.0
     },
     {
@@ -44991,7 +45014,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L133",
+      "source_location": "L134",
       "weight": 1.0
     },
     {
@@ -45002,7 +45025,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L145",
+      "source_location": "L146",
       "weight": 1.0
     },
     {
@@ -45013,7 +45036,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L211",
+      "source_location": "L203",
       "weight": 1.0
     },
     {
@@ -45024,7 +45047,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L246",
+      "source_location": "L238",
       "weight": 1.0
     },
     {
@@ -45035,7 +45058,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L273",
+      "source_location": "L265",
       "weight": 1.0
     },
     {
@@ -45046,7 +45069,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L281",
+      "source_location": "L273",
       "weight": 1.0
     },
     {
@@ -45068,7 +45091,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L328",
+      "source_location": "L320",
       "weight": 1.0
     },
     {
@@ -51347,7 +51370,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L277",
+      "source_location": "L269",
       "weight": 1.0
     },
     {
@@ -51359,7 +51382,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L141",
+      "source_location": "L142",
       "weight": 1.0
     },
     {
@@ -51371,7 +51394,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "app/source/wxlens/panes/pane_grid_model.cpp",
-      "source_location": "L186",
+      "source_location": "L182",
       "weight": 1.0
     },
     {
