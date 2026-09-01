@@ -125,19 +125,21 @@ Rectangle {
             }
         }
 
-        Row {
+        Flow {
             id: paletteRow
             width: parent.width
-            height: 28
+            height: implicitHeight
             spacing: 5
             Text {
                 text: "Palette"
                 color: themeManager.textMuted
                 font.pixelSize: 10
-                anchors.verticalCenter: parent.verticalCenter
+                height: 24
+                verticalAlignment: Text.AlignVCenter
             }
             Repeater {
-                model: ["Default"].concat(paletteManager.paletteNames)
+                model: ["Default"].concat(root.paneController.compatiblePaletteNames.filter(
+                    function(name) { return name !== root.paneController.defaultPaletteName }))
                 delegate: Rectangle {
                     required property string modelData
                     width: paletteText.implicitWidth + 12
@@ -151,7 +153,9 @@ Rectangle {
                     Text {
                         id: paletteText
                         anchors.centerIn: parent
-                        text: parent.modelData
+                        text: parent.modelData === "Default"
+                              ? "Default (" + root.paneController.defaultPaletteName + ")"
+                              : parent.modelData
                         color: themeManager.textSecondary
                         font.pixelSize: 9
                     }

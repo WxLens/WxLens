@@ -125,8 +125,6 @@ qt_add_resources(wxlens-app "wxlens-wct-palettes"
         "${WXLENS_WCT_PALETTE_DIR}/CC.pal"
         "${WXLENS_WCT_PALETTE_DIR}/Default16.pal"
         "${WXLENS_WCT_PALETTE_DIR}/DOD_DSD.pal"
-        "${WXLENS_WCT_PALETTE_DIR}/DR.pal"
-        "${WXLENS_WCT_PALETTE_DIR}/DV.pal"
         "${WXLENS_WCT_PALETTE_DIR}/ET.pal"
         "${WXLENS_WCT_PALETTE_DIR}/HC.pal"
         "${WXLENS_WCT_PALETTE_DIR}/KDP.pal"
@@ -137,6 +135,15 @@ qt_add_resources(wxlens-app "wxlens-wct-palettes"
         "${WXLENS_WCT_PALETTE_DIR}/SW.pal"
         "${WXLENS_WCT_PALETTE_DIR}/VIL.pal"
         "${WXLENS_WCT_PALETTE_DIR}/ZDR.pal")
+
+# WxLens's reflectivity and velocity defaults use application-owned ramps tuned for legibility
+# over the dark map. Keep these visual assets outside the read-only dependency.
+qt_add_resources(wxlens-app "wxlens-app-palettes"
+    PREFIX "/qt/qml/WxLens/App/res/palettes/wct"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/res/palettes/wct"
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/res/palettes/wct/DR.pal"
+        "${CMAKE_CURRENT_SOURCE_DIR}/res/palettes/wct/DV.pal")
 
 set_target_properties(wxlens-app PROPERTIES
     CXX_STANDARD 20

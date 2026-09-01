@@ -51,6 +51,17 @@ QString DefaultPalette(const products::ProductDescriptor& descriptor)
    return palettes::BundledPaletteName(QString::fromStdString(scwx::common::GetLevel2Palette(
       scwx::common::GetLevel2Product(descriptor.identity.toStdString()))));
 }
+
+QStringList CompatiblePalettes(const QString& defaultPalette)
+{
+   // Palettes describe a meteorological field, not just a visual style. Keep overrides within
+   // the selected product family so, for example, reflectivity can never be made to look like
+   // velocity. Imported palettes remain editor-only until they carry explicit family metadata.
+   if (defaultPalette == QStringLiteral("KDP") || defaultPalette == QStringLiteral("KDP2"))
+      return {QStringLiteral("KDP"), QStringLiteral("KDP2")};
+   if (defaultPalette.isEmpty()) return {};
+   return {defaultPalette};
+}
 } // namespace
 
 class PaneController::Impl
@@ -116,6 +127,9 @@ void PaneController::Impl::RebindProduct()
    productDetailsText_.clear();
    defaultPalette_.clear();
    defaultPalette_ = DefaultPalette(descriptor_);
+   if (!defaultPalette_.isEmpty() && !descriptor_.palette.isEmpty() &&
+       !CompatiblePalettes(defaultPalette_).contains(descriptor_.palette))
+      descriptor_.palette.clear();
 
    if (descriptor_.kind == QStringLiteral("radar") && !descriptor_.sourceKey.isEmpty())
    {
@@ -195,6 +209,9 @@ void PaneController::Impl::ConnectProductSignals(PaneController* self)
             {
                auto& manager = palettes::PaletteManager::Instance();
                defaultPalette_ = palettes::BundledPaletteName(defaultPalette);
+               if (!descriptor_.palette.isEmpty() &&
+                   !CompatiblePalettes(defaultPalette_).contains(descriptor_.palette))
+                  descriptor_.palette.clear();
                QString palette = descriptor_.palette.isEmpty() ? defaultPalette_ : descriptor_.palette;
                QString text = manager.paletteText(palette);
                if (text.isEmpty())
@@ -202,6 +219,7 @@ void PaneController::Impl::ConnectProductSignals(PaneController* self)
                                 palette.toStdString(), descriptor_.identity.toStdString());
                renderSnapshot.colorTableLut =
                   products::BuildColorTableLut(*renderSnapshot.sweep, text);
+               Q_EMIT self->paletteChanged();
             }
             radarLayerBinding_->setSnapshot(std::move(renderSnapshot));
 
@@ -415,15 +433,21 @@ bool PaneController::level3Product() const
    return p->descriptor_.identityKind == products::ProductDescriptor::IdentityKind::Level3Awips;
 }
 QString PaneController::paletteName() const { return p->descriptor_.palette; }
+QString PaneController::defaultPaletteName() const { return p->defaultPalette_; }
 QString PaneController::effectivePaletteName() const
 {
    return p->descriptor_.palette.isEmpty() ? p->defaultPalette_ : p->descriptor_.palette;
+}
+QStringList PaneController::compatiblePaletteNames() const
+{
+   return CompatiblePalettes(p->defaultPalette_);
 }
 QVariantList PaneController::productOverlays() const { return p->productOverlays_; }
 QString PaneController::productDetailsText() const { return p->productDetailsText_; }
 
 void PaneController::setPaletteName(const QString& name)
 {
+   if (!name.isEmpty() && !compatiblePaletteNames().contains(name)) return;
    if (p->descriptor_.palette == name) return;
    p->descriptor_.palette = name;
    p->ApplyPalette();
@@ -952,15 +976,19 @@ void PaneController::applyChannelValue(SyncChannel     channel,
    }
 
    case SyncChannel::Palette:
-      if (p->descriptor_.palette != value.toString())
+   {
+      const QString palette = value.toString();
+      if (!palette.isEmpty() && !compatiblePaletteNames().contains(palette)) return;
+      if (p->descriptor_.palette != palette)
       {
-         p->descriptor_.palette = value.toString();
+         p->descriptor_.palette = palette;
          p->ApplyPalette();
          if (!p->map_.isNull()) p->map_->triggerRepaint();
          Q_EMIT paletteChanged();
          changed = true;
       }
       break;
+   }
 
    case SyncChannel::Time:
    {

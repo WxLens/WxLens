@@ -44,6 +44,9 @@ Rectangle {
                     }
                     MouseArea {
                         anchors.fill: parent
+                        // MapLibre's DragHandler is behind the modal editor and may otherwise
+                        // take the exclusive grab once this slider crosses the drag threshold.
+                        preventStealing: true
                         onPressed: (mouse) => update(mouse.x)
                         onPositionChanged: (mouse) => { if (pressed) update(mouse.x) }
                         function update(x) {

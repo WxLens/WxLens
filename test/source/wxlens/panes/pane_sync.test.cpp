@@ -305,14 +305,14 @@ TEST_F(PaneSyncTest, ProductCatalogCarriesStableLevelTwoIdentity)
 
 TEST_F(PaneSyncTest, PaletteChannelIsPerPaneAndSynchronizable)
 {
-   Pane(0)->setPaletteName(QStringLiteral("DV"));
-   EXPECT_EQ(Pane(0)->paletteName(), QStringLiteral("DV"));
+   Pane(0)->setPaletteName(QStringLiteral("DR"));
+   EXPECT_EQ(Pane(0)->paletteName(), QStringLiteral("DR"));
    EXPECT_TRUE(Pane(1)->paletteName().isEmpty());
 
    Pane(0)->setSyncGroup(SyncChannel::Palette, 4);
    Pane(1)->setSyncGroup(SyncChannel::Palette, 4);
-   Pane(0)->setPaletteName(QStringLiteral("ZDR"));
-   EXPECT_EQ(Pane(1)->paletteName(), QStringLiteral("ZDR"));
+   Pane(0)->setPaletteName(QString {});
+   EXPECT_TRUE(Pane(1)->paletteName().isEmpty());
 }
 
 TEST_F(PaneSyncTest, LevelTwoDefaultsFollowProductIdentityAndStayPaneLocal)
@@ -325,8 +325,35 @@ TEST_F(PaneSyncTest, LevelTwoDefaultsFollowProductIdentityAndStayPaneLocal)
    EXPECT_EQ(Pane(1)->effectivePaletteName(), QStringLiteral("DR"));
 
    Pane(0)->setPaletteName(QStringLiteral("ZDR"));
-   EXPECT_EQ(Pane(0)->effectivePaletteName(), QStringLiteral("ZDR"));
+   EXPECT_EQ(Pane(0)->effectivePaletteName(), QStringLiteral("DV"));
    EXPECT_EQ(Pane(1)->effectivePaletteName(), QStringLiteral("DR"));
+}
+
+TEST_F(PaneSyncTest, PaletteChoicesAreRestrictedToTheSelectedProductFamily)
+{
+   EXPECT_EQ(Pane(0)->compatiblePaletteNames(), QStringList {QStringLiteral("DR")});
+   Pane(0)->setPaletteName(QStringLiteral("DV"));
+   EXPECT_TRUE(Pane(0)->paletteName().isEmpty());
+
+   Pane(0)->setProductName(QStringLiteral("Velocity"));
+   EXPECT_EQ(Pane(0)->compatiblePaletteNames(), QStringList {QStringLiteral("DV")});
+   Pane(0)->setPaletteName(QStringLiteral("DR"));
+   EXPECT_TRUE(Pane(0)->paletteName().isEmpty());
+}
+
+TEST_F(PaneSyncTest, RestoredIncompatiblePaletteFallsBackToProductDefault)
+{
+   products::ProductDescriptor descriptor {
+      .kind = QStringLiteral("radar"),
+      .sourceKey = QString {},
+      .product = QStringLiteral("Velocity"),
+      .identityKind = products::ProductDescriptor::IdentityKind::Level2Moment,
+      .identity = QStringLiteral("VEL"),
+      .palette = QStringLiteral("SRV")};
+   PaneController restored {7, descriptor};
+
+   EXPECT_TRUE(restored.paletteName().isEmpty());
+   EXPECT_EQ(restored.effectivePaletteName(), QStringLiteral("DV"));
 }
 
 TEST_F(PaneSyncTest, ElevationSelectionRejectsNoRealCutButRetainsRequestedCut)

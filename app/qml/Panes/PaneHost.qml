@@ -389,6 +389,7 @@ Rectangle {
             } else if (root.measurementGesture === root.gestureDragOnly) {
                 if (!moved) {
                     measurementTool.cancel()
+                    root.snapHighlight = ({ "snapped": false })
                     return
                 }
                 finishes = true
@@ -407,6 +408,7 @@ Rectangle {
             }
             measurementTool.commit(root.paneController, objectTools.scopeKind)
             measurementTool.cancel()
+            root.snapHighlight = ({ "snapped": false })
         }
 
         onClicked: (mouse) => {
@@ -426,6 +428,7 @@ Rectangle {
                         measurementTool.commit(root.paneController, objectTools.scopeKind)
                     }
                     measurementTool.cancel()
+                    root.snapHighlight = ({ "snapped": false })
                     return
                 }
 
@@ -474,7 +477,11 @@ Rectangle {
     // Visible pre-commit feedback: the endpoint jumps in MeasurementLayer and this halo names
     // the magnetic target. A coordinate rewrite with no cue feels like pointer inaccuracy.
     Rectangle {
-        visible: root.measuringActive && root.snapHighlight.snapped === true
+        // A cached pixel position is meaningful only while temporary measurement geometry is
+        // active. Once commit clears the controller, leaving this visible makes it look attached
+        // to the screen while the geographic measurement moves with a subsequent map pan.
+        visible: root.measuringActive && measurementTool.active &&
+                 root.snapHighlight.snapped === true
         x: visible ? root.snapHighlight.pixelX - width / 2 : 0
         y: visible ? root.snapHighlight.pixelY - height / 2 : 0
         width: 18

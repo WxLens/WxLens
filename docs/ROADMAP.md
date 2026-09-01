@@ -699,10 +699,35 @@ built on `util::geographic_lib`'s already-existing WGS84 geodesic math (`GetDist
   only, click-click only, or both - defaulting to both. Note this preference only became
   *evaluable* once the drag path actually worked; see slice 8's grab-steal defect, which made
   click-click look like the only supported gesture.
+- **One primary tool with long-press disclosure** (added 2026-08-31 from packaged-app feedback).
+  The bottom control surface should show the user's preferred measurement/interrogation tool as
+  the single primary action rather than permanently spending space on every variant. A normal
+  click activates that tool; click-and-hold (with an equivalent keyboard-accessible menu action)
+  opens the available measurement/interrogation modes and lets the user choose the new preferred
+  default. Put a compact `?` help affordance beside the tool settings affordance: help explains
+  the gestures and readout, while the gear deep-links to the stable `measurement` settings
+  section per §4.5. Long-press is progressive disclosure, never the only way to discover or select
+  a mode.
+- **Tool-deactivation cleanup is a user preference** (added 2026-08-31 from packaged-app
+  feedback). Some users expect turning the measuring tool off to clear everything created during
+  that tool session; others use pinned measurements as continuing analysis. Add an explicit
+  retain-on-deactivate versus clear-session-measurements setting, with the quick tool's gear
+  deep-linking to it. Clearing must be scoped to measurements created by that activation/session
+  and must never erase separately saved tier-3 objects. Keep live probes transient and preserve
+  the temporary/pinned/saved lifecycle rather than making this a blanket `MapObjectStore` clear.
 - **Point info:** a clicked point yields lat/lon, range/azimuth from the pane's currently
   selected radar site, and — once Phase 3's data layers exist — whatever satellite/model value
   is present at that point; Phase 1 delivers the radar-relative info only, with the tool designed
   so additional data probes plug in later without a rework.
+- **Radar-value reader:** when point info interrogates a rendered radar product, show the decoded
+  value and correct product unit (for example dBZ for reflectivity) together with distance and
+  azimuth/bearing from the pane's selected radar site, identifying that site in the readout.
+  Where available, also show the actual elevation cut and terrain-independent beam-center MSL;
+  do not label beam angle as geographic bearing or imply AGL without terrain data. Treat the
+  reader as a temporary live probe by default, with an explicit pin action if its result should
+  enter the analysis-object lifecycle. The data comes from the active Data Product's probe
+  contract, not from palette-color reverse lookup, so categorical and future non-radar products
+  can supply honest typed values through the same UI.
 - **Units:** driven by the existing global-unit-settings pattern (today's `unit_settings.hpp`/
   `types/unit_types.cpp`), extended to cover distance/bearing display preferences.
 
@@ -939,6 +964,28 @@ distance/bearing) with an expandable section for the professional depth (e.g. fu
 geometry) — apply this same pattern anywhere else the app has a simple/advanced split (palette
 editing, pane sync configuration, settings). Never achieve "approachable" by removing
 professional capability; achieve it by not surfacing it until asked for.
+
+**Capability breadth must not become toolbar breadth** (reaffirmed by packaged-app feedback,
+2026-08-31). WxLens is intended to compete with paid radar applications on capability while
+remaining cleaner and easier to approach; adding a feature therefore does not automatically earn
+it a permanent button. Treat persistent chrome as a constrained budget:
+
+- Ship a deliberately minimal default set containing only frequent, broadly useful actions.
+- Group related tools behind one preferred action, expandable picker, popover, or overflow menu;
+  preserve direct shortcuts and search for expert workflows.
+- Let users choose which optional controls appear in the primary toolbar, persist that choice,
+  and provide a one-action reset to the curated default. Hiding a control changes presentation,
+  never whether the underlying capability exists or whether it remains reachable through the
+  complete tools surface, menus, search, or keyboard commands.
+- Adapt at narrower windows and dense pane layouts by collapsing labels and moving lower-priority
+  actions into overflow instead of shrinking every target or covering the radar panes.
+- Require every proposed permanent control to justify its frequency, urgency, and advantage over
+  contextual or progressive disclosure. Settings, setup choices, and rarely changed modes do not
+  belong in the always-visible bar merely because implementation made a button convenient.
+
+Toolbar customization is for personal workflow, not a second incompatible UI persona. Keep one
+information architecture and one curated default so documentation, support, accessibility, and
+keyboard behavior remain coherent.
 
 ### 5.4 Primary control surface placement — bottom, not the left rail
 
@@ -2321,17 +2368,25 @@ The feature slices above are not, by themselves, permission to call Phase 1 comp
 release. Before that milestone, explicitly close and record evidence for every gate below. Keep
 unfinished items visible here rather than treating them as implied polish:
 
+The dated packaged-session defects and progressive-disclosure requests are tracked as actionable
+implementation/retest items in `docs/phase1-ux-feedback-2026-08-31.md`. Closing a broad gate below
+does not silently close an unchecked item in that record; reconcile both checklists during each
+acceptance rerun.
+
 - [ ] **Settings coverage for every promised preference.** Verify persistence, defaults, reset
   behavior, addressable settings-section navigation, and actual runtime application for product
   defaults, unit preferences, map-provider choice, per-object-kind default scope, workspace/pane
-  layout, and floating-versus-docked controls. Active theme/palette, measurement gesture, snap
-  tolerance/suppress modifier, geometry-row visibility, map details, and other preferences already
-  promised elsewhere in this roadmap remain part of the same audit. Do not silently resolve open
-  question 11 while adding the floating/docked preference.
+  layout, and floating-versus-docked controls. Active theme/palette, preferred measurement tool,
+  measurement gesture, retain/clear-on-tool-deactivation behavior, snap tolerance/suppress
+  modifier, geometry-row visibility, map details, optional-toolbar-control visibility/order, and
+  other preferences already promised elsewhere in this roadmap remain part of the same audit.
+  Do not silently resolve open question 11 while adding the floating/docked preference.
 - [ ] **Phase-wide UX and acceptance validation.** Rerun every criterion in §4.8 against the
   packaged application, including primary pointer gestures and keyboard paths, and record which
   automated and manual test provides evidence for each criterion. Validate representative dense
-  multi-pane layouts as well as the easy 1×1 case.
+  multi-pane layouts as well as the easy 1×1 case. Audit the persistent toolbar against §5.3's
+  constrained-chrome rule: the curated default must remain minimal, all hidden capabilities must
+  remain discoverable, customization/reset must work, and narrow layouts must overflow cleanly.
 - [ ] **Performance baselines on a modest laptop.** Record hardware, display resolution, pane
   layout, products/data sources, and measurement method alongside FPS/frame time (including
   stalls), CPU and GPU utilization, memory/working-set behavior, radar decode latency, network

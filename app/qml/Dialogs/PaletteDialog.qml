@@ -18,12 +18,12 @@ Rectangle {
         function onImportFileRequested() { openDialog.open() }
         function onSaveFileRequested() { saveDialog.pending = true; saveDialog.open() }
     }
-    MouseArea { anchors.fill: parent; onClicked: root.close() }
+    MouseArea { anchors.fill: parent; preventStealing: true; onClicked: root.close() }
     Rectangle {
         anchors.centerIn: parent
         width: Math.min(760, root.width - 40); height: Math.min(650, root.height - 40)
         radius: themeManager.cornerRadius; color: themeManager.surface; border.color: themeManager.border
-        MouseArea { anchors.fill: parent }
+        MouseArea { anchors.fill: parent; preventStealing: true }
         Column {
             anchors.fill: parent; anchors.margins: 18; spacing: 12
             Row {
@@ -70,7 +70,7 @@ Rectangle {
                         // position along the strip that means anything - dragging can't set a
                         // useful value, so don't offer the drag at all rather than silently
                         // snapping back to minimumValue on release.
-                        MouseArea { anchors.fill: parent; drag.target: paletteManager.editor.maximumValue > paletteManager.editor.minimumValue ? parent : undefined; drag.axis: Drag.XAxis; drag.minimumX: 0; drag.maximumX: preview.width - parent.width
+                        MouseArea { anchors.fill: parent; preventStealing: true; drag.target: paletteManager.editor.maximumValue > paletteManager.editor.minimumValue ? parent : undefined; drag.axis: Drag.XAxis; drag.minimumX: 0; drag.maximumX: preview.width - parent.width
                             onPressed: stopList.currentIndex = index
                             onReleased: if (paletteManager.editor.maximumValue > paletteManager.editor.minimumValue) paletteManager.editor.setStopValue(index, paletteManager.editor.minimumValue + parent.x / (preview.width - parent.width) * (paletteManager.editor.maximumValue - paletteManager.editor.minimumValue)) }
                     }

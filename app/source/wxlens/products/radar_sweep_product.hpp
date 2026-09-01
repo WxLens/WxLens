@@ -33,6 +33,12 @@ struct SweepData
 
    float dataMomentOffset {0.0f};
    float dataMomentScale {1.0f};
+
+   /// Physical units of the decoded moment values ("M/S" for Level 2 velocity/spectrum width,
+   /// empty when values already match the palette domain). Palettes declare their own units
+   /// (e.g. DV.pal is in KT for Level 3 code 99), and ColorTable ignores its Units: header, so
+   /// the LUT builder needs this to convert m/s data onto a knots ramp.
+   std::string dataMomentUnits {};
 };
 
 /** Small, independently replaceable palette snapshot; changing it never rebuilds geometry. */

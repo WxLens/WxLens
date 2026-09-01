@@ -11,6 +11,8 @@
 #include <scwx/common/products.hpp>
 #include <scwx/wsr88d/rda/generic_radar_data.hpp>
 
+#include <boost/algorithm/string/predicate.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <map>
@@ -433,6 +435,10 @@ std::shared_ptr<SweepData> ComputeSweep(const ElevationScan& radarData,
 
    result->dataMomentOffset = momentData0->offset();
    result->dataMomentScale  = momentData0->scale();
+   if (dataBlockType == DataBlockType::MomentVel || dataBlockType == DataBlockType::MomentSw)
+   {
+      result->dataMomentUnits = "M/S";
+   }
 
    return result;
 }
@@ -444,6 +450,21 @@ BuildColorTableLutFromTable(const SweepData& sweep,
    if (table == nullptr || !table->IsValid()) return nullptr;
    constexpr std::uint16_t rangeMin = 1;
    constexpr std::uint16_t rangeMax = 255;
+
+   // ColorTable stores its "Units:" header but never applies it (only an explicit "Scale:" line
+   // rescales, and the WCT velocity palettes ship without one because Level 3 velocity data is
+   // already in knots). Level 2 velocity/spectrum width moments decode to m/s, so without this
+   // conversion real winds only ever reach the desaturated middle of a knots ramp.
+   float unitScale = 1.0f;
+   if (sweep.dataMomentUnits == "M/S")
+   {
+      const std::string tableUnits = table->units();
+      if (boost::iequals(tableUnits, "KT") || boost::iequals(tableUnits, "KTS"))
+      {
+         unitScale = 1.94384f; // m/s -> kt
+      }
+   }
+
    auto result = std::make_shared<ColorTableLut>();
    result->minimum = rangeMin;
    result->maximum = rangeMax;
@@ -452,7 +473,8 @@ BuildColorTableLutFromTable(const SweepData& sweep,
    {
       result->colors[i - rangeMin] = i == kRangeFolded
          ? table->rf_color()
-         : table->Color((static_cast<float>(i) - sweep.dataMomentOffset) / sweep.dataMomentScale);
+         : table->Color((static_cast<float>(i) - sweep.dataMomentOffset) /
+                        sweep.dataMomentScale * unitScale);
    }
    return result;
 }

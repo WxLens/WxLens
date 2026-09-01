@@ -11,11 +11,11 @@ Rectangle {
 
     // The plain "open Settings" route. §4.5's deep-links are the other direction and come from
     // the individual quick controls, not from here.
-    signal settingsRequested()
-    signal paletteRequested()
-    signal mapDetailsRequested()
-    signal savedPlacesRequested()
-    signal overlaysRequested()
+    signal settingsRequested
+    signal paletteRequested
+    signal mapDetailsRequested
+    signal savedPlacesRequested
+    signal overlaysRequested
 
     Rectangle {
         anchors.left: parent.left
@@ -26,6 +26,7 @@ Rectangle {
     }
 
     Text {
+        id: appTitle
         anchors.left: parent.left
         anchors.leftMargin: 16
         anchors.verticalCenter: parent.verticalCenter
@@ -35,112 +36,132 @@ Rectangle {
         font.bold: true
     }
 
-    Item {
-        width: 28
-        height: 28
+    Row {
+        id: actions
         anchors.right: parent.right
         anchors.rightMargin: 12
         anchors.verticalCenter: parent.verticalCenter
+        spacing: 8
 
-        Text {
-            anchors.centerIn: parent
-            text: "⚙"
-            color: settingsArea.containsMouse ? themeManager.textPrimary : themeManager.textMuted
-            font.pixelSize: 16
+        Rectangle {
+            width: overlaysText.implicitWidth + 20
+            height: 28
+            radius: themeManager.cornerRadius
+            color: overlaysArea.containsMouse ? themeManager.controlHover : themeManager.control
+            border.color: themeManager.border
+            Text {
+                id: overlaysText
+                anchors.centerIn: parent
+                text: "Overlays"
+                color: themeManager.textSecondary
+                font.pixelSize: 11
+            }
+            MouseArea {
+                id: overlaysArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.overlaysRequested()
+            }
         }
 
-        MouseArea {
-            id: settingsArea
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.settingsRequested()
+        Rectangle {
+            width: placesText.implicitWidth + 20
+            height: 28
+            radius: themeManager.cornerRadius
+            color: placesArea.containsMouse ? themeManager.controlHover : themeManager.control
+            border.color: themeManager.border
+            Text {
+                id: placesText
+                anchors.centerIn: parent
+                text: "Saved places"
+                color: themeManager.textSecondary
+                font.pixelSize: 11
+            }
+            MouseArea {
+                id: placesArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.savedPlacesRequested()
+            }
         }
-    }
 
-    Rectangle {
-        anchors.right: parent.right
-        anchors.rightMargin: 48
-        anchors.verticalCenter: parent.verticalCenter
-        width: paletteText.implicitWidth + 20
-        height: 28
-        radius: themeManager.cornerRadius
-        color: paletteArea.containsMouse ? themeManager.controlHover : themeManager.control
-        border.color: themeManager.border
-
-        Text {
-            id: paletteText
-            anchors.centerIn: parent
-            text: (typeof paletteManager !== "undefined" && paletteManager !== null)
-                ? paletteManager.activeName : "Palette"
-            color: themeManager.textSecondary
-            font.pixelSize: 11
+        Rectangle {
+            width: mapDetailsText.implicitWidth + 20
+            height: 28
+            radius: themeManager.cornerRadius
+            color: mapDetailsArea.containsMouse ? themeManager.controlHover : themeManager.control
+            border.color: themeManager.border
+            Text {
+                id: mapDetailsText
+                anchors.centerIn: parent
+                text: "Map details"
+                color: themeManager.textSecondary
+                font.pixelSize: 11
+            }
+            MouseArea {
+                id: mapDetailsArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.mapDetailsRequested()
+            }
         }
-        MouseArea {
-            id: paletteArea
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.paletteRequested()
+
+        Rectangle {
+            width: paletteText.implicitWidth + 20
+            height: 28
+            radius: themeManager.cornerRadius
+            color: paletteArea.containsMouse ? themeManager.controlHover : themeManager.control
+            border.color: themeManager.border
+            Text {
+                id: paletteText
+                anchors.centerIn: parent
+                text: (typeof paletteManager !== "undefined" && paletteManager !== null) ? paletteManager.activeName : "Palette"
+                color: themeManager.textSecondary
+                font.pixelSize: 11
+            }
+            MouseArea {
+                id: paletteArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.paletteRequested()
+            }
         }
-    }
 
-    Rectangle {
-        anchors.right: parent.right
-        anchors.rightMargin: 174
-        anchors.verticalCenter: parent.verticalCenter
-        width: mapDetailsText.implicitWidth + 20
-        height: 28
-        radius: themeManager.cornerRadius
-        color: mapDetailsArea.containsMouse ? themeManager.controlHover : themeManager.control
-        border.color: themeManager.border
-
-        Text {
-            id: mapDetailsText
-            anchors.centerIn: parent
-            text: "Map details"
-            color: themeManager.textSecondary
-            font.pixelSize: 11
+        Item {
+            width: 28
+            height: 28
+            Text {
+                anchors.centerIn: parent
+                text: "⚙"
+                color: settingsArea.containsMouse ? themeManager.textPrimary : themeManager.textMuted
+                font.pixelSize: 16
+            }
+            MouseArea {
+                id: settingsArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.settingsRequested()
+            }
         }
-        MouseArea {
-            id: mapDetailsArea
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.mapDetailsRequested()
-        }
-    }
-
-    Rectangle {
-        anchors.right: parent.right
-        anchors.rightMargin: 278
-        anchors.verticalCenter: parent.verticalCenter
-        width: placesText.implicitWidth + 20; height: 28; radius: themeManager.cornerRadius
-        color: placesArea.containsMouse ? themeManager.controlHover : themeManager.control
-        border.color: themeManager.border
-        Text { id: placesText; anchors.centerIn: parent; text: "Saved places"; color: themeManager.textSecondary; font.pixelSize: 11 }
-        MouseArea { id: placesArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.savedPlacesRequested() }
-    }
-
-    Rectangle {
-        anchors.right: parent.right
-        anchors.rightMargin: 390
-        anchors.verticalCenter: parent.verticalCenter
-        width: overlaysText.implicitWidth + 20; height: 28; radius: themeManager.cornerRadius
-        color: overlaysArea.containsMouse ? themeManager.controlHover : themeManager.control
-        border.color: themeManager.border
-        Text { id: overlaysText; anchors.centerIn: parent; text: "Overlays"; color: themeManager.textSecondary; font.pixelSize: 11 }
-        MouseArea { id: overlaysArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.overlaysRequested() }
     }
 
     Text {
-        anchors.centerIn: parent
+        anchors.left: appTitle.right
+        anchors.leftMargin: 32
+        anchors.right: actions.left
+        anchors.rightMargin: 24
+        anchors.verticalCenter: parent.verticalCenter
         // radarStatus is a context property torn down before this item on application exit, so it
         // has to be null-checked or closing the app throws a TypeError here.
-        text: (radarStatus !== null && radarStatus !== undefined)
-            ? radarStatus.siteId + " — " + radarStatus.statusText
-            : ""
+        text: (radarStatus !== null && radarStatus !== undefined) ? radarStatus.siteId + " — " + radarStatus.statusText : ""
         color: themeManager.textMuted
         font.pixelSize: 13
+        elide: Text.ElideRight
+        horizontalAlignment: Text.AlignHCenter
     }
 }
