@@ -15,6 +15,23 @@ Rectangle {
     border.color: themeManager.border
     border.width: 1
 
+    // Consume wheel/touchpad input across the entire popup. A ListView at either boundary can
+    // otherwise decline the event, allowing MapLibre's handler behind it to zoom the pane.
+    WheelHandler {
+        target: null
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: (event) => {
+            var delta = event.pixelDelta.y !== 0 ? event.pixelDelta.y
+                                                  : event.angleDelta.y / 2
+            var minimum = productList.originY
+            var maximum = Math.max(minimum,
+                                   productList.originY + productList.contentHeight - productList.height)
+            productList.contentY = Math.max(minimum,
+                                            Math.min(maximum, productList.contentY - delta))
+            event.accepted = true
+        }
+    }
+
     Column {
         anchors.fill: parent
         anchors.margins: 10
@@ -53,6 +70,7 @@ Rectangle {
         }
 
         ListView {
+            id: productList
             width: parent.width
             height: parent.height - y - paletteRow.height - 8
             clip: true

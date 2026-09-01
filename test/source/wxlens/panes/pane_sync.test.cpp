@@ -315,6 +315,20 @@ TEST_F(PaneSyncTest, PaletteChannelIsPerPaneAndSynchronizable)
    EXPECT_EQ(Pane(1)->paletteName(), QStringLiteral("ZDR"));
 }
 
+TEST_F(PaneSyncTest, LevelTwoDefaultsFollowProductIdentityAndStayPaneLocal)
+{
+   EXPECT_EQ(Pane(0)->effectivePaletteName(), QStringLiteral("DR"));
+   EXPECT_EQ(Pane(1)->effectivePaletteName(), QStringLiteral("DR"));
+
+   Pane(0)->setProductName(QStringLiteral("Velocity"));
+   EXPECT_EQ(Pane(0)->effectivePaletteName(), QStringLiteral("DV"));
+   EXPECT_EQ(Pane(1)->effectivePaletteName(), QStringLiteral("DR"));
+
+   Pane(0)->setPaletteName(QStringLiteral("ZDR"));
+   EXPECT_EQ(Pane(0)->effectivePaletteName(), QStringLiteral("ZDR"));
+   EXPECT_EQ(Pane(1)->effectivePaletteName(), QStringLiteral("DR"));
+}
+
 TEST_F(PaneSyncTest, ElevationSelectionRejectsNoRealCutButRetainsRequestedCut)
 {
    Pane(0)->setSelectedElevation(1.5);

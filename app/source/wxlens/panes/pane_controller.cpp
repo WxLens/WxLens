@@ -7,6 +7,7 @@
 #include <wxlens/products/level3_text_product.hpp>
 #include <wxlens/data/radar_site_data_service.hpp>
 #include <wxlens/palettes/palette_manager.hpp>
+#include <wxlens/palettes/palette_defaults.hpp>
 #include <wxlens/render/radar_sweep_layer.hpp>
 
 #include <wxlens/util/geodesic.hpp>
@@ -20,6 +21,8 @@
 #include <QPointer>
 #include <QQmlEngine>
 #include <QTimeZone>
+
+#include <scwx/common/products.hpp>
 
 namespace wxlens
 {
@@ -40,6 +43,14 @@ constexpr double kDefaultZoom       = 6.0;
 /// the UI must state the absence: an omitted AGL field reads as "not interesting", while a
 /// filled-in one implies a DEM that does not exist.
 const QString kNoTerrainText = QStringLiteral("requires terrain data");
+
+QString DefaultPalette(const products::ProductDescriptor& descriptor)
+{
+   if (descriptor.identityKind != products::ProductDescriptor::IdentityKind::Level2Moment)
+      return {};
+   return palettes::BundledPaletteName(QString::fromStdString(scwx::common::GetLevel2Palette(
+      scwx::common::GetLevel2Product(descriptor.identity.toStdString()))));
+}
 } // namespace
 
 class PaneController::Impl
@@ -104,6 +115,7 @@ void PaneController::Impl::RebindProduct()
    productOverlays_.clear();
    productDetailsText_.clear();
    defaultPalette_.clear();
+   defaultPalette_ = DefaultPalette(descriptor_);
 
    if (descriptor_.kind == QStringLiteral("radar") && !descriptor_.sourceKey.isEmpty())
    {
@@ -182,10 +194,12 @@ void PaneController::Impl::ConnectProductSignals(PaneController* self)
             if (renderSnapshot.sweep != nullptr)
             {
                auto& manager = palettes::PaletteManager::Instance();
-               defaultPalette_ = defaultPalette;
+               defaultPalette_ = palettes::BundledPaletteName(defaultPalette);
                QString palette = descriptor_.palette.isEmpty() ? defaultPalette_ : descriptor_.palette;
                QString text = manager.paletteText(palette);
-               if (text.isEmpty()) text = manager.activeText();
+               if (text.isEmpty())
+                  logger_->warn("No palette {} for Level 3 product {}",
+                                palette.toStdString(), descriptor_.identity.toStdString());
                renderSnapshot.colorTableLut =
                   products::BuildColorTableLut(*renderSnapshot.sweep, text);
             }
@@ -320,6 +334,15 @@ PaneController::PaneController(int                                paneId,
 {
    p->RebindProduct();
 
+   auto& paletteManager = palettes::PaletteManager::Instance();
+   connect(&paletteManager, &palettes::PaletteManager::paletteTextChanged, this,
+           [this, &paletteManager](const QString&)
+           {
+              if (effectivePaletteName() != paletteManager.activeName()) return;
+              p->ApplyPalette();
+              if (!p->map_.isNull()) p->map_->triggerRepaint();
+           });
+
    if (!p->descriptor_.sourceKey.isEmpty()) refreshProductCatalog();
 
    p->centerLatitude_  = homeLatitude();
@@ -392,6 +415,10 @@ bool PaneController::level3Product() const
    return p->descriptor_.identityKind == products::ProductDescriptor::IdentityKind::Level3Awips;
 }
 QString PaneController::paletteName() const { return p->descriptor_.palette; }
+QString PaneController::effectivePaletteName() const
+{
+   return p->descriptor_.palette.isEmpty() ? p->defaultPalette_ : p->descriptor_.palette;
+}
 QVariantList PaneController::productOverlays() const { return p->productOverlays_; }
 QString PaneController::productDetailsText() const { return p->productDetailsText_; }
 
@@ -478,8 +505,9 @@ void PaneController::setProductName(const QString& name)
    p->descriptor_.identityKind = products::ProductDescriptor::IdentityKind::Level2Moment;
    p->descriptor_.identity = QString::fromLatin1(identities[static_cast<std::size_t>(index)]);
    p->descriptor_.elevation = 0.0f;
+   p->descriptor_.palette.clear();
    p->RebindProduct(); p->ConnectProductSignals(this);
-   Q_EMIT productChanged();
+   Q_EMIT productChanged(); Q_EMIT paletteChanged();
    Q_EMIT channelChanged(SyncChannel::Product, ChangeOrigin::UserInput);
 }
 
@@ -913,9 +941,11 @@ void PaneController::applyChannelValue(SyncChannel     channel,
             ? products::ProductDescriptor::IdentityKind::Level3Awips
             : products::ProductDescriptor::IdentityKind::Level2Moment;
          p->descriptor_.elevation = 0.0f;
+         p->descriptor_.palette.clear();
          p->RebindProduct();
          p->ConnectProductSignals(this);
          Q_EMIT productChanged();
+         Q_EMIT paletteChanged();
          changed = true;
       }
       break;
@@ -925,6 +955,8 @@ void PaneController::applyChannelValue(SyncChannel     channel,
       if (p->descriptor_.palette != value.toString())
       {
          p->descriptor_.palette = value.toString();
+         p->ApplyPalette();
+         if (!p->map_.isNull()) p->map_->triggerRepaint();
          Q_EMIT paletteChanged();
          changed = true;
       }

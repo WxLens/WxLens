@@ -44,6 +44,7 @@ class PaneController : public QObject
    Q_PROPERTY(QString productIdentity READ productIdentity NOTIFY productChanged)
    Q_PROPERTY(bool level3Product READ level3Product NOTIFY productChanged)
    Q_PROPERTY(QString paletteName READ paletteName WRITE setPaletteName NOTIFY paletteChanged)
+   Q_PROPERTY(QString effectivePaletteName READ effectivePaletteName NOTIFY paletteChanged)
    Q_PROPERTY(QVariantList elevationCuts READ elevationCuts NOTIFY sourceDataChanged)
    Q_PROPERTY(double selectedElevation READ selectedElevation WRITE setSelectedElevation NOTIFY productChanged)
 
@@ -92,6 +93,7 @@ public:
    [[nodiscard]] QString productIdentity() const;
    [[nodiscard]] bool level3Product() const;
    [[nodiscard]] QString paletteName() const;
+   [[nodiscard]] QString effectivePaletteName() const;
    void setPaletteName(const QString& paletteName);
    Q_INVOKABLE void refreshProductCatalog();
    Q_INVOKABLE bool selectProduct(const QString& identityKind,

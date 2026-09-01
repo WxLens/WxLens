@@ -43,6 +43,7 @@ qt_add_executable(wxlens-app
     source/wxlens/panes/sync_types.hpp
     source/wxlens/palettes/palette_manager.cpp
     source/wxlens/palettes/palette_manager.hpp
+    source/wxlens/palettes/palette_defaults.hpp
     source/wxlens/palettes/palette_model.cpp
     source/wxlens/palettes/palette_model.hpp
     source/wxlens/products/product_descriptor.hpp

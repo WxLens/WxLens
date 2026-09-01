@@ -2,12 +2,13 @@
 #include <wxlens/data/radar_site_data_service.hpp>
 #include <wxlens/data/radar_site_database.hpp>
 #include <wxlens/log/logger.hpp>
-#include <wxlens/palettes/palette_manager.hpp>
+#include <wxlens/palettes/palette_defaults.hpp>
 #include <wxlens/util/geodesic.hpp>
 
 #include <scwx/common/color_table.hpp>
 #include <scwx/common/constants.hpp>
 #include <scwx/common/geographic.hpp>
+#include <scwx/common/products.hpp>
 #include <scwx/wsr88d/rda/generic_radar_data.hpp>
 
 #include <algorithm>
@@ -43,6 +44,21 @@ DataBlockType ProductBlockType(const std::string& name)
    if (name == "Correlation Coefficient") return DataBlockType::MomentRho;
    if (name == "Clutter Filter Power Removed") return DataBlockType::MomentCfp;
    return DataBlockType::MomentRef;
+}
+
+scwx::common::Level2Product Level2ProductForDescription(const std::string& description)
+{
+   using scwx::common::Level2Product;
+   if (description == "Velocity") return Level2Product::Velocity;
+   if (description == "Spectrum Width") return Level2Product::SpectrumWidth;
+   if (description == "Differential Reflectivity")
+      return Level2Product::DifferentialReflectivity;
+   if (description == "Differential Phase") return Level2Product::DifferentialPhase;
+   if (description == "Correlation Coefficient")
+      return Level2Product::CorrelationCoefficient;
+   if (description == "Clutter Filter Power Removed")
+      return Level2Product::ClutterFilterPowerRemoved;
+   return Level2Product::Reflectivity;
 }
 
 // Ported from Level2ProductView (level2_product_view.cpp) - see this project's
@@ -441,17 +457,22 @@ BuildColorTableLutFromTable(const SweepData& sweep,
    return result;
 }
 
-std::shared_ptr<scwx::common::ColorTable> LoadBundledColorTable()
+std::shared_ptr<scwx::common::ColorTable> LoadBundledColorTable(
+   const std::string& productName)
 {
-   // The default reflectivity palette ("BR"/"DR" in the legacy app's PaletteSettings), sourced
-   // from NOAA's Weather and Climate Toolkit (see ACKNOWLEDGEMENTS.md). ColorTable::Load(filename)
+   const QString paletteName = palettes::BundledPaletteName(QString::fromStdString(
+      scwx::common::GetLevel2Palette(Level2ProductForDescription(productName))));
+   // Product defaults are canonical wxdata identities mapped to the corresponding WCT asset,
+   // sourced from NOAA's Weather and Climate Toolkit (see ACKNOWLEDGEMENTS.md).
+   // ColorTable::Load(filename)
    // uses a plain std::ifstream (wxdata is Qt-free), so a Qt-resource-bundled ":/..." path has to
    // go through QFile + the Load(std::istream&) overload instead - matches how the legacy Qt app
    // itself bridges its QRC-bundled palettes into this same Qt-free loader.
-   QFile file(":/qt/qml/WxLens/App/res/palettes/wct/DR.pal");
+   QFile file(QStringLiteral(":/qt/qml/WxLens/App/res/palettes/wct/%1.pal")
+                 .arg(paletteName));
    if (!file.open(QIODevice::ReadOnly))
    {
-      logger_->error("Failed to open bundled default color table");
+      logger_->error("Failed to open bundled default color table {}", paletteName.toStdString());
       return nullptr;
    }
 
@@ -461,7 +482,7 @@ std::shared_ptr<scwx::common::ColorTable> LoadBundledColorTable()
    auto colorTable = scwx::common::ColorTable::Load(iss);
    if (colorTable == nullptr || !colorTable->IsValid())
    {
-      logger_->error("Bundled default color table failed to parse");
+      logger_->error("Bundled default color table {} failed to parse", paletteName.toStdString());
       return nullptr;
    }
 
@@ -488,12 +509,11 @@ public:
        siteAltitudeMslMeters_ {siteAltitudeMslMeters},
        productName_ {productName}, dataBlockType_ {ProductBlockType(productName)},
        selectedElevation_ {selectedElevation},
-       colorTable_ {LoadBundledColorTable()}, archiveTime_ {archiveTime}
+       colorTable_ {LoadBundledColorTable(productName)}, archiveTime_ {archiveTime}
    {
    }
 
    void OnLevelTwoDataLoaded(const std::shared_ptr<scwx::wsr88d::Ar2vFile>& file);
-   void SetPaletteText(const QString& text);
 
    RadarSweepProduct* self_;
 
@@ -561,21 +581,6 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
    Q_EMIT self_->SweepUpdated();
 }
 
-void RadarSweepProduct::Impl::SetPaletteText(const QString& text)
-{
-   std::istringstream stream(text.toStdString());
-   auto table = scwx::common::ColorTable::Load(stream);
-   if (table == nullptr || !table->IsValid()) return;
-   colorTable_ = std::move(table);
-   {
-      std::scoped_lock lock {dataMutex_};
-      if (data_ != nullptr) colorTableLut_ = BuildColorTableLutFromTable(*data_, colorTable_);
-   }
-   // The existing signal already triggers every attached map's repaint. Render layers compare
-   // the palette snapshot independently, so only the 1D texture is uploaded.
-   Q_EMIT self_->SweepUpdated();
-}
-
 RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
                                      double             siteLatitude,
                                      double             siteLongitude,
@@ -589,20 +594,6 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
        this, radarSite, siteLatitude, siteLongitude, siteAltitudeMslMeters, productName,
        selectedElevation, archiveTime)}
 {
-   // PaletteManager is a single process-wide singleton, so every pane on every site currently
-   // shares one active palette. That's a known, deliberate gap for this slice, not an oversight:
-   // SyncChannel::Palette (sync_types.hpp) is already reserved for per-pane palette state, same as
-   // Time/Animation/Cursor/SelectedStorm - the plumbing exists, the data does not yet. Wiring an
-   // actual per-pane palette (e.g. moving LUT ownership from this per-site product down into
-   // RadarSweepLayerBinding, the per-pane object) is future work for whichever slice implements
-   // that channel, not something to bolt on here without the UI to drive it.
-   auto& palettes = wxlens::palettes::PaletteManager::Instance();
-   if (!palettes.activeText().isEmpty()) p->SetPaletteText(palettes.activeText());
-   connect(&palettes,
-           &wxlens::palettes::PaletteManager::paletteTextChanged,
-           this,
-           [this](const QString& text) { p->SetPaletteText(text); });
-
    auto service = wxlens::data::RadarSiteDataService::Instance(radarSite);
 
    if (archiveTime.has_value())
