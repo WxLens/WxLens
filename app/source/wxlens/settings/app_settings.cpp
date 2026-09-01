@@ -96,16 +96,25 @@ struct Section
 
 /// Stable ids (§4.5). Changing one breaks every deep-link that points at it, so treat these as
 /// part of the app's contract rather than as labels.
-constexpr std::array<Section, 6> kSections {{
+constexpr std::array<Section, 8> kSections {{
    {"appearance", "Appearance", "Choose the chrome theme used throughout WxLens."},
+   {"toolbar", "Toolbar", "Choose optional shortcuts shown beside the complete Tools menu."},
    {"map-details", "Map details", "Choose which geographic context appears beneath data."},
+   {"radar-sites", "Radar sites", "Choose how pane cameras respond when a radar site changes."},
    {"measurement", "Measurement", "How measurements are started and finished."},
    {"objects", "Map objects", "Defaults for markers, range rings and pinned measurements."},
    {"units", "Units", "How distances and altitudes are displayed."},
    {"radar-geometry", "Radar geometry", "Which rows the beam-height readout shows."},
 }};
 
+struct ToolbarAction { const char* id; const char* label; };
+constexpr std::array<ToolbarAction, 4> kToolbarActions {{{"overlays", "Weather overlays"},
+                                                          {"places", "Saved places"},
+                                                          {"map", "Map details"},
+                                                          {"palette", "Palette manager"}}};
+
 constexpr int kMeasurementGestureMax = static_cast<int>(AppSettings::MeasurementGesture::ClickOnly);
+constexpr int kPreferredMeasurementToolMax = 2;
 constexpr int kSnapStrengthMax = static_cast<int>(AppSettings::SnapStrength::Strong);
 constexpr int kDistanceUnitsMax      = static_cast<int>(AppSettings::DistanceUnits::Imperial);
 constexpr int kMapThemeMax           = static_cast<int>(AppSettings::MapTheme::Light);
@@ -133,15 +142,18 @@ public:
    SettingsStore& store_;
 
    int measurementGesture_ {static_cast<int>(MeasurementGesture::Both)};
+   int preferredMeasurementTool_ {1};
    int snapStrength_ {static_cast<int>(SnapStrength::Subtle)};
    int defaultObjectScope_ {static_cast<int>(objects::MapObjectScopeKind::CurrentPaneOnly)};
    int distanceUnits_ {static_cast<int>(DistanceUnits::Both)};
    int mapTheme_ {static_cast<int>(MapTheme::FollowChrome)};
    bool controlBarDocked_ {false};
+   bool centerMapOnSiteChange_ {true};
    int mapDetailsPreset_ {static_cast<int>(MapDetailsPreset::Operational)};
    std::map<QString, bool> mapDetailVisible_ {};
 
    std::map<QString, bool> geometryRowVisible_ {};
+   std::map<QString, bool> toolbarActionVisible_ {};
 };
 
 void AppSettings::Impl::Load()
@@ -151,6 +163,8 @@ void AppSettings::Impl::Load()
                                        static_cast<int>(MeasurementGesture::Both),
                                        0,
                                        kMeasurementGestureMax);
+   preferredMeasurementTool_ = store_.GetInt(
+      kMeasurementCategory, QStringLiteral("preferred_tool"), 1, 1, kPreferredMeasurementToolMax);
    snapStrength_ = store_.GetInt(kMeasurementCategory,
                                  QStringLiteral("snap_strength"),
                                  static_cast<int>(SnapStrength::Subtle),
@@ -177,6 +191,15 @@ void AppSettings::Impl::Load()
                              kMapThemeMax);
    controlBarDocked_ = store_.GetBool(
       kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
+   centerMapOnSiteChange_ =
+      store_.GetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), true);
+   toolbarActionVisible_.clear();
+   for (const ToolbarAction& action : kToolbarActions)
+   {
+      const QString id = QString::fromLatin1(action.id);
+      toolbarActionVisible_[id] =
+         store_.GetBool(kAppearanceCategory, QStringLiteral("show_toolbar_") + id, false);
+   }
 
    mapDetailsPreset_ = store_.GetInt(kMapCategory,
                                      QStringLiteral("details_preset"),
@@ -215,6 +238,7 @@ int AppSettings::measurementGesture() const
 {
    return p->measurementGesture_;
 }
+int AppSettings::preferredMeasurementTool() const { return p->preferredMeasurementTool_; }
 
 int AppSettings::snapStrength() const { return p->snapStrength_; }
 
@@ -245,6 +269,7 @@ int AppSettings::mapTheme() const
 }
 
 bool AppSettings::controlBarDocked() const { return p->controlBarDocked_; }
+bool AppSettings::centerMapOnSiteChange() const { return p->centerMapOnSiteChange_; }
 
 int AppSettings::mapDetailsPreset() const
 {
@@ -263,6 +288,16 @@ void AppSettings::setMeasurementGesture(int gesture)
    p->store_.Save();
 
    Q_EMIT measurementGestureChanged();
+}
+
+void AppSettings::setPreferredMeasurementTool(int tool)
+{
+   if (tool < 1 || tool > kPreferredMeasurementToolMax || tool == p->preferredMeasurementTool_)
+      return;
+   p->preferredMeasurementTool_ = tool;
+   p->store_.SetInt(kMeasurementCategory, QStringLiteral("preferred_tool"), tool);
+   p->store_.Save();
+   Q_EMIT preferredMeasurementToolChanged();
 }
 
 void AppSettings::setSnapStrength(int strength)
@@ -328,6 +363,15 @@ void AppSettings::setControlBarDocked(bool docked)
    p->store_.SetBool(kAppearanceCategory, QStringLiteral("control_bar_docked"), docked);
    p->store_.Save();
    Q_EMIT controlBarDockedChanged();
+}
+
+void AppSettings::setCenterMapOnSiteChange(bool enabled)
+{
+   if (enabled == p->centerMapOnSiteChange_) return;
+   p->centerMapOnSiteChange_ = enabled;
+   p->store_.SetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), enabled);
+   p->store_.Save();
+   Q_EMIT centerMapOnSiteChangeChanged();
 }
 
 void AppSettings::setMapDetailsPreset(int preset)
@@ -403,6 +447,43 @@ void AppSettings::setMapDetailVisible(const QString& groupId, bool visible)
                     static_cast<int>(MapDetailsPreset::Custom));
    p->store_.Save();
    Q_EMIT mapDetailsChanged();
+}
+
+QVariantList AppSettings::toolbarActions() const
+{
+   QVariantList actions;
+   for (const ToolbarAction& action : kToolbarActions)
+   {
+      QVariantMap item;
+      const QString id = QString::fromLatin1(action.id);
+      item[QStringLiteral("id")] = id;
+      item[QStringLiteral("label")] = QString::fromLatin1(action.label);
+      item[QStringLiteral("visible")] = p->toolbarActionVisible_.at(id);
+      actions.append(item);
+   }
+   return actions;
+}
+
+void AppSettings::setToolbarActionVisible(const QString& actionId, bool visible)
+{
+   const auto it = p->toolbarActionVisible_.find(actionId);
+   if (it == p->toolbarActionVisible_.end() || it->second == visible) return;
+   it->second = visible;
+   p->store_.SetBool(kAppearanceCategory, QStringLiteral("show_toolbar_") + actionId, visible);
+   p->store_.Save();
+   Q_EMIT toolbarActionsChanged();
+}
+
+void AppSettings::resetToolbarActions()
+{
+   for (const ToolbarAction& action : kToolbarActions)
+   {
+      const QString id = QString::fromLatin1(action.id);
+      p->toolbarActionVisible_[id] = false;
+      p->store_.SetBool(kAppearanceCategory, QStringLiteral("show_toolbar_") + id, false);
+   }
+   p->store_.Save();
+   Q_EMIT toolbarActionsChanged();
 }
 
 QVariantList AppSettings::geometryRows() const
@@ -484,6 +565,7 @@ void AppSettings::resetToDefaults()
 {
    p->store_.SetInt(
       kMeasurementCategory, QStringLiteral("gesture"), static_cast<int>(MeasurementGesture::Both));
+   p->store_.SetInt(kMeasurementCategory, QStringLiteral("preferred_tool"), 1);
    p->store_.SetInt(kMeasurementCategory,
                     QStringLiteral("snap_strength"),
                     static_cast<int>(SnapStrength::Subtle));
@@ -494,6 +576,10 @@ void AppSettings::resetToDefaults()
                     QStringLiteral("map_theme"),
                     static_cast<int>(MapTheme::FollowChrome));
    p->store_.SetBool(kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
+   p->store_.SetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), true);
+   for (const ToolbarAction& action : kToolbarActions)
+      p->store_.SetBool(kAppearanceCategory,
+                        QStringLiteral("show_toolbar_") + QString::fromLatin1(action.id), false);
    p->store_.SetInt(kMapCategory,
                     QStringLiteral("details_preset"),
                     static_cast<int>(MapDetailsPreset::Operational));
@@ -516,12 +602,15 @@ void AppSettings::resetToDefaults()
    p->Load();
 
    Q_EMIT measurementGestureChanged();
+   Q_EMIT preferredMeasurementToolChanged();
    Q_EMIT snapStrengthChanged();
    Q_EMIT defaultObjectScopeChanged();
    Q_EMIT distanceUnitsChanged();
    Q_EMIT mapThemeChanged();
    Q_EMIT controlBarDockedChanged();
+   Q_EMIT centerMapOnSiteChangeChanged();
    Q_EMIT mapDetailsChanged();
+   Q_EMIT toolbarActionsChanged();
    Q_EMIT geometryRowsChanged();
 }
 

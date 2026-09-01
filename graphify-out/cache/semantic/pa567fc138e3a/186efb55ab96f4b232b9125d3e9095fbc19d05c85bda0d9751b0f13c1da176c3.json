@@ -1,0 +1,1 @@
+{"nodes": [{"id": "docs_adr_0003_config_storage_format_toml", "label": "TOML Configuration Storage", "file_type": "rationale", "source_file": "docs/adr/0003-config-storage-format.md", "source_location": "1-35", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

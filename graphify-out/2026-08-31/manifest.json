@@ -1,0 +1,656 @@
+{
+  ".codex/hooks.json": {
+    "mtime": 1788139269.3200786,
+    "seen": 1788140712.1398149,
+    "ast_hash": "7408224914155c25648acdfdcfef07cb",
+    "semantic_hash": ""
+  },
+  "CMakePresets.json": {
+    "mtime": 1787948901.2642035,
+    "seen": 1788140712.1398244,
+    "ast_hash": "de74a34ba676eddd0213c91f72f4aeed",
+    "semantic_hash": ""
+  },
+  "app/res/config/radar_sites.json": {
+    "mtime": 1787408991.4381645,
+    "seen": 1788140712.1398277,
+    "ast_hash": "31da784f5c0805e13d3059b0d6e0bb47",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/data/radar_site_data_service.cpp": {
+    "mtime": 1788030757.2927155,
+    "seen": 1788140712.13983,
+    "ast_hash": "d90d61cc93d7f22b2864fe266681ce02",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/data/radar_site_data_service.hpp": {
+    "mtime": 1788030757.2800016,
+    "seen": 1788140712.1398318,
+    "ast_hash": "2e44b32d54e2a4b0adec3b415fb26dde",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/data/radar_site_database.cpp": {
+    "mtime": 1787948901.2482042,
+    "seen": 1788140712.139833,
+    "ast_hash": "c155b6e5912dead97bc5ac03e3f7b3eb",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/data/radar_site_database.hpp": {
+    "mtime": 1787948901.246213,
+    "seen": 1788140712.1398351,
+    "ast_hash": "b3f0b937d2173746f18ab0f5b3c74d2d",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/log/logger.cpp": {
+    "mtime": 1787948901.2422035,
+    "seen": 1788140712.1398363,
+    "ast_hash": "a9bf339723ffc68cd22e7daab5e3e3be",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/log/logger.hpp": {
+    "mtime": 1787948901.2402031,
+    "seen": 1788140712.139838,
+    "ast_hash": "239e739a91a0722189ace2323a82e251",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/main/main.cpp": {
+    "mtime": 1788015547.7471237,
+    "seen": 1788140712.1398392,
+    "ast_hash": "5667e736d183f5c6ba07749c4d97d779",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/map_object.hpp": {
+    "mtime": 1787948901.2222352,
+    "seen": 1788140712.1398406,
+    "ast_hash": "56375cce4010ff626ce1b9ab606d5fc6",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/map_object_store.cpp": {
+    "mtime": 1788027650.9390244,
+    "seen": 1788140712.139842,
+    "ast_hash": "e6747743775e4dd2b69cf93ee1cdc9f5",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/map_object_store.hpp": {
+    "mtime": 1788027650.9340248,
+    "seen": 1788140712.139844,
+    "ast_hash": "33a4aed318dcf4ed2818462d59c9564a",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/measurement_controller.cpp": {
+    "mtime": 1787948901.244202,
+    "seen": 1788140712.1398454,
+    "ast_hash": "bd1e9946452e53179ee18d15bae547e5",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/measurement_controller.hpp": {
+    "mtime": 1787948901.2452035,
+    "seen": 1788140712.1398468,
+    "ast_hash": "f47cab85cc5ca9b40b7a0a4a030dc353",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/object_tool_controller.cpp": {
+    "mtime": 1788027650.9595428,
+    "seen": 1788140712.1398487,
+    "ast_hash": "336d75cadac28136007501b78ca9aafa",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/object_tool_controller.hpp": {
+    "mtime": 1788027650.9445462,
+    "seen": 1788140712.1398501,
+    "ast_hash": "76702a6ccad25ab0f1c01c4b756d3400",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/saved_place_manager.cpp": {
+    "mtime": 1787948901.246213,
+    "seen": 1788140712.1398513,
+    "ast_hash": "3a3db0515f8fc650bc7e0efc4eaeceab",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/saved_place_manager.hpp": {
+    "mtime": 1787948901.247204,
+    "seen": 1788140712.1398528,
+    "ast_hash": "5053eac53af41c1b84d0fabe05581145",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/snap_target_registry.cpp": {
+    "mtime": 1787948901.2117145,
+    "seen": 1788140712.1398547,
+    "ast_hash": "bf1412020a2b974e02c973c73af596b2",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/objects/snap_target_registry.hpp": {
+    "mtime": 1787948901.2117145,
+    "seen": 1788140712.139856,
+    "ast_hash": "7cc91b05888fa09196669cb1b4187f78",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/overlays/overlay_manager.cpp": {
+    "mtime": 1788015848.997613,
+    "seen": 1788140712.1398578,
+    "ast_hash": "7fc8736176b19c4b6b6a184ccb27ecca",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/overlays/overlay_manager.hpp": {
+    "mtime": 1788015473.2245753,
+    "seen": 1788140712.1398604,
+    "ast_hash": "53ad24975ec38fca2f06c72711c5c53a",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/palettes/palette_manager.cpp": {
+    "mtime": 1788053431.173302,
+    "seen": 1788140712.1398623,
+    "ast_hash": "4732bf8ff558f2fa3ee58da91db42540",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/palettes/palette_manager.hpp": {
+    "mtime": 1788053431.1673002,
+    "seen": 1788140712.1398633,
+    "ast_hash": "6781e7efafa76e4cae8e413d9c093e9e",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/palettes/palette_model.cpp": {
+    "mtime": 1787948901.2152205,
+    "seen": 1788140712.139865,
+    "ast_hash": "136badee6aeb21eb80fae87ceb11bd54",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/palettes/palette_model.hpp": {
+    "mtime": 1787948901.2212338,
+    "seen": 1788140712.1398666,
+    "ast_hash": "697ba9069683b52698a070a36b6fefb4",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/panes/pane_controller.cpp": {
+    "mtime": 1788229285.861782,
+    "seen": 1788229424.401544,
+    "ast_hash": "45980e5e708d682521dc4207cc72b720",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/panes/pane_controller.hpp": {
+    "mtime": 1788229029.702418,
+    "seen": 1788229424.401545,
+    "ast_hash": "733f28e986f3c1c6ed94adc9b5c19a8a",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/panes/pane_grid_model.cpp": {
+    "mtime": 1788014182.641154,
+    "seen": 1788140712.139871,
+    "ast_hash": "27a13d0f935dd4e4c5d57044c17d3a26",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/panes/pane_grid_model.hpp": {
+    "mtime": 1788013802.9598937,
+    "seen": 1788140712.139873,
+    "ast_hash": "3546c51944be3b6c423a9ceada25c74f",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/panes/sync_types.hpp": {
+    "mtime": 1788034942.5026412,
+    "seen": 1788140712.139874,
+    "ast_hash": "59310ef3d05befcd297d2d415a0f6dde",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/level3_graphic_overlay.cpp": {
+    "mtime": 1788035066.0670874,
+    "seen": 1788140712.1398757,
+    "ast_hash": "25d509a252d7963a0d43cce786002b23",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/level3_graphic_overlay.hpp": {
+    "mtime": 1788034840.2448497,
+    "seen": 1788140712.1398766,
+    "ast_hash": "14673434707d5deb13d5b3263ef709e1",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/level3_product_catalog.cpp": {
+    "mtime": 1788030757.3067229,
+    "seen": 1788140712.1398773,
+    "ast_hash": "1169be58c0bef8755a9295d949697254",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/level3_product_catalog.hpp": {
+    "mtime": 1788030757.3017187,
+    "seen": 1788140712.139879,
+    "ast_hash": "ecdc8cb0d2ac7f98d19a2549b373ed73",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/level3_radial_product.cpp": {
+    "mtime": 1788032700.9767706,
+    "seen": 1788140712.1398802,
+    "ast_hash": "02b4716b8cd53d18d1fe071b3128e01b",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/level3_radial_product.hpp": {
+    "mtime": 1788032700.9837687,
+    "seen": 1788140712.1398814,
+    "ast_hash": "c3221039d0c7e831e54e0b6083bd87db",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/level3_raster_product.cpp": {
+    "mtime": 1788034340.7465413,
+    "seen": 1788140712.139883,
+    "ast_hash": "aec35bdac33e6ca61dc8b38e3ee74063",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/level3_raster_product.hpp": {
+    "mtime": 1788034602.0930655,
+    "seen": 1788140712.1398842,
+    "ast_hash": "964389b9aaa9e24995e81cc096f1f0ee",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/level3_text_product.cpp": {
+    "mtime": 1788035471.385317,
+    "seen": 1788140712.139886,
+    "ast_hash": "32bea9462ba6ca2c6205f06fb213345b",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/level3_text_product.hpp": {
+    "mtime": 1788035471.374278,
+    "seen": 1788140712.1398876,
+    "ast_hash": "d09ea9b33a08ee7c51e3fb7b5efa6445",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/product_descriptor.hpp": {
+    "mtime": 1788041025.4047654,
+    "seen": 1788140712.139889,
+    "ast_hash": "ea7e839a624068e3d4cd1cda4c17826b",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/radar_product_status.cpp": {
+    "mtime": 1787948901.2352052,
+    "seen": 1788140712.1398923,
+    "ast_hash": "c9fb3a63cc23bd8a7916b3eafb83a344",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/radar_product_status.hpp": {
+    "mtime": 1787948901.2392025,
+    "seen": 1788140712.139894,
+    "ast_hash": "2ddd19663a2fa5b93c0b568d4c5d0348",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/radar_sweep_product.cpp": {
+    "mtime": 1788229307.7013922,
+    "seen": 1788229424.40156,
+    "ast_hash": "2c4ef21e11c20cb3584895329bbdc7a8",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/products/radar_sweep_product.hpp": {
+    "mtime": 1788053389.3730986,
+    "seen": 1788140712.1398966,
+    "ast_hash": "876438cdbb8ad3c1fe8137ee2e41bfbf",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/render/radar_sweep_layer.cpp": {
+    "mtime": 1788053389.371097,
+    "seen": 1788140712.1398978,
+    "ast_hash": "1a5fb9ca7d74859850b63e074b403dbf",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/render/radar_sweep_layer.hpp": {
+    "mtime": 1788053389.366096,
+    "seen": 1788140712.1398997,
+    "ast_hash": "b35581c215dd80451179ec25c959fbe2",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/settings/app_settings.cpp": {
+    "mtime": 1788014182.6471534,
+    "seen": 1788140712.1399016,
+    "ast_hash": "37e83ece13e80bb2545905566342d681",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/settings/app_settings.hpp": {
+    "mtime": 1788013802.975413,
+    "seen": 1788140712.1399028,
+    "ast_hash": "35f166744cfc0c265ebf3b7ff4cc6ad5",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/settings/settings_store.cpp": {
+    "mtime": 1787948901.2512023,
+    "seen": 1788140712.1399043,
+    "ast_hash": "0a26dc60e107110d1a8c6931a737c478",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/settings/settings_store.hpp": {
+    "mtime": 1787948901.250203,
+    "seen": 1788140712.139906,
+    "ast_hash": "efec340bf38021bcdac464129b193b7c",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/theme/theme_manager.cpp": {
+    "mtime": 1787948901.2172334,
+    "seen": 1788140712.1399076,
+    "ast_hash": "63802c3b378f6b04e82104f6d0f52c6a",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/theme/theme_manager.hpp": {
+    "mtime": 1787948901.216226,
+    "seen": 1788140712.1399088,
+    "ast_hash": "29263844a40ad7cb398bf9bbd2ebb5a9",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/util/crash_handler.cpp": {
+    "mtime": 1787948901.2492032,
+    "seen": 1788140712.1399102,
+    "ast_hash": "94c5c4b6833adaaa9ff1ff69173b7f1a",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/util/crash_handler.hpp": {
+    "mtime": 1787948901.1956646,
+    "seen": 1788140712.1399117,
+    "ast_hash": "7a168aa3948909002f3d716ac61aa31d",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/util/geodesic.cpp": {
+    "mtime": 1787948901.1946654,
+    "seen": 1788140712.1399133,
+    "ast_hash": "9cf6d9062dcf579d005a075a4d897c4c",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/util/geodesic.hpp": {
+    "mtime": 1787948901.1936576,
+    "seen": 1788140712.1399145,
+    "ast_hash": "db8c386546fe26c0f92731c5a21203aa",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/util/radar_geometry.cpp": {
+    "mtime": 1787948901.1926527,
+    "seen": 1788140712.1399152,
+    "ast_hash": "ee90fca2c8b48720885daeef817a53cb",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/util/radar_geometry.hpp": {
+    "mtime": 1787948901.1923404,
+    "seen": 1788140712.139917,
+    "ast_hash": "f3d713d88d7c9abf259e89f93e12cd17",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/util/unit_format.cpp": {
+    "mtime": 1787948901.1908364,
+    "seen": 1788140712.139918,
+    "ast_hash": "8f87c990dbb31fe96945f98bd7c4ed35",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/util/unit_format.hpp": {
+    "mtime": 1787948901.1898363,
+    "seen": 1788140712.1399193,
+    "ast_hash": "4fd45ab7399dafeb80e6860377d2ab7e",
+    "semantic_hash": ""
+  },
+  "conanfile.py": {
+    "mtime": 1787948901.2572036,
+    "seen": 1788140712.1399205,
+    "ast_hash": "a198abe9c35e9bebd968f4971f9975e0",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/app_test_main.cpp": {
+    "mtime": 1787948901.2642035,
+    "seen": 1788140712.1399217,
+    "ast_hash": "7d024835e3a67b61db1a228e471e5594",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/data/radar_site_database.test.cpp": {
+    "mtime": 1787948901.2832031,
+    "seen": 1788140712.1399226,
+    "ast_hash": "31ed068a2052c8abe3ff281547a57aca",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/objects/map_object_scope.test.cpp": {
+    "mtime": 1788028094.914561,
+    "seen": 1788140712.139924,
+    "ast_hash": "2f0ff27d21ffff9844de4b23e6779355",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/objects/measurement.test.cpp": {
+    "mtime": 1787948901.274204,
+    "seen": 1788140712.1399252,
+    "ast_hash": "28a18bc9fdb37b24196677506d6e7308",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/objects/saved_place_manager.test.cpp": {
+    "mtime": 1787948901.282204,
+    "seen": 1788140712.1399267,
+    "ast_hash": "1e1e54a9e9e6284618b62e85c5fca51d",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/overlays/overlay_manager.test.cpp": {
+    "mtime": 1788015642.07989,
+    "seen": 1788140712.1399283,
+    "ast_hash": "e882624414a1bb164b4416842b6b6776",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/palettes/palette_manager.test.cpp": {
+    "mtime": 1787948901.2682025,
+    "seen": 1788140712.1399295,
+    "ast_hash": "5c289e98f69aa7745e36b93ec0a715a6",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/palettes/palette_model.test.cpp": {
+    "mtime": 1787948901.266203,
+    "seen": 1788140712.1399307,
+    "ast_hash": "f0cea997177312b0fb7f955533b1cb05",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/panes/pane_sync.test.cpp": {
+    "mtime": 1788229045.2965913,
+    "seen": 1788229424.4015825,
+    "ast_hash": "eb5d3332fa9e12d940562f5d047e91cb",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/panes/source_probe.test.cpp": {
+    "mtime": 1787948901.2722032,
+    "seen": 1788140712.139934,
+    "ast_hash": "7d6151063f4157bb0fedca4be56ec163",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/products/level3_graphic_overlay.test.cpp": {
+    "mtime": 1788034840.2478626,
+    "seen": 1788140712.1399353,
+    "ast_hash": "fde6bedefa2e2d2da99df2bef0171eb2",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/products/level3_product_catalog.test.cpp": {
+    "mtime": 1788030757.3107204,
+    "seen": 1788140712.1399364,
+    "ast_hash": "1504b71d520ccc74368389c493031bed",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/products/level3_radial_product.test.cpp": {
+    "mtime": 1788032701.0094986,
+    "seen": 1788140712.139938,
+    "ast_hash": "e3e3f1eb59f561c39118bd4af401e91e",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/products/level3_raster_product.test.cpp": {
+    "mtime": 1788034589.4918854,
+    "seen": 1788140712.1399395,
+    "ast_hash": "7bd9d732e04e0b65f757e51df86aabc3",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/products/level3_text_product.test.cpp": {
+    "mtime": 1788035586.6783042,
+    "seen": 1788140712.1399412,
+    "ast_hash": "022d387fbbcc62d7861418f55cb4567c",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/settings/app_settings.test.cpp": {
+    "mtime": 1788013819.7274797,
+    "seen": 1788140712.1399426,
+    "ast_hash": "336bea83ef5ae19229e35d8c7a5cb1bb",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/settings/settings_store.test.cpp": {
+    "mtime": 1787948901.2682025,
+    "seen": 1788140712.139952,
+    "ast_hash": "8c60d32432a1bbf7b4b96094feeea004",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/theme/theme_manager.test.cpp": {
+    "mtime": 1787948901.267203,
+    "seen": 1788140712.1399531,
+    "ast_hash": "05606ee34006b6560faf1a42d28b2903",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/util/radar_geometry.test.cpp": {
+    "mtime": 1787948901.2652025,
+    "seen": 1788140712.1399548,
+    "ast_hash": "6488a0ead069528529ab303b169dcfea",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/wxdata_test_main.cpp": {
+    "mtime": 1787367156.2995973,
+    "seen": 1788140712.139956,
+    "ast_hash": "430e0f6f95488578a2480388eb54cc64",
+    "semantic_hash": ""
+  },
+  ".github/workflows/ci.yml": {
+    "mtime": 1787948901.1898363,
+    "seen": 1788140712.1399577,
+    "ast_hash": "214972b0276378127af0a84371479075",
+    "semantic_hash": ""
+  },
+  "ACKNOWLEDGEMENTS.md": {
+    "mtime": 1787948901.1838357,
+    "seen": 1788140712.1399593,
+    "ast_hash": "795cd944a945ab032343615b326c6b1f",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1788139269.317071,
+    "seen": 1788140712.139963,
+    "ast_hash": "1ad82d6385d7cf867db72204dd7e5ffd",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1787948901.1848357,
+    "seen": 1788140712.139964,
+    "ast_hash": "3f3eac9161c5907d84899fa26ef035bc",
+    "semantic_hash": ""
+  },
+  "CMakeLists.txt": {
+    "mtime": 1787948901.1868334,
+    "seen": 1788140712.1399655,
+    "ast_hash": "64b5a54c2f166b4d9303de3ae4c84cc2",
+    "semantic_hash": ""
+  },
+  "LICENSE.txt": {
+    "mtime": 1787367314.5289197,
+    "seen": 1788140712.1399667,
+    "ast_hash": "84f460a615dbb199dc91ebec174037fd",
+    "semantic_hash": ""
+  },
+  "app/CMakeLists.txt": {
+    "mtime": 1788229302.599051,
+    "seen": 1788229424.4015987,
+    "ast_hash": "5ee8d63a237c5317227a84de6a0ecf6a",
+    "semantic_hash": ""
+  },
+  "docs/ROADMAP.md": {
+    "mtime": 1788227098.502189,
+    "seen": 1788227107.5741453,
+    "ast_hash": "d15f3d52b8b335b187e0e8bb70b6e4f9",
+    "semantic_hash": ""
+  },
+  "docs/adr/0001-qt-quick-over-web-shell.md": {
+    "mtime": 1787948901.261204,
+    "seen": 1788140712.139971,
+    "ast_hash": "a0557102ab3fc20c7110f310aac17fb7",
+    "semantic_hash": ""
+  },
+  "docs/adr/0002-wxdata-reuse-strategy.md": {
+    "mtime": 1787948901.2632039,
+    "seen": 1788140712.1399724,
+    "ast_hash": "d98292dfc90b334aa60bd0d5b10542ca",
+    "semantic_hash": ""
+  },
+  "docs/adr/0003-config-storage-format.md": {
+    "mtime": 1787948901.2622037,
+    "seen": 1788140712.1399734,
+    "ast_hash": "a1f02c66a2ae7812a38bdf651e478e55",
+    "semantic_hash": ""
+  },
+  "docs/adr/0004-maplibre-qml-integration.md": {
+    "mtime": 1787948901.284202,
+    "seen": 1788140712.1399744,
+    "ast_hash": "c16b57f8c12d5312f817dd2df6885e24",
+    "semantic_hash": ""
+  },
+  "docs/capability-matrix.md": {
+    "mtime": 1787948901.2752032,
+    "seen": 1788140712.139976,
+    "ast_hash": "1d13904f1d7bec9a40853d8641876f0f",
+    "semantic_hash": ""
+  },
+  "docs/data-sources.md": {
+    "mtime": 1787948901.2812037,
+    "seen": 1788140712.139977,
+    "ast_hash": "df7019535647b5fabc5b07a4f5af2bdf",
+    "semantic_hash": ""
+  },
+  "docs/performance-baseline.md": {
+    "mtime": 1788142628.1364326,
+    "seen": 1788142652.3744614,
+    "ast_hash": "fd667f985022d442a148865ed56a35cb",
+    "semantic_hash": ""
+  },
+  "test/CMakeLists.txt": {
+    "mtime": 1787367145.1574454,
+    "seen": 1788140712.1399798,
+    "ast_hash": "0c1a39c28c0e1a7ca0732203486e3e88",
+    "semantic_hash": ""
+  },
+  "app/res/branding/wxlens-icon.png": {
+    "mtime": 1787403338.6052656,
+    "seen": 1788140712.1399815,
+    "ast_hash": "3b9ada7dbf6962e0e6c364bc2039f61b",
+    "semantic_hash": ""
+  },
+  "app/res/branding/wxlens-lockup-dark.png": {
+    "mtime": 1787403338.619798,
+    "seen": 1788140712.1399827,
+    "ast_hash": "06c0051ef3f97b307c99b21ea9494432",
+    "semantic_hash": ""
+  },
+  "app/res/branding/wxlens-lockup-light.png": {
+    "mtime": 1787403338.6268046,
+    "seen": 1788140712.139984,
+    "ast_hash": "56733fb4bf81ca195678aa9b8b134a90",
+    "semantic_hash": ""
+  },
+  "app/res/branding/wxlens-monochrome.png": {
+    "mtime": 1787403338.6338053,
+    "seen": 1788140712.1399848,
+    "ast_hash": "e7ba8eac0c7db000b6b3a7d9d9fd3e86",
+    "semantic_hash": ""
+  },
+  "docs/phase1-acceptance-2026-08-30.md": {
+    "mtime": 1788142628.137424,
+    "seen": 1788142652.3744657,
+    "ast_hash": "f2ba80f097f911e4e05965cd5f53f337",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260831_020350_ok__so_what_is_the_next_step_in_this_process.md": {
+    "mtime": 1788141830.9970653,
+    "seen": 1788142652.374468,
+    "ast_hash": "40478aaa70fc84d044506aaf40059b4e",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260831_213859_what_is_next.md": {
+    "mtime": 1788212339.88374,
+    "seen": 1788226402.4915571,
+    "ast_hash": "6356e0308be7f98d73a481bb8c10b4f9",
+    "semantic_hash": ""
+  },
+  "docs/phase1-ux-feedback-2026-08-31.md": {
+    "mtime": 1788227092.3824506,
+    "seen": 1788227107.5741537,
+    "ast_hash": "d1f0f4119980b55d89bf35412d423daf",
+    "semantic_hash": ""
+  },
+  "app/source/wxlens/palettes/palette_defaults.hpp": {
+    "mtime": 1788229285.8592453,
+    "seen": 1788229424.4015388,
+    "ast_hash": "ee212055d806728afaecdd43f7c9a32d",
+    "semantic_hash": ""
+  }
+}

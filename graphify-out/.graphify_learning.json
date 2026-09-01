@@ -1,0 +1,170 @@
+{
+  "generated_at": "2026-09-01T16:23:16.486620+00:00",
+  "nodes": {
+    "app_source_wxlens_palettes_palette_manager_palettemanager": {
+      "code_fingerprint": "1a47dffb82b6195ddd950ac619e047e63b2973ee50190e7099d18088a85fdeda",
+      "label": "PaletteManager",
+      "last": "2026-09-01T12:27:25.077514+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-01T12:27:25.077514+00:00",
+          "outcome": "useful",
+          "q": "Fix palette editor drags moving the map, make saved velocity use the new palette, and soften low-reflectivity blue noise."
+        },
+        {
+          "date": "2026-09-01T12:03:38.826621+00:00",
+          "outcome": "useful",
+          "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
+        }
+      ],
+      "score": 1.992065731,
+      "source_file": "app/source/wxlens/palettes/palette_manager.hpp",
+      "status": "preferred",
+      "uses": 2
+    },
+    "app_source_wxlens_panes_pane_controller_defaultpalette": {
+      "code_fingerprint": "04fa154a5747a97971c5f78b8a002bb40022fe0d9cbd2b6bf06fd7d56a2b65f2",
+      "label": "DefaultPalette()",
+      "last": "2026-09-01T12:03:38.826621+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-01T12:03:38.826621+00:00",
+          "outcome": "useful",
+          "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
+        }
+      ],
+      "score": 0.99584292,
+      "source_file": "app/source/wxlens/panes/pane_controller.cpp",
+      "status": "tentative",
+      "uses": 1
+    },
+    "app_source_wxlens_products_radar_sweep_product_colortablelut": {
+      "code_fingerprint": "9f145f73c9dce5456f621340a47f7633daa77b79f00d2207d6996e6fd39b8769",
+      "label": "ColorTableLut",
+      "last": "2026-09-01T12:27:25.077514+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-01T12:27:25.077514+00:00",
+          "outcome": "useful",
+          "q": "Fix palette editor drags moving the map, make saved velocity use the new palette, and soften low-reflectivity blue noise."
+        },
+        {
+          "date": "2026-09-01T12:03:38.826621+00:00",
+          "outcome": "useful",
+          "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
+        }
+      ],
+      "score": 1.992065731,
+      "source_file": "app/source/wxlens/products/radar_sweep_product.hpp",
+      "status": "preferred",
+      "uses": 2
+    },
+    "app_source_wxlens_theme_theme_manager_theme": {
+      "code_fingerprint": "a75f389d7d04e708ee79777be9b9da585ed8a0dd17cdbd28251478af9c48db98",
+      "label": "Theme",
+      "last": "2026-09-01T02:59:38.901335+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-01T02:59:38.901335+00:00",
+          "outcome": "useful",
+          "q": "Fix the Weather Overlays contrast problem."
+        }
+      ],
+      "score": 0.98718853,
+      "source_file": "app/source/wxlens/theme/theme_manager.cpp",
+      "status": "tentative",
+      "uses": 1
+    },
+    "docs_phase1_acceptance_2026_08_30_next_acceptance_action": {
+      "code_fingerprint": "53582e7cecc4ea38e560b2c4ef653e748056298a8cfb33b04c7c9102935c843f",
+      "label": "Next acceptance action",
+      "last": "2026-08-31T21:38:59.883190+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-31T21:38:59.883190+00:00",
+          "outcome": "useful",
+          "q": "what is next"
+        }
+      ],
+      "score": 0.982122628,
+      "source_file": "docs/phase1-acceptance-2026-08-30.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "docs_phase1_ux_feedback_2026_08_31_weather_overlays_contrast_and_control_styling": {
+      "code_fingerprint": "64ce22ab40ce5079711480c7deeee638578a302cffd7e7f595f16059e245cecd",
+      "label": "Weather Overlays contrast and control styling",
+      "last": "2026-09-01T02:59:38.901335+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-01T02:59:38.901335+00:00",
+          "outcome": "useful",
+          "q": "Fix the Weather Overlays contrast problem."
+        }
+      ],
+      "score": 0.98718853,
+      "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "docs_roadmap": {
+      "code_fingerprint": "b874e4fdae016e6648cfb888ce6b40b7b70d249db26c835146494336c0aa0e49",
+      "label": "ROADMAP.md",
+      "last": "2026-08-31T02:03:50.996815+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-31T02:03:50.996815+00:00",
+          "outcome": "useful",
+          "q": "OK, so what is the next step in this process?"
+        }
+      ],
+      "score": 0.963777866,
+      "source_file": "docs/ROADMAP.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "docs_roadmap_phase_1_completion_and_release_readiness_gates": {
+      "code_fingerprint": "b874e4fdae016e6648cfb888ce6b40b7b70d249db26c835146494336c0aa0e49",
+      "label": "Phase 1 completion and release-readiness gates",
+      "last": "2026-08-31T21:38:59.883190+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-31T21:38:59.883190+00:00",
+          "outcome": "useful",
+          "q": "what is next"
+        },
+        {
+          "date": "2026-08-31T02:03:50.996815+00:00",
+          "outcome": "useful",
+          "q": "OK, so what is the next step in this process?"
+        }
+      ],
+      "score": 1.945900494,
+      "source_file": "docs/ROADMAP.md",
+      "status": "preferred",
+      "uses": 2
+    },
+    "docs_roadmap_remaining_phase_1_level_3_sub_slices": {
+      "code_fingerprint": "b874e4fdae016e6648cfb888ce6b40b7b70d249db26c835146494336c0aa0e49",
+      "label": "Remaining Phase 1 Level 3 sub-slices",
+      "last": "2026-08-31T21:38:59.883190+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-31T21:38:59.883190+00:00",
+          "outcome": "useful",
+          "q": "what is next"
+        },
+        {
+          "date": "2026-08-31T02:03:50.996815+00:00",
+          "outcome": "useful",
+          "q": "OK, so what is the next step in this process?"
+        }
+      ],
+      "score": 1.945900494,
+      "source_file": "docs/ROADMAP.md",
+      "status": "preferred",
+      "uses": 2
+    }
+  },
+  "version": 1
+}

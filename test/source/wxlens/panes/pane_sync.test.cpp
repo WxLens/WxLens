@@ -65,6 +65,19 @@ TEST_F(PaneSyncTest, ActivePaneTracksSelectionAndSurvivesLayoutShrink)
    EXPECT_EQ(model_.activePaneIndex(), 1);
 }
 
+TEST_F(PaneSyncTest, ShrunkLayoutRetainsPaneStateForRestore)
+{
+   Pane(3)->setCenter(42.25, -71.75);
+
+   model_.setGridSize(1, 1);
+   EXPECT_EQ(model_.rowCount(), 4) << "inactive panes stay alive while hidden";
+
+   model_.setGridSize(2, 2);
+   ASSERT_NE(Pane(3), nullptr);
+   EXPECT_NEAR(Pane(3)->centerLatitude(), 42.25, kTolerance);
+   EXPECT_NEAR(Pane(3)->centerLongitude(), -71.75, kTolerance);
+}
+
 TEST_F(PaneSyncTest, UngroupedPanesDoNotAffectEachOther)
 {
    Pane(0)->setCenter(35.0, -97.0);

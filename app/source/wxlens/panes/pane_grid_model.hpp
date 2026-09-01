@@ -5,6 +5,7 @@
 #include <memory>
 
 #include <QAbstractListModel>
+#include <QVariantList>
 
 namespace wxlens
 {
@@ -20,8 +21,8 @@ class PaneController;
  * before sync (§4.1) rather than after.
  *
  * Panes persist across grid resizes: growing the grid keeps the existing panes and appends new
- * ones, so a user adding a pane doesn't lose the sites/cameras they already set up. Shrinking
- * drops the trailing panes.
+ * ones. Shrinking leaves trailing panes retained but inactive, so restoring a previous layout
+ * preserves its state and QML map items are not destroyed without a current render context.
  */
 class PaneGridModel : public QAbstractListModel
 {
@@ -38,6 +39,7 @@ class PaneGridModel : public QAbstractListModel
    Q_PROPERTY(int firstPaneId READ firstPaneId NOTIFY gridSizeChanged)
    Q_PROPERTY(QObject* activePane READ activePane NOTIFY activePaneChanged)
    Q_PROPERTY(int activePaneIndex READ activePaneIndex NOTIFY activePaneChanged)
+   Q_PROPERTY(QVariantList radarSites READ radarSites CONSTANT)
 
 public:
    enum Roles
@@ -59,7 +61,9 @@ public:
    [[nodiscard]] int firstPaneId() const;
    [[nodiscard]] QObject* activePane() const;
    [[nodiscard]] int activePaneIndex() const;
+   [[nodiscard]] QVariantList radarSites() const;
 
+   /** Includes retained inactive panes; gridWidth * gridHeight is the visible pane count. */
    [[nodiscard]] int rowCount(const QModelIndex& parent = QModelIndex()) const override;
    [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
    [[nodiscard]] QHash<int, QByteArray> roleNames() const override;

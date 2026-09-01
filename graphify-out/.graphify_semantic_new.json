@@ -1,0 +1,583 @@
+{
+  "nodes": [
+    {
+      "id": "docs_roadmap_architecture",
+      "label": "WxLens Architecture Roadmap",
+      "file_type": "document",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\docs\\ROADMAP.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "agents_data_product_pipeline",
+      "label": "Data Source to Product to Visualization Layer to View",
+      "file_type": "rationale",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\AGENTS.md",
+      "source_location": "25-30",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "agents_per_channel_sync",
+      "label": "Per-Channel Pane Synchronization",
+      "file_type": "concept",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\AGENTS.md",
+      "source_location": "32-34",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_adr_0001_qt_quick_over_web_shell_qt_quick",
+      "label": "Qt Quick over Web Shell Decision",
+      "file_type": "rationale",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\docs\\adr\\0001-qt-quick-over-web-shell.md",
+      "source_location": "1-39",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_adr_0002_wxdata_reuse_strategy_wxdata_reuse",
+      "label": "wxdata Whole-Repo Submodule Reuse",
+      "file_type": "rationale",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\docs\\adr\\0002-wxdata-reuse-strategy.md",
+      "source_location": "1-55",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_adr_0003_config_storage_format_toml",
+      "label": "TOML Configuration Storage",
+      "file_type": "rationale",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\docs\\adr\\0003-config-storage-format.md",
+      "source_location": "1-35",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_adr_0004_maplibre_qml_integration_maplibre_quick",
+      "label": "MapLibre Native Qt Quick Integration",
+      "file_type": "rationale",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\docs\\adr\\0004-maplibre-qml-integration.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "cmakelists_wxlens_project",
+      "label": "WxLens CMake Project",
+      "file_type": "code",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\CMakeLists.txt",
+      "source_location": "1-52",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_cmakelists_wxlens_app",
+      "label": "wxlens-app Target",
+      "file_type": "code",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\CMakeLists.txt",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "github_workflows_ci_ci",
+      "label": "WxLens CI Pipeline",
+      "file_type": "code",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\.github\\workflows\\ci.yml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_data_sources_catalog",
+      "label": "Data Source Catalog",
+      "file_type": "document",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\docs\\data-sources.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docs_performance_baseline_protocol",
+      "label": "Performance Capture Protocol",
+      "file_type": "document",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\docs\\performance-baseline.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_icon_wxlens_app_icon",
+      "label": "WxLens application icon",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-icon.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_icon_concentric_colored_arcs",
+      "label": "Concentric green, yellow, orange, and red arcs around a central cream circle",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-icon.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_icon_weather_radar_motif",
+      "label": "Stylized weather radar motif",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-icon.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_icon_dark_rounded_square",
+      "label": "Dark rounded-square icon background with thin light border",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-icon.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_lockup_dark_nimbus_brand_lockup",
+      "label": "Nimbus brand lockup",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-dark.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_lockup_dark_nimbus_wordmark",
+      "label": "NIMBUS wordmark",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-dark.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_lockup_dark_severe_weather_intelligence_tagline",
+      "label": "SEVERE WEATHER INTELLIGENCE tagline",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-dark.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_lockup_dark_radar_symbol",
+      "label": "Multicolor circular radar symbol",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-dark.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_lockup_dark_dark_background",
+      "label": "Dark rounded-rectangle background",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-dark.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_lockup_light_nimbus_brand_lockup",
+      "label": "Nimbus brand lockup",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-light.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_lockup_light_nimbus_wordmark",
+      "label": "NIMBUS wordmark",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-light.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_lockup_light_severe_weather_intelligence_tagline",
+      "label": "SEVERE WEATHER INTELLIGENCE tagline",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-light.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_lockup_light_radar_symbol",
+      "label": "Multicolor circular radar symbol",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-light.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_lockup_light_light_background_variant",
+      "label": "Light-background branding variant",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-light.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_monochrome_logo",
+      "label": "WxLens monochrome application logo",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-monochrome.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_monochrome_radar_rings",
+      "label": "Concentric radar-like rings and central sweep motif",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-monochrome.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_monochrome_rounded_square",
+      "label": "Dark rounded-square background",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-monochrome.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "app_res_branding_wxlens_monochrome_grayscale_palette",
+      "label": "Black, white, and gray monochrome palette",
+      "file_type": "image",
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-monochrome.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "agents_data_product_pipeline",
+      "target": "docs_roadmap_architecture",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\AGENTS.md",
+      "source_location": "25-30",
+      "weight": 1.0
+    },
+    {
+      "source": "agents_per_channel_sync",
+      "target": "docs_roadmap_architecture",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\AGENTS.md",
+      "source_location": "32-34",
+      "weight": 1.0
+    },
+    {
+      "source": "cmakelists_wxlens_project",
+      "target": "docs_adr_0002_wxdata_reuse_strategy_wxdata_reuse",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\CMakeLists.txt",
+      "source_location": "42-47",
+      "weight": 1.0
+    },
+    {
+      "source": "app_cmakelists_wxlens_app",
+      "target": "docs_adr_0003_config_storage_format_toml",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\CMakeLists.txt",
+      "source_location": "19-20",
+      "weight": 1.0
+    },
+    {
+      "source": "app_cmakelists_wxlens_app",
+      "target": "docs_adr_0004_maplibre_qml_integration_maplibre_quick",
+      "relation": "implements",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\CMakeLists.txt",
+      "source_location": "115-167",
+      "weight": 1.0
+    },
+    {
+      "source": "github_workflows_ci_ci",
+      "target": "app_cmakelists_wxlens_app",
+      "relation": "implements",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\.github\\workflows\\ci.yml",
+      "source_location": "88-93",
+      "weight": 1.0
+    },
+    {
+      "source": "docs_adr_0001_qt_quick_over_web_shell_qt_quick",
+      "target": "docs_adr_0004_maplibre_qml_integration_maplibre_quick",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\docs\\adr\\0001-qt-quick-over-web-shell.md",
+      "source_location": "12-15",
+      "weight": 1.0
+    },
+    {
+      "source": "docs_data_sources_catalog",
+      "target": "agents_data_product_pipeline",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\docs\\data-sources.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "docs_performance_baseline_protocol",
+      "target": "docs_roadmap_architecture",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\docs\\performance-baseline.md",
+      "source_location": "18-24",
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_icon_wxlens_app_icon",
+      "target": "app_res_branding_wxlens_icon_concentric_colored_arcs",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-icon.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_icon_concentric_colored_arcs",
+      "target": "app_res_branding_wxlens_icon_weather_radar_motif",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-icon.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_icon_wxlens_app_icon",
+      "target": "app_res_branding_wxlens_icon_dark_rounded_square",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-icon.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_lockup_dark_nimbus_brand_lockup",
+      "target": "app_res_branding_wxlens_lockup_dark_nimbus_wordmark",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-dark.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_lockup_dark_nimbus_brand_lockup",
+      "target": "app_res_branding_wxlens_lockup_dark_severe_weather_intelligence_tagline",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-dark.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_lockup_dark_radar_symbol",
+      "target": "app_res_branding_wxlens_lockup_dark_severe_weather_intelligence_tagline",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-dark.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_lockup_light_nimbus_brand_lockup",
+      "target": "app_res_branding_wxlens_lockup_light_nimbus_wordmark",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-light.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_lockup_light_nimbus_brand_lockup",
+      "target": "app_res_branding_wxlens_lockup_light_severe_weather_intelligence_tagline",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-light.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_lockup_light_nimbus_brand_lockup",
+      "target": "app_res_branding_wxlens_lockup_light_radar_symbol",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-light.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_lockup_light_radar_symbol",
+      "target": "app_res_branding_wxlens_lockup_light_severe_weather_intelligence_tagline",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-light.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_lockup_light_nimbus_brand_lockup",
+      "target": "app_res_branding_wxlens_lockup_light_light_background_variant",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-lockup-light.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_monochrome_logo",
+      "target": "app_res_branding_wxlens_monochrome_radar_rings",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-monochrome.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_monochrome_logo",
+      "target": "app_res_branding_wxlens_monochrome_rounded_square",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-monochrome.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "app_res_branding_wxlens_monochrome_logo",
+      "target": "app_res_branding_wxlens_monochrome_grayscale_palette",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\res\\branding\\wxlens-monochrome.png",
+      "source_location": null,
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "qt_map_rendering_stack",
+      "label": "Qt Quick MapLibre Rendering Stack",
+      "nodes": [
+        "docs_adr_0001_qt_quick_over_web_shell_qt_quick",
+        "docs_adr_0004_maplibre_qml_integration_maplibre_quick",
+        "app_cmakelists_wxlens_app"
+      ],
+      "relation": "implement",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "C:\\Users\\sherw\\OneDrive\\Apps\\WxLens\\app\\CMakeLists.txt"
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

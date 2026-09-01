@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
+import QtQuick.Controls
 
 // Presentation-only browser. Product identity, availability and selection validation all live
 // in PaneController; this surface only renders that model.
@@ -14,6 +15,37 @@ Rectangle {
     color: themeManager.elevatedSurface
     border.color: themeManager.border
     border.width: 1
+    property string query: ""
+    property var expandedCategories: ({})
+    readonly property var productGroups: {
+        const needle = query.trim().toLowerCase()
+        const products = paneController.productCatalog.filter(function(product) {
+            return needle === "" || [product.description, product.category, product.awipsId,
+                                      product.identity].join(" ").toLowerCase().indexOf(needle) >= 0
+        })
+        const groups = []
+        const byName = ({})
+        products.forEach(function(product) {
+            const name = String(product.category)
+            if (!byName[name]) {
+                byName[name] = { category: name, products: [] }
+                groups.push(byName[name])
+            }
+            byName[name].products.push(product)
+        })
+        return groups
+    }
+
+    function toggleCategory(category) {
+        const next = Object.assign({}, expandedCategories)
+        next[category] = !next[category]
+        expandedCategories = next
+    }
+
+    function selectProduct(product) {
+        paneController.selectProduct(product.identityKind, product.identity, product.description)
+        closeRequested()
+    }
 
     // Consume wheel/touchpad input across the entire popup. A ListView at either boundary can
     // otherwise decline the event, allowing MapLibre's handler behind it to zoom the pane.
@@ -60,6 +92,22 @@ Rectangle {
             color: themeManager.textMuted
             font.pixelSize: 11
         }
+
+        TextField {
+            id: productSearch
+            width: parent.width
+            placeholderText: "Search name, category, or AWIPS ID"
+            color: themeManager.textPrimary
+            placeholderTextColor: themeManager.textMuted
+            selectByMouse: true
+            background: Rectangle {
+                radius: themeManager.cornerRadius
+                color: themeManager.control
+                border.color: productSearch.activeFocus ? themeManager.primary : themeManager.border
+            }
+            onTextChanged: root.query = text
+            Keys.onEscapePressed: root.closeRequested()
+        }
         Text {
             visible: root.paneController.productCatalogError !== ""
             width: parent.width
@@ -75,51 +123,105 @@ Rectangle {
             height: parent.height - y - paletteRow.height - 8
             clip: true
             spacing: 3
-            model: root.paneController.productCatalog
+            model: root.productGroups
 
             delegate: Rectangle {
                 required property var modelData
                 width: ListView.view.width
-                height: 54
+                readonly property var selectedProduct: {
+                    for (var i = 0; i < modelData.products.length; ++i) {
+                        if (root.paneController.productIdentity === modelData.products[i].identity)
+                            return modelData.products[i]
+                    }
+                    return modelData.products[0]
+                }
+                readonly property bool expanded:
+                    root.query.trim() !== "" || root.expandedCategories[modelData.category] === true
+                readonly property int alternativeCount: Math.max(0, modelData.products.length - 1)
+                height: 58 + (expanded ? alternativeCount * 48 : 0)
                 radius: themeManager.cornerRadius
-                color: selected ? themeManager.controlActive
-                                : itemArea.containsMouse ? themeManager.controlHover
-                                                         : themeManager.control
-                border.color: selected ? themeManager.primary : themeManager.border
-                readonly property bool selected:
-                    root.paneController.productIdentity === modelData.identity
+                color: themeManager.control
+                border.color: themeManager.border
 
-                Column {
+                Rectangle {
+                    id: familyRow
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.margins: 8
-                    spacing: 2
+                    anchors.top: parent.top
+                    height: 58
+                    radius: themeManager.cornerRadius
+                    color: root.paneController.productIdentity === parent.selectedProduct.identity
+                           ? themeManager.controlActive
+                           : familyArea.containsMouse ? themeManager.controlHover : "transparent"
                     Text {
-                        text: modelData.description + (modelData.awipsId ? "  ·  " + modelData.awipsId : "")
-                        color: themeManager.textPrimary
-                        font.pixelSize: 12
+                        anchors.left: parent.left; anchors.right: expandButton.left
+                        anchors.top: parent.top; anchors.margins: 8
+                        text: parent.parent.modelData.category
+                        color: themeManager.textPrimary; font.pixelSize: 12; font.bold: true
                         elide: Text.ElideRight
-                        width: parent.width
                     }
                     Text {
-                        text: modelData.category + "  ·  " +
-                              (modelData.available ? "available" : "unavailable")
-                        color: themeManager.textMuted
-                        font.pixelSize: 10
+                        anchors.left: parent.left; anchors.right: expandButton.left
+                        anchors.bottom: parent.bottom; anchors.margins: 8
+                        text: parent.parent.selectedProduct.description +
+                              (parent.parent.selectedProduct.awipsId
+                               ? "  ·  " + parent.parent.selectedProduct.awipsId : "")
+                        color: themeManager.textMuted; font.pixelSize: 10
+                        elide: Text.ElideRight
+                    }
+                    Rectangle {
+                        id: expandButton
+                        visible: parent.parent.modelData.products.length > 1
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        anchors.rightMargin: 7
+                        width: 30; height: 30; radius: themeManager.cornerRadius
+                        color: expandArea.containsMouse ? themeManager.controlHover : themeManager.elevatedSurface
+                        Text {
+                            anchors.centerIn: parent
+                            text: familyRow.parent.expanded ? "⌃" : "⌄"
+                            color: themeManager.textSecondary; font.pixelSize: 14
+                        }
+                        MouseArea {
+                            id: expandArea; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.toggleCategory(familyRow.parent.modelData.category)
+                        }
+                    }
+                    MouseArea {
+                        id: familyArea
+                        anchors.left: parent.left; anchors.right: expandButton.left
+                        anchors.top: parent.top; anchors.bottom: parent.bottom
+                        hoverEnabled: true
+                        enabled: familyRow.parent.selectedProduct.available
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.selectProduct(familyRow.parent.selectedProduct)
                     }
                 }
-                MouseArea {
-                    id: itemArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    enabled: parent.modelData.available
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.paneController.selectProduct(parent.modelData.identityKind,
-                                                          parent.modelData.identity,
-                                                          parent.modelData.description)
-                        root.closeRequested()
+
+                Column {
+                    visible: parent.expanded
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.top: familyRow.bottom
+                    Repeater {
+                        model: parent.parent.modelData.products.filter(function(product) {
+                            return product.identity !== parent.parent.selectedProduct.identity
+                        })
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: parent.width; height: 48
+                            color: variantArea.containsMouse ? themeManager.controlHover : "transparent"
+                            Text {
+                                anchors.left: parent.left; anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter; anchors.margins: 14
+                                text: modelData.description + (modelData.awipsId ? "  ·  " + modelData.awipsId : "")
+                                color: themeManager.textSecondary; font.pixelSize: 11; elide: Text.ElideRight
+                            }
+                            MouseArea {
+                                id: variantArea; anchors.fill: parent; hoverEnabled: true
+                                enabled: parent.modelData.available; cursorShape: Qt.PointingHandCursor
+                                onClicked: root.selectProduct(parent.modelData)
+                            }
+                        }
                     }
                 }
             }

@@ -78,6 +78,13 @@ keyboard, including disabled, focused and error states.
 Retest: use 1x1, 2x2 and 3x3 layouts; target non-first panes directly; find sites through each
 supported search field; verify centering on/off and linked/unlinked camera behavior.
 
+Implemented 2026-09-01: pane taps and header actions select the active pane; the active border is
+visible only in multi-pane layouts. The station button opens a per-pane picker backed by the
+bundled site database and searches ID, place/city, state/region and country. The persisted
+`radar-sites` setting defaults to centering at zoom 7 and writes through the existing Location and
+Zoom channels. Packaged interactive retesting across all requested layouts remains required before
+checking the acceptance boxes above.
+
 ### Pane and top-bar information density
 
 - [ ] Reduce each pane header to a responsive essential summary: station, product, data timestamp
@@ -103,6 +110,11 @@ remain legible without covering meaningful radar data.
 Retest: select a common product without knowing its code, then locate a specific variant by typing
 its AWIPS ID. Verify selection remains per pane unless Product synchronization is enabled.
 
+Implemented in part 2026-09-01: fast filtering now covers description, category, identity and
+AWIPS ID, with results ordered and visibly labelled by category and codes retained. Collapsible
+friendly families with recommended variants remain open, so the checklist above is intentionally
+unchecked.
+
 ### Minimal and customizable persistent chrome
 
 - [ ] Ship a curated minimal toolbar containing only frequent, broadly useful actions.
@@ -120,6 +132,11 @@ its AWIPS ID. Verify selection remains per pane unless Product synchronization i
 Retest: begin from fresh settings, customize the toolbar, restart, reset it, and confirm every
 hidden action remains discoverable. Repeat at 1280x800 in 3x3 floating and docked layouts.
 
+Implemented in part 2026-09-01: secondary top-bar actions moved into one persistent Tools menu;
+each can be restored as a persisted optional shortcut from the stable `toolbar` settings section,
+with a one-action curated-default reset. Narrow-width label collapse/overflow and packaged
+interactive retesting remain open.
+
 ### Measurement tool preferences and radar-value reader
 
 - [ ] Show one user-preferred measurement/interrogation tool as the primary action. Click activates
@@ -135,6 +152,11 @@ hidden action remains discoverable. Repeat at 1280x800 in 3x3 floating and docke
 
 Retest: change the preferred tool, restart, exercise pointer and keyboard selection, verify both
 deactivation policies, and compare the reader against a known radar bin and geodesic calculation.
+
+Implemented in part 2026-09-01: the bottom surface now exposes one persisted preferred measurement
+tool, right-click switches between point-to-point and path, and the adjacent help/settings action
+deep-links to `measurement`. Hold-to-open, keyboard picker parity, session-retention policy and the
+decoded radar-value reader remain open.
 
 ## Definition of ready for the next user test
 

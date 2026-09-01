@@ -36,6 +36,8 @@ class AppSettings : public QObject
    /// preference rather than a fixed behaviour.
    Q_PROPERTY(int measurementGesture READ measurementGesture WRITE setMeasurementGesture NOTIFY
                  measurementGestureChanged)
+   Q_PROPERTY(int preferredMeasurementTool READ preferredMeasurementTool WRITE
+                 setPreferredMeasurementTool NOTIFY preferredMeasurementToolChanged)
    Q_PROPERTY(int snapStrength READ snapStrength WRITE setSnapStrength NOTIFY snapStrengthChanged)
    Q_PROPERTY(double snapTolerancePixels READ snapTolerancePixels NOTIFY snapStrengthChanged)
 
@@ -55,11 +57,14 @@ class AppSettings : public QObject
    Q_PROPERTY(int mapTheme READ mapTheme WRITE setMapTheme NOTIFY mapThemeChanged)
    Q_PROPERTY(bool controlBarDocked READ controlBarDocked WRITE setControlBarDocked NOTIFY
                  controlBarDockedChanged)
+   Q_PROPERTY(bool centerMapOnSiteChange READ centerMapOnSiteChange WRITE setCenterMapOnSiteChange
+                 NOTIFY centerMapOnSiteChangeChanged)
 
    Q_PROPERTY(int mapDetailsPreset READ mapDetailsPreset WRITE setMapDetailsPreset NOTIFY
                  mapDetailsChanged)
    Q_PROPERTY(QVariantList mapDetailGroups READ mapDetailGroups NOTIFY mapDetailsChanged)
    Q_PROPERTY(QVariantMap mapDetailVisibility READ mapDetailVisibility NOTIFY mapDetailsChanged)
+   Q_PROPERTY(QVariantList toolbarActions READ toolbarActions NOTIFY toolbarActionsChanged)
 
    /**
     * The §4.7 radar-geometry rows, as {id, label, visible, locked, note}. A list rather than one
@@ -125,26 +130,33 @@ public:
    AppSettings& operator=(AppSettings&&)      = delete;
 
    [[nodiscard]] int measurementGesture() const;
+   [[nodiscard]] int preferredMeasurementTool() const;
    [[nodiscard]] int snapStrength() const;
    [[nodiscard]] double snapTolerancePixels() const;
    [[nodiscard]] int defaultObjectScope() const;
    [[nodiscard]] int distanceUnits() const;
    [[nodiscard]] int mapTheme() const;
    [[nodiscard]] bool controlBarDocked() const;
+   [[nodiscard]] bool centerMapOnSiteChange() const;
    [[nodiscard]] int mapDetailsPreset() const;
 
    void setMeasurementGesture(int gesture);
+   void setPreferredMeasurementTool(int tool);
    void setSnapStrength(int strength);
    void setDefaultObjectScope(int scopeKind);
    void setDistanceUnits(int units);
    void setMapTheme(int theme);
    void setControlBarDocked(bool docked);
+   void setCenterMapOnSiteChange(bool enabled);
    void setMapDetailsPreset(int preset);
 
    [[nodiscard]] QVariantList mapDetailGroups() const;
    [[nodiscard]] QVariantMap mapDetailVisibility() const;
    [[nodiscard]] Q_INVOKABLE bool mapDetailVisible(const QString& groupId) const;
    Q_INVOKABLE void setMapDetailVisible(const QString& groupId, bool visible);
+   [[nodiscard]] QVariantList toolbarActions() const;
+   Q_INVOKABLE void setToolbarActionVisible(const QString& actionId, bool visible);
+   Q_INVOKABLE void resetToolbarActions();
 
    [[nodiscard]] QVariantList geometryRows() const;
 
@@ -174,12 +186,15 @@ public:
 
 signals:
    void measurementGestureChanged();
+   void preferredMeasurementToolChanged();
    void snapStrengthChanged();
    void defaultObjectScopeChanged();
    void distanceUnitsChanged();
    void mapThemeChanged();
    void controlBarDockedChanged();
+   void centerMapOnSiteChangeChanged();
    void mapDetailsChanged();
+   void toolbarActionsChanged();
    void geometryRowsChanged();
 
 private:

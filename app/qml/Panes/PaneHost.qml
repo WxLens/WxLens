@@ -30,6 +30,9 @@ Rectangle {
     // Whether to show the per-pane identification label (only useful once the grid has more than
     // one pane). Passed in rather than read from a global so this item stays self-contained.
     property bool showLabel: false
+    property bool active: false
+    required property var radarSites
+    signal targetRequested()
 
     // Set while applying an incoming synced camera, to stop the map's resulting change
     // notification from being reported back as user input. See the Connections block below.
@@ -39,6 +42,16 @@ Rectangle {
     // rather than handled here: a pane does not own the settings surface, and several panes exist.
     signal configureRequested(string sectionId)
     property bool productBrowserOpen: false
+    property bool sitePickerOpen: false
+
+    border.width: active && showLabel ? 2 : 0
+    border.color: themeManager.primary
+
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+        gesturePolicy: TapHandler.WithinBounds
+        onTapped: root.targetRequested()
+    }
 
     // Which interaction, if any, is currently claiming clicks on this pane. Measurement takes
     // precedence so the two tool families can never both act on one click.
@@ -803,38 +816,75 @@ Rectangle {
     }
 
 
-    // Minimal per-pane identification while the grid has more than one pane. Full pane chrome
-    // (site/product pickers) still lands later.
     Rectangle {
+        id: paneHeader
         anchors.left: parent.left
         anchors.top: parent.top
-        anchors.margins: 6
-        visible: root.showLabel
-        width: productLabel.implicitWidth + 14
-        height: 24
-        radius: themeManager.cornerRadius
-        color: themeManager.control
-        border.color: themeManager.border
-        Text {
-            id: productLabel
+        anchors.margins: 10
+        width: headerRow.implicitWidth + 8
+        height: 32
+        radius: themeManager.cornerRadius + 2
+        color: themeManager.elevatedSurface
+        border.color: root.active ? themeManager.primary : themeManager.border
+        opacity: 0.94
+        z: 12
+
+        Row {
+            id: headerRow
             anchors.centerIn: parent
-            text: root.hasController
-                ? root.paneController.sourceKey + " · " + root.paneController.productName + " ▾"
-                : ""
-            font.pixelSize: 11
-            color: themeManager.textSecondary
+            spacing: 2
+            Rectangle {
+                width: siteLabel.implicitWidth + 14; height: 24
+                radius: themeManager.cornerRadius; color: siteArea.containsMouse ? themeManager.controlHover : "transparent"
+                Text {
+                    id: siteLabel; anchors.centerIn: parent
+                    text: root.hasController ? root.paneController.sourceKey + " ▾" : ""
+                    font.pixelSize: 11; font.bold: true; color: themeManager.textPrimary
+                }
+                MouseArea {
+                    id: siteArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: { root.targetRequested(); root.sitePickerOpen = !root.sitePickerOpen; root.productBrowserOpen = false }
+                }
+            }
+            Rectangle { width: 1; height: 18; anchors.verticalCenter: parent.verticalCenter; color: themeManager.border }
+            Rectangle {
+                width: productLabel.implicitWidth + 14; height: 24
+                radius: themeManager.cornerRadius; color: productArea.containsMouse ? themeManager.controlHover : "transparent"
+                Text {
+                    id: productLabel; anchors.centerIn: parent
+                    text: root.hasController ? root.paneController.productName + " ▾" : ""
+                    font.pixelSize: 11; color: themeManager.textSecondary
+                }
+                MouseArea {
+                    id: productArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: { root.targetRequested(); root.productBrowserOpen = !root.productBrowserOpen; root.sitePickerOpen = false }
+                }
+            }
         }
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.productBrowserOpen = !root.productBrowserOpen
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        visible: root.sitePickerOpen || root.productBrowserOpen
+        z: 19
+        preventStealing: true
+        onClicked: {
+            root.sitePickerOpen = false
+            root.productBrowserOpen = false
         }
+    }
+
+    SitePicker {
+        anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 10
+        visible: root.sitePickerOpen && root.hasController
+        paneController: root.paneController; sites: root.radarSites
+        onCloseRequested: root.sitePickerOpen = false
     }
 
     ProductBrowser {
         anchors.left: parent.left
         anchors.top: parent.top
-        anchors.margins: 6
+        anchors.margins: 10
         z: 20
         visible: root.productBrowserOpen && root.hasController
         paneController: root.paneController

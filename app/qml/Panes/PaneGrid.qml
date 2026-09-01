@@ -32,6 +32,11 @@ Item {
 
             paneController: pane
             showLabel: root.columns * root.rows > 1
+            active: index === root.model.activePaneIndex
+            radarSites: root.model.radarSites
+            visible: index < root.columns * root.rows
+
+            onTargetRequested: root.model.setActivePaneIndex(index)
 
             onConfigureRequested: (sectionId) => root.configureRequested(sectionId)
 

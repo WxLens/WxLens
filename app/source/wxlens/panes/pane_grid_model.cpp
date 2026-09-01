@@ -1,5 +1,6 @@
 #include <wxlens/panes/pane_grid_model.hpp>
 #include <wxlens/panes/pane_controller.hpp>
+#include <wxlens/data/radar_site_database.hpp>
 #include <wxlens/log/logger.hpp>
 #include <wxlens/products/product_descriptor.hpp>
 
@@ -76,9 +77,27 @@ QObject* PaneGridModel::activePane() const
 
 int PaneGridModel::activePaneIndex() const { return p->activePaneIndex_; }
 
+QVariantList PaneGridModel::radarSites() const
+{
+   QVariantList result;
+   for (const data::RadarSiteInfo& site : data::RadarSites())
+   {
+      QVariantMap item;
+      item[QStringLiteral("id")] = QString::fromStdString(site.id);
+      item[QStringLiteral("name")] = QString::fromStdString(site.place);
+      item[QStringLiteral("region")] = QString::fromStdString(site.state);
+      item[QStringLiteral("country")] = QString::fromStdString(site.country);
+      item[QStringLiteral("latitude")] = site.latitude;
+      item[QStringLiteral("longitude")] = site.longitude;
+      result.append(item);
+   }
+   return result;
+}
+
 void PaneGridModel::setActivePaneIndex(int index)
 {
-   if (index < 0 || index >= static_cast<int>(p->panes_.size()) ||
+   const int visiblePaneCount = p->gridWidth_ * p->gridHeight_;
+   if (index < 0 || index >= visiblePaneCount ||
        index == p->activePaneIndex_)
    {
       return;
@@ -139,12 +158,7 @@ void PaneGridModel::setGridSize(int width, int height)
       Q_EMIT gridSizeChanged();
    }
 
-   if (desired == current)
-   {
-      return;
-   }
-
-   logger_->info("Grid resized to {}x{} ({} panes)", width, height, desired);
+   logger_->info("Grid resized to {}x{} ({} visible panes)", width, height, desired);
 
    if (desired > current)
    {
@@ -169,19 +183,15 @@ void PaneGridModel::setGridSize(int width, int height)
       }
       endInsertRows();
    }
-   else
+
+   // Do not remove trailing pane controllers when a layout shrinks. Their PaneHost delegates own
+   // MapLibre quick items, whose renderer teardown requires a current GL context; destroying them
+   // from the model-change event can crash inside QOpenGLContext::functions(). Retaining and
+   // hiding them also gives the 1x1/last-layout toggle genuine pane-state memory.
+   if (p->activePaneIndex_ >= static_cast<int>(desired))
    {
-      const bool activeWillChange = p->activePaneIndex_ >= static_cast<int>(desired);
-      beginRemoveRows(QModelIndex(),
-                      static_cast<int>(desired),
-                      static_cast<int>(current - 1));
-      p->panes_.resize(desired);
-      endRemoveRows();
-      if (activeWillChange)
-      {
-         p->activePaneIndex_ = std::max(0, static_cast<int>(desired) - 1);
-         Q_EMIT activePaneChanged();
-      }
+      p->activePaneIndex_ = std::max(0, static_cast<int>(desired) - 1);
+      Q_EMIT activePaneChanged();
    }
 
    if (current == 0 && desired > 0)

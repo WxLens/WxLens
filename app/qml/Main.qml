@@ -17,6 +17,7 @@ Window {
         spacing: 0
 
         TopBar {
+            id: topBar
             width: parent.width
             onSettingsRequested: settingsDialog.open()
             onPaletteRequested: paletteDialog.open()
@@ -27,7 +28,7 @@ Window {
 
         Item {
             width: parent.width
-            height: parent.height - 48
+            height: parent.height - topBar.height
 
             PaneGrid {
                 anchors.left: parent.left

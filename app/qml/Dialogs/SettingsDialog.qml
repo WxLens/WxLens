@@ -217,6 +217,46 @@ Item {
                     onSelected: (index) => themeManager.activeTheme = themeManager.availableThemes[index]
                 }
 
+                SettingsChoice {
+                    visible: root.currentSection === "radar-sites"
+                    width: contentColumn.width
+                    label: "When a radar site changes"
+                    explanation: "Center the selected pane at a radar-view zoom. Location and " +
+                                 "Zoom links continue to follow their normal synchronization rules."
+                    options: ["Keep the current map view", "Center on the radar site"]
+                    currentIndex: appSettings.centerMapOnSiteChange ? 1 : 0
+                    onSelected: (index) => appSettings.centerMapOnSiteChange = index === 1
+                }
+
+                Column {
+                    visible: root.currentSection === "toolbar"
+                    width: contentColumn.width
+                    spacing: 8
+                    Text {
+                        text: "Optional top-bar shortcuts"
+                        color: themeManager.textPrimary; font.pixelSize: 12; font.bold: true
+                    }
+                    Repeater {
+                        model: appSettings.toolbarActions
+                        delegate: SettingsChoice {
+                            required property var modelData
+                            width: contentColumn.width
+                            label: modelData.label
+                            explanation: "The action always remains available in Tools."
+                            options: ["Tools menu only", "Show in top bar"]
+                            currentIndex: modelData.visible ? 1 : 0
+                            onSelected: (index) => appSettings.setToolbarActionVisible(modelData.id, index === 1)
+                        }
+                    }
+                    Rectangle {
+                        width: 170; height: 30; radius: themeManager.cornerRadius
+                        color: resetToolbarArea.containsMouse ? themeManager.controlHover : themeManager.control
+                        border.color: themeManager.border
+                        Text { anchors.centerIn: parent; text: "Reset curated default"; color: themeManager.textSecondary; font.pixelSize: 11 }
+                        MouseArea { id: resetToolbarArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: appSettings.resetToolbarActions() }
+                    }
+                }
+
                 // -- Map details -------------------------------------------------------------
                 SettingsChoice {
                     visible: root.currentSection === "map-details"
@@ -299,6 +339,17 @@ Item {
                     currentIndex: (typeof appSettings !== "undefined" && appSettings !== null)
                         ? appSettings.measurementGesture : 0
                     onSelected: (index) => appSettings.measurementGesture = index
+                }
+
+                SettingsChoice {
+                    visible: root.currentSection === "measurement"
+                    width: contentColumn.width
+                    label: "Primary measurement tool"
+                    explanation: "The bottom bar keeps one preferred measurement action visible. " +
+                                 "Right-click it to switch tools without opening Settings."
+                    options: ["Point to point", "Multi-segment path"]
+                    currentIndex: appSettings.preferredMeasurementTool - 1
+                    onSelected: (index) => appSettings.preferredMeasurementTool = index + 1
                 }
 
                 SettingsChoice {
