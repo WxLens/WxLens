@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Dialogs
 import "../Controls"
 
@@ -9,6 +10,25 @@ Rectangle {
     visible: false
     z: 100
     color: "#99000000"
+    property string notice: ""
+    function paletteDescription(name) {
+        const names = {
+            "DR": "Reflectivity", "DV": "Base velocity",
+            "SRV": "Storm-relative velocity", "SW": "Spectrum width",
+            "ZDR": "Differential reflectivity", "CC": "Correlation coefficient",
+            "KDP": "Specific differential phase",
+            "KDP2": "Alternate specific differential phase",
+            "HC": "Hydrometeor classification", "ET": "Echo tops",
+            "VIL": "Vertically integrated liquid", "OHP": "One-hour precipitation",
+            "STP": "Storm-total precipitation", "DOD_DSD": "Drop-size distribution",
+            "Default16": "Generic 16-color palette"
+        }
+        return names[name] || name
+    }
+    function showNotice(message) {
+        notice = message
+        noticeTimer.restart()
+    }
     function open() { visible = true }
     function close() { paletteManager.requestClose() }
 
@@ -18,12 +38,21 @@ Rectangle {
         function onImportFileRequested() { openDialog.open() }
         function onSaveFileRequested() { saveDialog.pending = true; saveDialog.open() }
     }
-    MouseArea { anchors.fill: parent; preventStealing: true; onClicked: root.close() }
+    MouseArea {
+        anchors.fill: parent
+        preventStealing: true
+        onClicked: root.close()
+        onWheel: (wheel) => wheel.accepted = true
+    }
     Rectangle {
         anchors.centerIn: parent
         width: Math.min(760, root.width - 40); height: Math.min(650, root.height - 40)
         radius: themeManager.cornerRadius; color: themeManager.surface; border.color: themeManager.border
-        MouseArea { anchors.fill: parent; preventStealing: true }
+        MouseArea {
+            anchors.fill: parent
+            preventStealing: true
+            onWheel: (wheel) => wheel.accepted = true
+        }
         Column {
             anchors.fill: parent; anchors.margins: 18; spacing: 12
             Row {
@@ -38,16 +67,30 @@ Rectangle {
                 text: paletteManager.activeName + (paletteManager.editor.dirty ? " - modified" : "") + (paletteManager.editor.valid ? "" : " - invalid")
                 color: paletteManager.editor.valid ? themeManager.textSecondary : themeManager.danger; font.pixelSize: 12
             }
+            Text {
+                text: "Choose a palette to edit. This does not apply it to a radar pane."
+                color: themeManager.textMuted; font.pixelSize: 10
+            }
             Flickable {
                 width: parent.width; height: 30; contentWidth: choices.width; clip: true
                 Row { id: choices; spacing: 6
                     Repeater { model: paletteManager.paletteNames
                         Rectangle {
+                            id: paletteChoice
                             required property string modelData
                             width: label.implicitWidth + 16; height: 26; radius: 4
                             color: modelData === paletteManager.activeName ? themeManager.controlActive : themeManager.control
                             Text { id: label; anchors.centerIn: parent; text: modelData; color: themeManager.textPrimary; font.pixelSize: 10 }
-                            MouseArea { anchors.fill: parent; onClicked: paletteManager.requestSelect(modelData) }
+                            MouseArea {
+                                id: paletteChoiceArea
+                                anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: paletteManager.requestSelect(modelData)
+                            }
+                            ToolTip.visible: paletteChoiceArea.containsMouse
+                            ToolTip.delay: 450
+                            ToolTip.text: root.paletteDescription(modelData) +
+                                          " — click to edit; does not apply to a pane"
                         }
                     }
                 }
@@ -122,15 +165,45 @@ Rectangle {
                     Row { spacing: 8
                         Rectangle { width: 104; height: 28; radius: themeManager.cornerRadius; color: themeManager.control
                             Text { anchors.centerIn: parent; text: "Reset " + paletteManager.activeName; color: paletteManager.activeIsFactoryPalette ? themeManager.textPrimary : themeManager.textMuted; font.pixelSize: 10 }
-                            MouseArea { anchors.fill: parent; enabled: paletteManager.activeIsFactoryPalette; onClicked: paletteManager.requestResetActive() } }
+                            MouseArea { anchors.fill: parent; enabled: paletteManager.activeIsFactoryPalette; onClicked: {
+                                if (!paletteManager.editor.dirty) {
+                                    root.showNotice(paletteManager.activeName + " is already the original palette")
+                                } else {
+                                    paletteManager.requestResetActive()
+                                    root.showNotice(paletteManager.activeName + " restored to its original palette")
+                                }
+                            } } }
                         Rectangle { width: 104; height: 28; radius: themeManager.cornerRadius; color: themeManager.control
                             Text { anchors.centerIn: parent; text: "Reset all"; color: themeManager.textPrimary; font.pixelSize: 10 }
-                            MouseArea { anchors.fill: parent; onClicked: paletteManager.requestResetAll() } }
+                            MouseArea { anchors.fill: parent; onClicked: {
+                                paletteManager.requestResetAll()
+                                root.showNotice("Factory palettes restored; unchanged palettes were already original")
+                            } } }
                     }
                 }
             }
         }
     }
+    Rectangle {
+        visible: root.notice !== ""
+        z: 300
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 28
+        width: Math.min(noticeText.implicitWidth + 28, parent.width - 40)
+        height: 38
+        radius: themeManager.cornerRadius
+        color: themeManager.elevatedSurface
+        border.color: themeManager.primary
+        Text {
+            id: noticeText
+            anchors.centerIn: parent
+            text: root.notice
+            color: themeManager.textPrimary
+            font.pixelSize: 11
+        }
+    }
+    Timer { id: noticeTimer; interval: 2800; onTriggered: root.notice = "" }
     MouseArea { anchors.fill: parent; visible: paletteManager.confirmationRequired; z: 199 }
     Rectangle {
         visible: paletteManager.confirmationRequired; z: 200; anchors.centerIn: parent; width: 410; height: 155; radius: themeManager.cornerRadius; color: themeManager.elevatedSurface; border.color: themeManager.border

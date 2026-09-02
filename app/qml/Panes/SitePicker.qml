@@ -19,17 +19,32 @@ Rectangle {
     readonly property var filteredSites: {
         const needle = query.trim().toLowerCase()
         if (needle === "") return sites
-        return sites.filter(function(site) {
-            return [site.id, site.name, site.region, site.country].join(" ")
-                .toLowerCase().indexOf(needle) >= 0
+        const ranked = []
+        sites.forEach(function(site, sourceIndex) {
+            const id = site.id.toLowerCase()
+            const city = site.name.toLowerCase()
+            const region = site.region.toLowerCase()
+            const regionName = site.regionName.toLowerCase()
+            var rank = 99
+            if (id.indexOf(needle) >= 0) rank = 0
+            else if (city.indexOf(needle) >= 0) rank = 1
+            else if (region === needle || regionName === needle) rank = 2
+            else if (region.indexOf(needle) >= 0 || regionName.indexOf(needle) >= 0) rank = 3
+            else if (site.searchText.indexOf(needle) >= 0) rank = 4
+            if (rank !== 99) ranked.push({ "site": site, "rank": rank, "sourceIndex": sourceIndex })
         })
+        ranked.sort(function(a, b) {
+            if (a.rank !== b.rank) return a.rank - b.rank
+            const idOrder = a.site.id.localeCompare(b.site.id)
+            return idOrder !== 0 ? idOrder : a.sourceIndex - b.sourceIndex
+        })
+        return ranked.map(function(entry) { return entry.site })
     }
 
     function choose(site) {
         paneController.sourceKey = site.id
         if (appSettings.centerMapOnSiteChange) {
-            paneController.setCenter(site.latitude, site.longitude)
-            paneController.zoom = 7.0
+            paneController.centerOn(site.latitude, site.longitude, 7.0)
         }
         closeRequested()
     }
@@ -69,7 +84,7 @@ Rectangle {
         TextField {
             id: search
             width: parent.width
-            placeholderText: "Search ID, station, city, or state"
+            placeholderText: "Search ID, station, city, state, or country"
             color: themeManager.textPrimary
             placeholderTextColor: themeManager.textMuted
             selectByMouse: true
@@ -114,7 +129,10 @@ Rectangle {
                         width: parent.width; elide: Text.ElideRight
                     }
                     Text {
-                        text: [modelData.region, modelData.country].filter(Boolean).join(", ")
+                        text: [modelData.regionName && modelData.regionName !== modelData.region
+                               ? modelData.regionName + " (" + modelData.region + ")"
+                               : modelData.region,
+                               modelData.country].filter(Boolean).join(", ")
                         color: themeManager.textMuted; font.pixelSize: 10
                     }
                 }

@@ -169,7 +169,8 @@ qt_add_resources(wxlens-app-test "wxlens-app-test-palette"
     PREFIX "/qt/qml/WxLens/App/res/palettes/wct"
     BASE "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct"
     FILES "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct/DR.pal"
-          "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct/DV.pal")
+          "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct/DV.pal"
+          "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct/SRV.pal")
 
 qt_add_resources(wxlens-app-test "wxlens-app-test-themes"
     PREFIX "/qt/qml/WxLens/App/res/themes"

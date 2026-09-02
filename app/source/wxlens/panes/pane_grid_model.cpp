@@ -26,6 +26,47 @@ constexpr int kMaxGridDimension = 4;
 // rotation control is grouped correctly the day it exists, without revisiting this.
 constexpr std::array<SyncChannel, 4> kCameraChannels {
    SyncChannel::Location, SyncChannel::Zoom, SyncChannel::Bearing, SyncChannel::Pitch};
+
+QString RegionName(const std::string& country, const std::string& region)
+{
+   static const std::map<std::string, QString> kUsRegions {
+      {"AK", QStringLiteral("Alaska")}, {"AL", QStringLiteral("Alabama")},
+      {"AR", QStringLiteral("Arkansas")}, {"AZ", QStringLiteral("Arizona")},
+      {"CA", QStringLiteral("California")}, {"CO", QStringLiteral("Colorado")},
+      {"DE", QStringLiteral("Delaware")}, {"FL", QStringLiteral("Florida")},
+      {"GA", QStringLiteral("Georgia")}, {"GU", QStringLiteral("Guam")},
+      {"HI", QStringLiteral("Hawaii")}, {"IA", QStringLiteral("Iowa")},
+      {"ID", QStringLiteral("Idaho")}, {"IL", QStringLiteral("Illinois")},
+      {"IN", QStringLiteral("Indiana")}, {"KS", QStringLiteral("Kansas")},
+      {"KY", QStringLiteral("Kentucky")}, {"LA", QStringLiteral("Louisiana")},
+      {"MA", QStringLiteral("Massachusetts")}, {"MD", QStringLiteral("Maryland")},
+      {"ME", QStringLiteral("Maine")}, {"MI", QStringLiteral("Michigan")},
+      {"MN", QStringLiteral("Minnesota")}, {"MO", QStringLiteral("Missouri")},
+      {"MS", QStringLiteral("Mississippi")}, {"MT", QStringLiteral("Montana")},
+      {"NC", QStringLiteral("North Carolina")}, {"ND", QStringLiteral("North Dakota")},
+      {"NE", QStringLiteral("Nebraska")}, {"NJ", QStringLiteral("New Jersey")},
+      {"NM", QStringLiteral("New Mexico")}, {"NV", QStringLiteral("Nevada")},
+      {"NY", QStringLiteral("New York")}, {"OH", QStringLiteral("Ohio")},
+      {"OK", QStringLiteral("Oklahoma")}, {"OR", QStringLiteral("Oregon")},
+      {"PA", QStringLiteral("Pennsylvania")}, {"PR", QStringLiteral("Puerto Rico")},
+      {"SC", QStringLiteral("South Carolina")}, {"SD", QStringLiteral("South Dakota")},
+      {"TN", QStringLiteral("Tennessee")}, {"TX", QStringLiteral("Texas")},
+      {"UT", QStringLiteral("Utah")}, {"VA", QStringLiteral("Virginia")},
+      {"VT", QStringLiteral("Vermont")}, {"WA", QStringLiteral("Washington")},
+      {"WI", QStringLiteral("Wisconsin")}, {"WV", QStringLiteral("West Virginia")},
+      {"WY", QStringLiteral("Wyoming")}};
+   if (country != "USA") return QString::fromStdString(region);
+   const auto it = kUsRegions.find(region);
+   return it == kUsRegions.end() ? QString::fromStdString(region) : it->second;
+}
+
+QString CountryName(const std::string& country)
+{
+   if (country == "USA") return QStringLiteral("United States America");
+   if (country == "JPN") return QStringLiteral("Japan");
+   if (country == "KOR") return QStringLiteral("South Korea Republic of Korea");
+   return QString::fromStdString(country);
+}
 } // namespace
 
 class PaneGridModel::Impl
@@ -87,6 +128,17 @@ QVariantList PaneGridModel::radarSites() const
       item[QStringLiteral("name")] = QString::fromStdString(site.place);
       item[QStringLiteral("region")] = QString::fromStdString(site.state);
       item[QStringLiteral("country")] = QString::fromStdString(site.country);
+      const QString regionName = RegionName(site.country, site.state);
+      item[QStringLiteral("regionName")] = regionName;
+      item[QStringLiteral("searchText")] =
+         QStringLiteral("%1 %2 %3 %4 %5 %6")
+            .arg(QString::fromStdString(site.id),
+                 QString::fromStdString(site.place),
+                 QString::fromStdString(site.state),
+                 regionName,
+                 QString::fromStdString(site.country),
+                 CountryName(site.country))
+            .toLower();
       item[QStringLiteral("latitude")] = site.latitude;
       item[QStringLiteral("longitude")] = site.longitude;
       result.append(item);

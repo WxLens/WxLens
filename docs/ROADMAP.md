@@ -571,6 +571,25 @@ camera / Link everything, etc.) are a UX-design detail to finalize during Phase 
 reviewer's note that terminology can be decided at that point — the architecture above is what
 must be locked in now.
 
+**Radar-site default and quick presets (added 2026-09-01):** `RadarSite` remains its own channel;
+it must never be made an accidental side effect of linking `Location` or the rest of the camera.
+For a fresh installation, however, the user-facing default is **change the radar site in all
+panes**: panes begin in one shared `RadarSite` group because that is the least surprising behavior
+for an ordinary reflectivity/velocity/CC multi-pane layout. A stable, addressable preference in
+the pane/synchronization settings chooses between **All panes** and **Active pane only** for new
+workspaces and newly created panes. The setting surface must also offer an explicit apply-to-current-
+workspace action; silently regrouping an existing multi-storm workspace when a preference changes
+would be destructive. Per-pane independence and custom site groups remain first-class and always
+reachable.
+
+The pane's compact Link A/Link B/Unlinked control gains a small preset menu with at least
+**Map view only** (`Location`+`Zoom`+`Bearing`+`Pitch`) and **Map view + radar site** (the camera
+bundle plus `RadarSite`). **Everything** and custom per-channel membership remain advanced choices.
+This is UI sugar over the existing channel groups, not a second global link flag. A radar-site
+change still respects the separate **Center map when radar site changes** preference; synchronization
+must propagate the site once with the normal origin guard, then apply centering without creating a
+site/camera feedback loop.
+
 **Persistent link vs. one-shot action — keep these distinct:** joining a `SyncGroupId` is
 persistent (future changes on that channel keep propagating until a pane leaves the group).
 "Match this pane's location to another" / "copy view to another pane" is a **one-shot apply**
@@ -743,6 +762,12 @@ successor to `map_pane_context_menu.cpp`): link to another pane, unlink, match l
 camera, copy view to another pane, make independent, follow another pane. Advanced/less-common
 configuration (custom channel combinations, naming a group) can live in a settings surface, but
 the common actions must not require opening it.
+
+The ordinary link menu must describe the effect rather than exposing raw channel names: **Map
+view only** and **Map view + radar site** are the primary presets. It must visibly indicate when a
+pane has a custom combination, and expanding that state shows whether `RadarSite`, `Product`,
+`Palette`, and `Time` are linked. This keeps the frequent one-click path simple while making it
+impossible for an expert to mistake camera linking for site linking.
 
 **Every quick control links to the setting that governs its default.** The rule above gets you
 from Settings to the pane; this is the other direction, and it is the half that is usually
@@ -2344,6 +2369,28 @@ coverage. Complete and verify each sub-slice independently in this order:
    family acceptance, actual performance measurements, and the phase-wide release gates remain
    open; therefore neither 3F nor Phase 1 is complete.
 
+   **NEAR-TERM PRODUCT/TILT PRESENTATION FOLLOW-UP (added 2026-09-01):** reorganize the browser
+   around meteorological product families, not transport levels. Level 2 is the recommended source
+   for base Reflectivity, Velocity, Spectrum Width, ZDR, Correlation Coefficient and Differential
+   Phase; label the applicable low-cut data as super-resolution without hiding that the source is
+   Level 2. Derived/specialized products such as Echo Tops, VIL, storm-relative velocity,
+   hydrometeor classification, accumulation and storm tracking remain first-class Level 3
+   families. Level 3 base-product AWIPS variants such as CC `N0C`/`NAC`/`N1C`/`NBC`/`N2C`/`N3C`
+   are **tilt/source variants beneath Correlation Coefficient**, not separate ordinary products at
+   the same hierarchy level. Apply the same treatment to the corresponding reflectivity,
+   velocity, ZDR and KDP families.
+
+   The normal picker shows one friendly family row and a tilt selector. An expert expansion exposes
+   source (`Level 2 raw` or `Level 3`), resolution/availability, and the exact AWIPS identity. Add a
+   persisted product-display preference with **Angle**, **AWIPS code**, and **Both** choices for
+   Level 3 tilt labels; default to **Both** until usability testing demonstrates that angle-only is
+   clearer. Where the loaded product reports an actual elevation, display that value; otherwise
+   mark the code's nominal angle as approximate rather than fabricating an exact cut. Recommended
+   variants must be selected deliberately by canonical default and site availability, never merely
+   because an AWIPS id happened to appear first in provider or container order. Preserve the full
+   identity internally for caching, archive requests, synchronization and diagnostics even when the
+   friendly UI hides it.
+
    **RUNTIME CONTINUATION (2026-08-29):** the per-pane selection now drives the Level 3 provider
    and binds the returned file into the existing visualization layer. Radial and BA07/BA0F raster
    snapshots publish through the same immutable GPU contract as Level 2; decoded storm/product
@@ -2380,6 +2427,9 @@ acceptance rerun.
   measurement gesture, retain/clear-on-tool-deactivation behavior, snap tolerance/suppress
   modifier, geometry-row visibility, map details, optional-toolbar-control visibility/order, and
   other preferences already promised elsewhere in this roadmap remain part of the same audit.
+  Include the default radar-site scope (**All panes** / **Active pane only**), the explicit
+  apply-to-current-workspace action, link-menu preset default, and Level 3 tilt-label format
+  (**Angle** / **AWIPS code** / **Both**).
   Do not silently resolve open question 11 while adding the floating/docked preference.
 - [ ] **Phase-wide UX and acceptance validation.** Rerun every criterion in §4.8 against the
   packaged application, including primary pointer gestures and keyboard paths, and record which
@@ -2532,11 +2582,10 @@ config/data-model choices don't accidentally preclude it later.
     layout buttons. Open until those arrive: whether the layout picker is a fixed preset row, or
     a short preset row plus a custom rows×columns picker for arrangements the presets don't
     cover.
-11. **Floating vs. docked default for the bottom control cluster** (§5.4) — **MEASURED, PRODUCT
-    CHOICE STILL OPEN:** at 1280x800 in a real 3×3 layout the floating bar obscures a substantial
-    strip across all three bottom panes; docked mode correctly reserves 54 px and obscures none.
-    Shipping floating follows the user's earlier preference but accepts that cost; docked is the
-    acceptance recommendation for dense layouts. Do not silently choose between them.
+11. ~~**Floating vs. docked default for the bottom control cluster** (§5.4)~~ — **RESOLVED
+    2026-09-02: floating is the shipping default.** At 1280x800 in a real 3×3 layout the floating
+    bar obscures a substantial strip across all three bottom panes; docked mode correctly reserves
+    54 px and obscures none. The user reviewed that tradeoff and explicitly selected floating.
 
 ---
 

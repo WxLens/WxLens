@@ -24,6 +24,7 @@ Window {
             onMapDetailsRequested: settingsDialog.openAt("map-details")
             onSavedPlacesRequested: savedPlacesDialog.open()
             onOverlaysRequested: overlaysDialog.open()
+            onHelpRequested: helpDialog.open()
         }
 
         Item {
@@ -60,4 +61,10 @@ Window {
     PaletteDialog { id: paletteDialog }
     SavedPlacesDialog { id: savedPlacesDialog }
     OverlaysDialog { id: overlaysDialog }
+    HelpDialog { id: helpDialog }
+
+    Shortcut { sequence: "F1"; onActivated: helpDialog.open() }
+    Shortcut { sequence: "Ctrl+/"; onActivated: helpDialog.open() }
+    Shortcut { sequence: "Ctrl+,"; onActivated: settingsDialog.open() }
+    Shortcut { sequence: "Ctrl+F"; onActivated: savedPlacesDialog.openAndFocusSearch() }
 }

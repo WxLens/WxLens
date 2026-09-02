@@ -8,6 +8,8 @@
 #include <wxlens/panes/pane_grid_model.hpp>
 #include <wxlens/panes/sync_types.hpp>
 
+#include <ranges>
+
 #include <gtest/gtest.h>
 
 namespace wxlens::panes::test
@@ -98,6 +100,43 @@ TEST_F(PaneSyncTest, PanesSharingALocationGroupFollowUserInput)
 
    // Pane 2 is in no group and must be untouched.
    EXPECT_NEAR(Pane(2)->centerLatitude(), Pane(2)->homeLatitude(), kTolerance);
+}
+
+TEST_F(PaneSyncTest, CenterOnCommandsTheViewAndPropagatesCameraChannels)
+{
+   int cameraSyncedCount = 0;
+   QObject::connect(Pane(0), &PaneController::cameraSynced, [&cameraSyncedCount]() {
+      ++cameraSyncedCount;
+   });
+   Pane(0)->setSyncGroup(SyncChannel::Location, 1);
+   Pane(1)->setSyncGroup(SyncChannel::Location, 1);
+   Pane(0)->setSyncGroup(SyncChannel::Zoom, 2);
+   Pane(1)->setSyncGroup(SyncChannel::Zoom, 2);
+
+   Pane(0)->centerOn(35.3334, -97.2778, 7.0);
+
+   EXPECT_EQ(cameraSyncedCount, 1);
+   EXPECT_NEAR(Pane(0)->centerLatitude(), 35.3334, kTolerance);
+   EXPECT_NEAR(Pane(0)->centerLongitude(), -97.2778, kTolerance);
+   EXPECT_NEAR(Pane(0)->zoom(), 7.0, kTolerance);
+   EXPECT_NEAR(Pane(1)->centerLatitude(), 35.3334, kTolerance);
+   EXPECT_NEAR(Pane(1)->centerLongitude(), -97.2778, kTolerance);
+   EXPECT_NEAR(Pane(1)->zoom(), 7.0, kTolerance);
+}
+
+TEST_F(PaneSyncTest, RadarSitesCarryFullStateAndCountrySearchAliases)
+{
+   const QVariantList sites = model_.radarSites();
+   const auto ktlx = std::ranges::find_if(sites, [](const QVariant& value) {
+      return value.toMap().value(QStringLiteral("id")) == QStringLiteral("KTLX");
+   });
+   ASSERT_NE(ktlx, sites.end());
+   const QVariantMap site = ktlx->toMap();
+   EXPECT_EQ(site.value(QStringLiteral("regionName")), QStringLiteral("Oklahoma"));
+   EXPECT_TRUE(site.value(QStringLiteral("searchText")).toString().contains(
+      QStringLiteral("oklahoma")));
+   EXPECT_TRUE(site.value(QStringLiteral("searchText")).toString().contains(
+      QStringLiteral("united states")));
 }
 
 TEST_F(PaneSyncTest, ChannelsAreIndependent)
@@ -349,9 +388,12 @@ TEST_F(PaneSyncTest, PaletteChoicesAreRestrictedToTheSelectedProductFamily)
    EXPECT_TRUE(Pane(0)->paletteName().isEmpty());
 
    Pane(0)->setProductName(QStringLiteral("Velocity"));
-   EXPECT_EQ(Pane(0)->compatiblePaletteNames(), QStringList {QStringLiteral("DV")});
+   EXPECT_EQ(Pane(0)->compatiblePaletteNames(),
+             (QStringList {QStringLiteral("DV"), QStringLiteral("SRV")}));
+   Pane(0)->setPaletteName(QStringLiteral("SRV"));
+   EXPECT_EQ(Pane(0)->paletteName(), QStringLiteral("SRV"));
    Pane(0)->setPaletteName(QStringLiteral("DR"));
-   EXPECT_TRUE(Pane(0)->paletteName().isEmpty());
+   EXPECT_EQ(Pane(0)->paletteName(), QStringLiteral("SRV"));
 }
 
 TEST_F(PaneSyncTest, RestoredIncompatiblePaletteFallsBackToProductDefault)
@@ -362,7 +404,7 @@ TEST_F(PaneSyncTest, RestoredIncompatiblePaletteFallsBackToProductDefault)
       .product = QStringLiteral("Velocity"),
       .identityKind = products::ProductDescriptor::IdentityKind::Level2Moment,
       .identity = QStringLiteral("VEL"),
-      .palette = QStringLiteral("SRV")};
+      .palette = QStringLiteral("DR")};
    PaneController restored {7, descriptor};
 
    EXPECT_TRUE(restored.paletteName().isEmpty());

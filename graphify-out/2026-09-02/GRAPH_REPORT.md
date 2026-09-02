@@ -1,11 +1,11 @@
 # Graph Report - WxLens  (2026-09-02)
 
 ## Corpus Check
-- 107 files · ~120,827 words
+- 106 files · ~120,701 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1733 nodes · 2722 edges · 121 communities (117 shown, 3 thin omitted)
+- 1728 nodes · 2718 edges · 108 communities (103 shown, 4 thin omitted)
 - Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 139 edges (avg confidence: 0.83)
 - Token cost: 0 input · 0 output
 
@@ -17,9 +17,9 @@
 ## Community Hubs (Navigation)
 - OverlayManager
 - SavedPlaceManager
-- MapObject
+- map_object_store.cpp
 - PaletteModel
-- radar_site_data_service.cpp
+- RadarSiteDataService
 - PaletteManager
 - PaneGridModel
 - MeasurementController
@@ -43,7 +43,7 @@
 - Level3RasterMetadata
 - RadarSweepLayer::Impl
 - QObject
-- RadarProductStatus
+- logger
 - RadarSweepProduct::Impl
 - radar_sweep_layer.cpp
 - ProductDescriptor
@@ -52,7 +52,7 @@
 - app_settings.cpp
 - TEST_F
 - MeasurementController::Impl
-- QVariantList
+- QString
 - RadarSweepLayerBinding
 - WxLens AI Agent Instructions
 - ConnectProductSignals
@@ -100,41 +100,28 @@
 - WxLens performance baseline
 - Q: Fix manual-test issues: full state-name radar search, site-change map recentering, and visible pane-local palette changes
 - Q: OK, so what is the next step in this process?
-- refreshPlacefile
+- saved_place_manager.hpp
 - string
-- MapObjectStore
+- map_object.hpp
 - .PaneController
 - radarSites
 - QString
 - MeasurementTest
 - Q: Fix the Weather Overlays contrast problem.
-- RadarSiteDataService
 - CartesianPackets
 - Q: Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?
 - SourceProbeTest
 - Q: Fix palette editor drags moving the map, make saved velocity use the new palette, and soften low-reflectivity blue noise.
-- RadarSiteDataService::Impl
-- OverlayManager::Impl
 - PaneGridModel::Impl
 - TEST
-- map_object_store.cpp
 - Retest checklist
 - setDefaultSourceKey
 - Point
 - Q: Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?
 - Level3RadialSnapshot
-- PaneController
-- QString
+- palette_defaults.hpp
 - ToolbarAction
 - MapDetailGroup
-- Level3ProductDescriptor
-- AppendWarnings
-- overlay_manager.cpp
-- PaneSyncTest
-- MapObjectStore::Impl
-- Q: Address second manual UX feedback round and explain remaining acceptance checks
-- roleNames
-- overlay_manager.hpp
 
 ## God Nodes (most connected - your core abstractions)
 1. `PaneController` - 74 edges
@@ -149,8 +136,6 @@
 10. `TEST_F()` - 31 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `TEST()` --calls--> `addPlacefile`  [INFERRED]
-  test/source/wxlens/overlays/overlay_manager.test.cpp → app/source/wxlens/overlays/overlay_manager.hpp
 - `TEST()` --calls--> `BuildLevel3GraphicOverlaySnapshot()`  [INFERRED]
   test/source/wxlens/products/level3_graphic_overlay.test.cpp → app/source/wxlens/products/level3_graphic_overlay.cpp
 - `TEST()` --calls--> `DetectLevel3CartesianPacketFamily()`  [INFERRED]
@@ -159,31 +144,33 @@
   test/source/wxlens/products/level3_raster_product.test.cpp → app/source/wxlens/products/level3_raster_product.cpp
 - `TEST_F()` --calls--> `mapDetailVisible`  [INFERRED]
   test/source/wxlens/settings/app_settings.test.cpp → app/source/wxlens/settings/app_settings.hpp
+- `TEST_F()` --calls--> `geometryRowVisible`  [INFERRED]
+  test/source/wxlens/settings/app_settings.test.cpp → app/source/wxlens/settings/app_settings.hpp
 
 ## Import Cycles
 - None detected.
 
-## Communities (121 total, 3 thin omitted)
+## Communities (108 total, 4 thin omitted)
 
 ### Community 0 - "OverlayManager"
-Cohesion: 0.11
-Nodes (24): QVariantList, Impl, QObject, unique_ptr, OverlayManager, p, placefileItems, placefiles (+16 more)
+Cohesion: 0.05
+Nodes (69): AppendWarnings(), ColorString(), Coordinates(), QByteArray, QObject, QString, QTimer, QUrl (+61 more)
 
 ### Community 1 - "SavedPlaceManager"
 Cohesion: 0.07
 Nodes (60): MapObjectStore, QObject, QString, QVariantList, SettingsStore, vector, Group, color (+52 more)
 
-### Community 2 - "MapObject"
-Cohesion: 0.11
-Nodes (17): MapObject, color, colorOverride, id, label, latitudes, lifecycle, longitudes (+9 more)
+### Community 2 - "map_object_store.cpp"
+Cohesion: 0.06
+Nodes (62): MapObject, color, colorOverride, id, label, latitudes, lifecycle, longitudes (+54 more)
 
 ### Community 3 - "PaletteModel"
 Cohesion: 0.06
 Nodes (59): QUrl, QByteArray, QColor, QHash, QModelIndex, QObject, QString, QUrl (+51 more)
 
-### Community 4 - "radar_site_data_service.cpp"
-Cohesion: 0.19
-Nodes (13): QTimer, shared_ptr, string, time_point, uint64_t, Instance, LoadLatestLevel2Data, LoadLatestLevel3Data (+5 more)
+### Community 4 - "RadarSiteDataService"
+Cohesion: 0.05
+Nodes (53): Level3File, mutex, QTimer, shared_ptr, string, time_point, uint64_t, vector (+45 more)
 
 ### Community 5 - "PaletteManager"
 Cohesion: 0.07
@@ -202,8 +189,8 @@ Cohesion: 0.06
 Nodes (40): AddGraphicPages(), AddTabularPages(), BuildLevel3TextSnapshot(), BuildTextProductSnapshot(), Level3File, optional, shared_ptr, int16_t (+32 more)
 
 ### Community 9 - "ObjectToolController"
-Cohesion: 0.05
-Nodes (45): QString, shared_ptr, string, Create(), Initialize(), LogDirectory(), LogDirectoryPath(), PaneController (+37 more)
+Cohesion: 0.08
+Nodes (37): PaneController, QObject, QVariantList, Impl, Q_ENUM, QObject, unique_ptr, ObjectToolController (+29 more)
 
 ### Community 10 - "TEST_F"
 Cohesion: 0.07
@@ -230,8 +217,8 @@ Cohesion: 0.16
 Nodes (13): AltitudeRisesWithRangeAndWithTilt, BeamAltitudeMsl(), optional, ProbeRadarBeam(), BeamAltitudeMatchesTheFourThirdsEarthModel, CurvatureIsIncludedNotApproximatedAway, ProbeReportsRangeAndCompassAzimuth, ProbeSeparatesMslFromAboveRadarLevel (+5 more)
 
 ### Community 16 - "TEST_F"
-Cohesion: 0.07
-Nodes (29): ActivePaneTracksSelectionAndSurvivesLayoutShrink, CameraGroupHelperGroupsEveryCameraChannel, CenterOnCommandsTheViewAndPropagatesCameraChannels, ChannelsAreIndependent, ChannelsWithoutStateArePropagationNoOps, CopyCameraIsOneShotAcrossEveryCameraChannel, CopyChannelIsOneShotNotAPersistentLink, ElevationSelectionRejectsNoRealCutButRetainsRequestedCut (+21 more)
+Cohesion: 0.06
+Nodes (33): ActivePaneTracksSelectionAndSurvivesLayoutShrink, CameraGroupHelperGroupsEveryCameraChannel, CenterOnCommandsTheViewAndPropagatesCameraChannels, ChannelsAreIndependent, ChannelsWithoutStateArePropagationNoOps, CopyCameraIsOneShotAcrossEveryCameraChannel, CopyChannelIsOneShotNotAPersistentLink, ElevationSelectionRejectsNoRealCutButRetainsRequestedCut (+25 more)
 
 ### Community 17 - "pane_controller.cpp"
 Cohesion: 0.09
@@ -274,12 +261,12 @@ Cohesion: 0.09
 Nodes (22): array, uint16_t, unique_ptr, RadarSweepLayer::Impl, binding_, colorTableMin_, colorTableScale_, gl_ (+14 more)
 
 ### Community 27 - "QObject"
-Cohesion: 0.33
+Cohesion: 0.29
 Nodes (4): QObject, PaneController, QStringList, SettingsStore
 
-### Community 28 - "RadarProductStatus"
-Cohesion: 0.13
-Nodes (18): QObject, QString, string, Impl, QObject, unique_ptr, RadarProductStatus, RadarProductStatus::Impl (+10 more)
+### Community 28 - "logger"
+Cohesion: 0.08
+Nodes (26): QString, shared_ptr, string, Create(), Initialize(), LogDirectory(), LogDirectoryPath(), QObject (+18 more)
 
 ### Community 29 - "RadarSweepProduct::Impl"
 Cohesion: 0.10
@@ -306,16 +293,16 @@ Cohesion: 0.11
 Nodes (26): centerMapOnSiteChange, configDirectory, geometryRows, geometryRowVisible, hasSection, mapDetailGroups, mapDetailVisibility, mapDetailVisible (+18 more)
 
 ### Community 35 - "TEST_F"
-Cohesion: 0.10
-Nodes (21): controlBarDocked, defaultObjectScope, distanceUnits, mapDetailsPreset, mapTheme, measurementGesture, snapStrength, snapTolerancePixels (+13 more)
+Cohesion: 0.08
+Nodes (23): main(), setScopeKind, controlBarDocked, defaultObjectScope, distanceUnits, mapDetailsPreset, mapTheme, measurementGesture (+15 more)
 
 ### Community 36 - "MeasurementController::Impl"
 Cohesion: 0.18
 Nodes (12): QVariantList, vector, MeasurementController::Impl, activePaneId_, cursor_, hasCursor_, mode_, points_ (+4 more)
 
-### Community 37 - "QVariantList"
-Cohesion: 0.20
-Nodes (6): PaneController, MapObjectStore, SettingsStore, QVariantList, PaneController, SettingsStore
+### Community 37 - "QString"
+Cohesion: 0.24
+Nodes (4): QString, PaneController, QVariantList, SettingsStore
 
 ### Community 38 - "RadarSweepLayerBinding"
 Cohesion: 0.18
@@ -497,17 +484,13 @@ Nodes (4): Answer, Outcome, Q: Fix manual-test issues: full state-name radar sea
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: OK, so what is the next step in this process?, Source Nodes
 
-### Community 86 - "refreshPlacefile"
-Cohesion: 0.18
-Nodes (15): ColorString(), QByteArray, QString, QUrl, rgba8_pixel_t, FlattenPlacefile(), addPlacefile, importWarningFile (+7 more)
-
 ### Community 87 - "string"
-Cohesion: 0.21
+Cohesion: 0.19
 Nodes (7): string, optional, vector, Level3File, array, Level3File, Level3File
 
-### Community 88 - "MapObjectStore"
-Cohesion: 0.13
-Nodes (18): QModelIndex, QVariant, Impl, Q_INVOKABLE, QAbstractListModel, unique_ptr, MapObjectStore, data (+10 more)
+### Community 88 - "map_object.hpp"
+Cohesion: 0.22
+Nodes (4): QAbstractListModel, PaneController, PaneController, QVector
 
 ### Community 89 - ".PaneController"
 Cohesion: 0.25
@@ -529,10 +512,6 @@ Nodes (6): MapObjectStore, PaneController, testing::Test, MeasurementTest, measu
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Fix the Weather Overlays contrast problem., Source Nodes
 
-### Community 94 - "RadarSiteDataService"
-Cohesion: 0.12
-Nodes (16): Impl, Q_OBJECT, unique_ptr, RadarSiteDataService, LevelThreeCatalogFailed, LevelThreeCatalogLoading, LevelThreeCatalogReady, LevelThreeDataLoadedForRequest (+8 more)
-
 ### Community 95 - "CartesianPackets"
 Cohesion: 0.40
 Nodes (5): CartesianPackets, family, raster, shared_ptr, RasterDataPacket
@@ -549,25 +528,13 @@ Nodes (8): ProbeAlwaysReportsWhatWasAsked, PaneController, testing::Test, Source
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Fix palette editor drags moving the map, make saved velocity use the new palette, and soften low-reflectivity blue noise., Source Nodes
 
-### Community 99 - "RadarSiteDataService::Impl"
-Cohesion: 0.13
-Nodes (15): Level3File, mutex, RadarSiteDataService::Impl, catalogLoadInProgress_, level2Provider_, level3Cache_, level3Catalog_, level3Mutex_ (+7 more)
-
-### Community 100 - "OverlayManager::Impl"
-Cohesion: 0.15
-Nodes (12): QTimer, OverlayManager::Impl, network_, placefileItems_, placefiles_, placefilesVisible_, refreshingWarnings_, self_ (+4 more)
-
 ### Community 101 - "PaneGridModel::Impl"
 Cohesion: 0.20
 Nodes (10): unique_ptr, vector, PaneGridModel::Impl, activePaneIndex_, defaultSourceKey_, gridHeight_, gridWidth_, nextPaneId_ (+2 more)
 
 ### Community 102 - "TEST"
-Cohesion: 0.22
+Cohesion: 0.25
 Nodes (7): BuildLevel3ProductCatalog(), string, vector, Level3ProductCatalog, LevelTwoAndLevelThreeIdentitiesCannotCollide, MapsAvailableAwipsIdsToCanonicalCategories, TEST()
-
-### Community 103 - "map_object_store.cpp"
-Cohesion: 0.26
-Nodes (10): QObject, QPointF, DistanceBetween(), DistanceToSegment(), Clear, clearObjects, refreshFormatting, setObjectScope (+2 more)
 
 ### Community 104 - "Retest checklist"
 Cohesion: 0.25
@@ -589,14 +556,6 @@ Nodes (4): Answer, Outcome, Q: Could WxLens support two windows on separate moni
 Cohesion: 0.50
 Nodes (4): shared_ptr, Level3RadialSnapshot, metadata, sweep
 
-### Community 109 - "PaneController"
-Cohesion: 0.36
-Nodes (11): ApplyOrigin(), PaneController, QString, QVariantList, Add, addLine, addMarker, addRangeRing (+3 more)
-
-### Community 110 - "QString"
-Cohesion: 0.25
-Nodes (3): QString, BundledPaletteName(), QString
-
 ### Community 111 - "ToolbarAction"
 Cohesion: 0.67
 Nodes (3): ToolbarAction, id, label
@@ -605,38 +564,10 @@ Nodes (3): ToolbarAction, id, label
 Cohesion: 0.67
 Nodes (3): MapDetailGroup, id, label
 
-### Community 113 - "Level3ProductDescriptor"
-Cohesion: 0.20
-Nodes (9): vector, level3_catalog, QString, Level3ProductDescriptor, awipsId, categoryDescription, categoryId, description (+1 more)
-
-### Community 114 - "AppendWarnings"
-Cohesion: 0.22
-Nodes (9): main(), setScopeKind, AppendWarnings(), Coordinates(), shared_ptr, vector, refreshWarnings, Coordinate (+1 more)
-
-### Community 115 - "overlay_manager.cpp"
-Cohesion: 0.22
-Nodes (9): QObject, OverlayManager::OverlayManager(), refreshingWarnings, removePlacefile, statusText, WarningColor(), Phenomenon, Placefile (+1 more)
-
-### Community 116 - "PaneSyncTest"
-Cohesion: 0.25
-Nodes (4): PaneController, testing::Test, PaneSyncTest, model_
-
-### Community 117 - "MapObjectStore::Impl"
-Cohesion: 0.33
-Nodes (6): vector, MapObjectStore::Impl, nextId_, objects_, revision_, Objects
-
-### Community 118 - "Q: Address second manual UX feedback round and explain remaining acceptance checks"
-Cohesion: 0.40
-Nodes (4): Answer, Outcome, Q: Address second manual UX feedback round and explain remaining acceptance checks, Source Nodes
-
-### Community 119 - "roleNames"
-Cohesion: 0.67
-Nodes (3): QByteArray, QHash, roleNames
-
 ## Knowledge Gaps
-- **585 isolated node(s):** `radarSite_`, `level2Provider_`, `level3Mutex_`, `level3Providers_`, `level3Cache_` (+580 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 993 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **582 isolated node(s):** `radarSite_`, `level2Provider_`, `level3Mutex_`, `level3Providers_`, `level3Cache_` (+577 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 989 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
 
@@ -650,17 +581,17 @@ Nodes (3): QByteArray, QHash, roleNames
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `map_` connect `pane_controller.cpp` to `AppSettings::Impl`, `app_settings.cpp`, `radar_site_data_service.cpp`, `PaletteManager`, `PaneController::Impl`, `settings_store.cpp`, `QString`, `RadarSweepProduct`, `RadarSiteInfo`, `QObject`?**
+- **Why does `map_` connect `pane_controller.cpp` to `AppSettings::Impl`, `app_settings.cpp`, `RadarSiteDataService`, `QString`, `PaletteManager`, `PaneController::Impl`, `settings_store.cpp`, `RadarSweepProduct`, `RadarSiteInfo`, `QObject`?**
   _High betweenness centrality (0.075) - this node is a cross-community bridge._
-- **Why does `PaneController::Impl` connect `PaneController::Impl` to `.PaneController`, `RadarSweepLayerBinding`, `ConnectProductSignals`, `PaneController`, `pane_controller.cpp`, `Level3ProductDescriptor`, `overlay_manager.cpp`, `RadarSweepProduct`, `applyChannelValue`, `RadarSiteDataService`, `ProductDescriptor`?**
+- **Why does `PaneController::Impl` connect `PaneController::Impl` to `.PaneController`, `OverlayManager`, `RadarSiteDataService`, `RadarSweepLayerBinding`, `ConnectProductSignals`, `PaneController`, `pane_controller.cpp`, `RadarSweepProduct`, `applyChannelValue`, `ProductDescriptor`?**
   _High betweenness centrality (0.071) - this node is a cross-community bridge._
-- **Why does `PaneGridModel` connect `PaneGridModel` to `SourceProbeTest`, `QVariantList`, `roleNames`, `setDefaultSourceKey`, `PropagateChannel`, `PaneSyncTest`, `TEST_F`, `radarSites`, `MeasurementTest`?**
+- **Why does `PaneGridModel` connect `PaneGridModel` to `SourceProbeTest`, `setDefaultSourceKey`, `roleNames`, `TEST_F`, `PropagateChannel`, `map_object.hpp`, `TEST_F`, `radarSites`, `MeasurementTest`?**
   _High betweenness centrality (0.070) - this node is a cross-community bridge._
 - **What connects `radarSite_`, `level2Provider_`, `level3Mutex_` to the rest of the system?**
-  _585 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _582 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `OverlayManager` be split into smaller, more focused modules?**
-  _Cohesion score 0.10869565217391304 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05009009009009009 - nodes in this community are weakly interconnected._
 - **Should `SavedPlaceManager` be split into smaller, more focused modules?**
   _Cohesion score 0.06875 - nodes in this community are weakly interconnected._
-- **Should `MapObject` be split into smaller, more focused modules?**
-  _Cohesion score 0.1111111111111111 - nodes in this community are weakly interconnected._
+- **Should `map_object_store.cpp` be split into smaller, more focused modules?**
+  _Cohesion score 0.06101190476190476 - nodes in this community are weakly interconnected._

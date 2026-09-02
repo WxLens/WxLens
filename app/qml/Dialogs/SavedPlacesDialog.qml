@@ -22,6 +22,13 @@ Rectangle {
             }
         }
     }
+    function openAndFocusSearch() {
+        open()
+        Qt.callLater(function() {
+            search.forceActiveFocus()
+            search.selectAll()
+        })
+    }
     function close() { visible = false }
     Keys.onEscapePressed: (event) => {
         close()

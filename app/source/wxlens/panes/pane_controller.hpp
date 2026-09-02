@@ -135,6 +135,13 @@ public:
     */
    Q_INVOKABLE void setCenter(double latitude, double longitude);
 
+   /**
+    * Moves the visible camera to a chosen location and zoom level. Unlike setCenter()/setZoom(),
+    * which receive changes already made by a map gesture, this is a controller-originated camera
+    * command, so cameraSynced is emitted to make the QML map follow the new state.
+    */
+   Q_INVOKABLE void centerOn(double latitude, double longitude, double zoom);
+
    void setZoom(double value);
    void setBearing(double value);
    void setPitch(double value);

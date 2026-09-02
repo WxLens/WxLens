@@ -11,6 +11,7 @@ accumulates
 acknowledgements
 across
 action
+actions
 activate
 active
 actual
@@ -123,6 +124,7 @@ channel
 channels
 char
 check
+checklist
 checks
 choices
 chrome
@@ -302,6 +304,7 @@ finding
 findings
 first
 fix
+fixes
 fixture
 flat
 flatten
@@ -516,6 +519,7 @@ non
 normalize
 not
 note
+notes
 nothing
 notify
 now
@@ -572,6 +576,7 @@ path
 pending
 per
 performance
+performed
 persist
 persistent
 persists
@@ -603,6 +608,7 @@ portable
 precipitation
 preference
 preferences
+preferred
 preliminary
 preserve
 preserves
@@ -708,11 +714,13 @@ resolve
 resolves
 resources
 respects
+restore
 restored
 restores
 restricted
 result
 retains
+retest
 reusable
 reuse
 reused
@@ -773,6 +781,7 @@ shot
 should
 shows
 shrink
+shrunk
 shutdown
 signal
 signals
@@ -876,6 +885,7 @@ tolerance
 tolerances
 toml
 tool
+toolbar
 top
 total
 tracked

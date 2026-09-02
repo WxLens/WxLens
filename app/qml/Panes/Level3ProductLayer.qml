@@ -7,6 +7,38 @@ Item {
     id: root
     required property var paneController
     property int cameraTick: 0
+    // Do not participate in pointer delivery unless there is actually a selectable overlay.
+    // An always-enabled TapHandler here sat above pane linking and every drawing MouseArea.
+    enabled: paneController && paneController.productOverlays.length > 0
+
+    function selectStormAt(x, y) {
+        if (!root.paneController) return
+        const overlays = root.paneController.productOverlays
+        var nearestId = ""
+        var nearestDistance = 14
+        for (var i = 0; i < overlays.length; ++i) {
+            const item = overlays[i]
+            if (!item.stormId) continue
+            for (var p = 0; p < item.points.length; ++p) {
+                const point = root.paneController.pixelForCoordinate(
+                    item.points[p].latitude, item.points[p].longitude)
+                const dx = point.x - x
+                const dy = point.y - y
+                const distance = Math.sqrt(dx * dx + dy * dy)
+                if (distance < nearestDistance) {
+                    nearestDistance = distance
+                    nearestId = item.stormId
+                }
+            }
+        }
+        if (nearestId !== "") root.paneController.selectStorm(nearestId)
+    }
+
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+        gesturePolicy: TapHandler.WithinBounds
+        onTapped: (eventPoint) => root.selectStormAt(eventPoint.position.x, eventPoint.position.y)
+    }
 
     Canvas {
         id: canvas

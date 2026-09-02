@@ -59,6 +59,11 @@ QStringList CompatiblePalettes(const QString& defaultPalette)
    // velocity. Imported palettes remain editor-only until they carry explicit family metadata.
    if (defaultPalette == QStringLiteral("KDP") || defaultPalette == QStringLiteral("KDP2"))
       return {QStringLiteral("KDP"), QStringLiteral("KDP2")};
+   // Both ramps describe radial velocity in knots. SRV is useful as an alternate colour ramp
+   // even when the selected data product is base velocity; choosing it changes presentation,
+   // not the underlying meteorological product.
+   if (defaultPalette == QStringLiteral("DV"))
+      return {QStringLiteral("DV"), QStringLiteral("SRV")};
    if (defaultPalette.isEmpty()) return {};
    return {defaultPalette};
 }
@@ -656,6 +661,24 @@ void PaneController::setCenter(double latitude, double longitude)
    p->centerLongitude_ = longitude;
    Q_EMIT cameraChanged();
    Q_EMIT channelChanged(SyncChannel::Location, ChangeOrigin::UserInput);
+}
+
+void PaneController::centerOn(double latitude, double longitude, double zoom)
+{
+   const bool locationChanged =
+      p->centerLatitude_ != latitude || p->centerLongitude_ != longitude;
+   const bool zoomChanged = p->zoom_ != zoom;
+   if (!locationChanged && !zoomChanged) return;
+
+   p->centerLatitude_  = latitude;
+   p->centerLongitude_ = longitude;
+   p->zoom_            = zoom;
+   Q_EMIT cameraChanged();
+   Q_EMIT cameraSynced();
+   if (locationChanged)
+      Q_EMIT channelChanged(SyncChannel::Location, ChangeOrigin::UserInput);
+   if (zoomChanged)
+      Q_EMIT channelChanged(SyncChannel::Zoom, ChangeOrigin::UserInput);
 }
 
 void PaneController::setZoom(double value)

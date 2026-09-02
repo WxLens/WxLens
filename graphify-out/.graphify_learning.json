@@ -1,11 +1,16 @@
 {
-  "generated_at": "2026-09-01T17:19:12.090413+00:00",
+  "generated_at": "2026-09-02T13:13:04.991939+00:00",
   "nodes": {
     "app_source_wxlens_palettes_palette_manager_palettemanager": {
       "code_fingerprint": "1a47dffb82b6195ddd950ac619e047e63b2973ee50190e7099d18088a85fdeda",
       "label": "PaletteManager",
-      "last": "2026-09-01T12:27:25.077514+00:00",
+      "last": "2026-09-02T02:19:45.350824+00:00",
       "provenance": [
+        {
+          "date": "2026-09-02T02:19:45.350824+00:00",
+          "outcome": "useful",
+          "q": "Fix manual-test issues: full state-name radar search, site-change map recentering, and visible pane-local palette changes"
+        },
         {
           "date": "2026-09-01T12:27:25.077514+00:00",
           "outcome": "useful",
@@ -17,13 +22,13 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 1.990278956,
+      "score": 2.942088244,
       "source_file": "app/source/wxlens/palettes/palette_manager.hpp",
       "status": "preferred",
-      "uses": 2
+      "uses": 3
     },
     "app_source_wxlens_panes_pane_controller_defaultpalette": {
-      "code_fingerprint": "04fa154a5747a97971c5f78b8a002bb40022fe0d9cbd2b6bf06fd7d56a2b65f2",
+      "code_fingerprint": "74c2654d6cd1160fcbc124dcb2f38273f6ce378efb0758009f70288a03f0054f",
       "label": "DefaultPalette()",
       "last": "2026-09-01T12:03:38.826621+00:00",
       "provenance": [
@@ -33,10 +38,31 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 0.994949702,
+      "score": 0.976071914,
       "source_file": "app/source/wxlens/panes/pane_controller.cpp",
       "status": "tentative",
       "uses": 1
+    },
+    "app_source_wxlens_panes_pane_grid_model_panegridmodel": {
+      "code_fingerprint": "7167cc4019c974c8d20a9b0ee846e532e1fbaf556fa8c6cef7f7fb5dfc5b99dd",
+      "label": "PaneGridModel",
+      "last": "2026-09-02T02:19:45.350824+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-02T02:19:45.350824+00:00",
+          "outcome": "useful",
+          "q": "Fix manual-test issues: full state-name radar search, site-change map recentering, and visible pane-local palette changes"
+        },
+        {
+          "date": "2026-09-01T21:51:37.879217+00:00",
+          "outcome": "useful",
+          "q": "Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?"
+        }
+      ],
+      "score": 1.974896061,
+      "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
+      "status": "preferred",
+      "uses": 2
     },
     "app_source_wxlens_products_radar_sweep_product_colortablelut": {
       "code_fingerprint": "9f145f73c9dce5456f621340a47f7633daa77b79f00d2207d6996e6fd39b8769",
@@ -54,7 +80,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 1.990278956,
+      "score": 1.952516177,
       "source_file": "app/source/wxlens/products/radar_sweep_product.hpp",
       "status": "preferred",
       "uses": 2
@@ -70,7 +96,7 @@
           "q": "Fix the Weather Overlays contrast problem."
         }
       ],
-      "score": 0.986303075,
+      "score": 0.967589344,
       "source_file": "app/source/wxlens/theme/theme_manager.cpp",
       "status": "tentative",
       "uses": 1
@@ -86,7 +112,7 @@
           "q": "what is next"
         }
       ],
-      "score": 0.981241717,
+      "score": 0.962624018,
       "source_file": "docs/phase1-acceptance-2026-08-30.md",
       "status": "tentative",
       "uses": 1
@@ -102,13 +128,13 @@
           "q": "Fix the Weather Overlays contrast problem."
         }
       ],
-      "score": 0.986303075,
+      "score": 0.967589344,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
       "status": "tentative",
       "uses": 1
     },
     "docs_roadmap": {
-      "code_fingerprint": "b874e4fdae016e6648cfb888ce6b40b7b70d249db26c835146494336c0aa0e49",
+      "code_fingerprint": "b73a5d9657a64317e2a46c8f2b1e50a89d4951b73017fd8fe3b875773db2053f",
       "label": "ROADMAP.md",
       "last": "2026-08-31T02:03:50.996815+00:00",
       "provenance": [
@@ -118,13 +144,29 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 0.962913409,
+      "score": 0.944643465,
+      "source_file": "docs/ROADMAP.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "docs_roadmap_4_1_per_channel_synchronization_model_not_a_single_link_boolean": {
+      "code_fingerprint": "b73a5d9657a64317e2a46c8f2b1e50a89d4951b73017fd8fe3b875773db2053f",
+      "label": "4.1 Per-channel synchronization model (not a single link boolean)",
+      "last": "2026-09-01T21:51:37.879217+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-01T21:51:37.879217+00:00",
+          "outcome": "useful",
+          "q": "Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?"
+        }
+      ],
+      "score": 0.985323995,
       "source_file": "docs/ROADMAP.md",
       "status": "tentative",
       "uses": 1
     },
     "docs_roadmap_phase_1_completion_and_release_readiness_gates": {
-      "code_fingerprint": "b874e4fdae016e6648cfb888ce6b40b7b70d249db26c835146494336c0aa0e49",
+      "code_fingerprint": "b73a5d9657a64317e2a46c8f2b1e50a89d4951b73017fd8fe3b875773db2053f",
       "label": "Phase 1 completion and release-readiness gates",
       "last": "2026-08-31T21:38:59.883190+00:00",
       "provenance": [
@@ -139,13 +181,13 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 1.944155126,
+      "score": 1.907267483,
       "source_file": "docs/ROADMAP.md",
       "status": "preferred",
       "uses": 2
     },
     "docs_roadmap_remaining_phase_1_level_3_sub_slices": {
-      "code_fingerprint": "b874e4fdae016e6648cfb888ce6b40b7b70d249db26c835146494336c0aa0e49",
+      "code_fingerprint": "b73a5d9657a64317e2a46c8f2b1e50a89d4951b73017fd8fe3b875773db2053f",
       "label": "Remaining Phase 1 Level 3 sub-slices",
       "last": "2026-08-31T21:38:59.883190+00:00",
       "provenance": [
@@ -160,7 +202,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 1.944155126,
+      "score": 1.907267483,
       "source_file": "docs/ROADMAP.md",
       "status": "preferred",
       "uses": 2

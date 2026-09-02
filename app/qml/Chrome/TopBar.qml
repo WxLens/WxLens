@@ -11,6 +11,7 @@ Rectangle {
     signal mapDetailsRequested()
     signal savedPlacesRequested()
     signal overlaysRequested()
+    signal helpRequested()
     property bool toolsOpen: false
 
     Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: themeManager.border }
@@ -48,6 +49,12 @@ Rectangle {
         }
         Rectangle {
             width: 28; height: 28; radius: themeManager.cornerRadius
+            color: helpArea.containsMouse ? themeManager.controlHover : "transparent"
+            Text { anchors.centerIn: parent; text: "?"; color: themeManager.textSecondary; font.pixelSize: 14; font.bold: true }
+            MouseArea { id: helpArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.helpRequested() }
+        }
+        Rectangle {
+            width: 28; height: 28; radius: themeManager.cornerRadius
             color: settingsArea.containsMouse ? themeManager.controlHover : "transparent"
             Text { anchors.centerIn: parent; text: "⚙"; color: themeManager.textSecondary; font.pixelSize: 16 }
             MouseArea { id: settingsArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.settingsRequested() }
@@ -61,7 +68,7 @@ Rectangle {
         Column {
             id: menuColumn; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 8; spacing: 3
             Repeater {
-                model: [{label:"Weather overlays",action:"overlays"},{label:"Saved places",action:"places"},{label:"Map details",action:"map"},{label:"Palette manager",action:"palette"}]
+                model: [{label:"Weather overlays",action:"overlays"},{label:"Saved places",action:"places"},{label:"Map details",action:"map"},{label:"Palette manager",action:"palette"},{label:"Help and shortcuts",action:"help"}]
                 delegate: Rectangle {
                     required property var modelData
                     width: menuColumn.width; height: 34; radius: themeManager.cornerRadius
@@ -74,7 +81,8 @@ Rectangle {
                             if (parent.modelData.action === "overlays") root.overlaysRequested()
                             else if (parent.modelData.action === "places") root.savedPlacesRequested()
                             else if (parent.modelData.action === "map") root.mapDetailsRequested()
-                            else root.paletteRequested()
+                            else if (parent.modelData.action === "palette") root.paletteRequested()
+                            else root.helpRequested()
                         }
                     }
                 }

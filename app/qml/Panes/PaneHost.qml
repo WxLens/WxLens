@@ -776,6 +776,7 @@ Rectangle {
         anchors.margins: 6
         spacing: 4
         visible: root.showLabel
+        z: 12
 
         Rectangle {
             width: 62
