@@ -120,7 +120,7 @@ Rectangle {
         ListView {
             id: productList
             width: parent.width
-            height: parent.height - y - paletteRow.height - 8
+            height: parent.height - y
             clip: true
             spacing: 3
             model: root.productGroups

@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2aed26ff`
+- Built from commit: `d7c8d672`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -52,7 +52,7 @@
 - app_settings.cpp
 - TEST_F
 - MeasurementController::Impl
-- QVariantList
+- RadarSiteDataService
 - RadarSweepLayerBinding
 - WxLens AI Agent Instructions
 - ConnectProductSignals
@@ -70,7 +70,7 @@
 - ComputeSweep
 - ThemeManager::Impl
 - unit_format.cpp
-- MapObjectScope
+- RadarSiteDataService::Impl
 - GraphicOverlayPrimitive
 - applyChannelValue
 - RadarSiteInfo
@@ -89,10 +89,10 @@
 - CLAUDE.md
 - Project architecture
 - roleNames
-- RadarSiteDataService
+- map_object_store.cpp
 - 3. New project structure
 - External dependencies
-- RadarSiteDataService::Impl
+- PaneController
 - Phase 1 packaged acceptance record — 2026-08-30
 - BuildLevel3GraphicOverlaySnapshot
 - Level3RasterSnapshot
@@ -100,15 +100,15 @@
 - WxLens performance baseline
 - Q: Fix manual-test issues: full state-name radar search, site-change map recentering, and visible pane-local palette changes
 - Q: OK, so what is the next step in this process?
-- TEST
+- Level3ProductDescriptor
 - string
 - MapObjectStore
-- logger
+- QVariantList
 - radarSites
 - QString
 - MeasurementTest
 - Q: Fix the Weather Overlays contrast problem.
-- Level3ProductDescriptor
+- MapObjectScope
 - SetArchiveTime
 - Q: Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?
 - SourceProbeTest
@@ -117,22 +117,22 @@
 - QString
 - PaneGridModel::Impl
 - TEST
-- map_object_store.cpp
+- GeodesicInverseResult
 - Retest checklist
 - setDefaultSourceKey
 - Point
 - Q: Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?
-- GeodesicInverseResult
-- PaneController
 - RadarBeamProbe
+- TEST
+- logger
 - ToolbarAction
 - MapDetailGroup
 - QObject
 - applyMapDetails
-- PaneSyncTest
 - MapObjectStore::Impl
-- Q: Address second manual UX feedback round and explain remaining acceptance checks
+- PaneSyncTest
 - roleNames
+- Q: Address second manual UX feedback round and explain remaining acceptance checks
 
 ## God Nodes (most connected - your core abstractions)
 1. `PaneController` - 74 edges
@@ -311,9 +311,9 @@ Nodes (23): main(), setScopeKind, controlBarDocked, defaultObjectScope, distance
 Cohesion: 0.18
 Nodes (12): QVariantList, vector, MeasurementController::Impl, activePaneId_, cursor_, hasCursor_, mode_, points_ (+4 more)
 
-### Community 37 - "QVariantList"
-Cohesion: 0.20
-Nodes (6): PaneController, MapObjectStore, SettingsStore, QVariantList, PaneController, SettingsStore
+### Community 37 - "RadarSiteDataService"
+Cohesion: 0.12
+Nodes (16): Impl, Q_OBJECT, unique_ptr, RadarSiteDataService, LevelThreeCatalogFailed, LevelThreeCatalogLoading, LevelThreeCatalogReady, LevelThreeDataLoadedForRequest (+8 more)
 
 ### Community 38 - "RadarSweepLayerBinding"
 Cohesion: 0.18
@@ -383,9 +383,9 @@ Nodes (6): QObject, SettingsStore, ThemeManager::Impl, active_, themes_, QMap
 Cohesion: 0.39
 Nodes (8): QString, DecimalsFor(), FormatAltitude(), FormatBearing(), FormatGroundDistance(), GetDistanceUnitPreference(), SetDistanceUnitPreference(), DistanceUnitPreference
 
-### Community 55 - "MapObjectScope"
-Cohesion: 0.25
-Nodes (8): MapObjectScopeKind, SyncChannel, SyncGroupId, MapObjectScope, channel, kind, originGroupId, originPaneId
+### Community 55 - "RadarSiteDataService::Impl"
+Cohesion: 0.13
+Nodes (15): Level3File, mutex, RadarSiteDataService::Impl, catalogLoadInProgress_, level2Provider_, level3Cache_, level3Catalog_, level3Mutex_ (+7 more)
 
 ### Community 56 - "GraphicOverlayPrimitive"
 Cohesion: 0.14
@@ -451,9 +451,9 @@ Nodes (5): Data Source → Data Product → Visualization Layer → View, Namesp
 Cohesion: 0.67
 Nodes (3): QByteArray, QHash, roleNames
 
-### Community 74 - "RadarSiteDataService"
-Cohesion: 0.12
-Nodes (16): Impl, Q_OBJECT, unique_ptr, RadarSiteDataService, LevelThreeCatalogFailed, LevelThreeCatalogLoading, LevelThreeCatalogReady, LevelThreeDataLoadedForRequest (+8 more)
+### Community 74 - "map_object_store.cpp"
+Cohesion: 0.26
+Nodes (10): QObject, QPointF, DistanceBetween(), DistanceToSegment(), Clear, clearObjects, refreshFormatting, setObjectScope (+2 more)
 
 ### Community 75 - "3. New project structure"
 Cohesion: 0.40
@@ -463,9 +463,9 @@ Nodes (5): 3.1 `wxdata` reuse mechanics, 3.2 Proposed directory layout (new repo
 Cohesion: 0.50
 Nodes (4): External dependencies, License discipline, Vendored-dependency patches (`external/patches/`), Vendored submodules (`external/`)
 
-### Community 77 - "RadarSiteDataService::Impl"
-Cohesion: 0.13
-Nodes (15): Level3File, mutex, RadarSiteDataService::Impl, catalogLoadInProgress_, level2Provider_, level3Cache_, level3Catalog_, level3Mutex_ (+7 more)
+### Community 77 - "PaneController"
+Cohesion: 0.36
+Nodes (11): ApplyOrigin(), PaneController, QString, QVariantList, Add, addLine, addMarker, addRangeRing (+3 more)
 
 ### Community 78 - "Phase 1 packaged acceptance record — 2026-08-30"
 Cohesion: 0.33
@@ -495,9 +495,9 @@ Nodes (4): Answer, Outcome, Q: Fix manual-test issues: full state-name radar sea
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: OK, so what is the next step in this process?, Source Nodes
 
-### Community 86 - "TEST"
-Cohesion: 0.29
-Nodes (6): AltitudeIsConvertedFromTheListsFeet, AltitudesAreSaneAsMetresAcrossTheExtremes, KnownSiteResolves, RadarSiteDatabaseTest, TEST(), UnknownSiteResolvesToNothing
+### Community 86 - "Level3ProductDescriptor"
+Cohesion: 0.20
+Nodes (9): vector, level3_catalog, QString, Level3ProductDescriptor, awipsId, categoryDescription, categoryId, description (+1 more)
 
 ### Community 87 - "string"
 Cohesion: 0.27
@@ -506,6 +506,10 @@ Nodes (4): string, optional, vector, Level3File
 ### Community 88 - "MapObjectStore"
 Cohesion: 0.13
 Nodes (18): QModelIndex, QVariant, Impl, Q_INVOKABLE, QAbstractListModel, unique_ptr, MapObjectStore, data (+10 more)
+
+### Community 89 - "QVariantList"
+Cohesion: 0.20
+Nodes (6): PaneController, MapObjectStore, SettingsStore, QVariantList, PaneController, SettingsStore
 
 ### Community 90 - "radarSites"
 Cohesion: 0.47
@@ -523,9 +527,9 @@ Nodes (6): MapObjectStore, PaneController, testing::Test, MeasurementTest, measu
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Fix the Weather Overlays contrast problem., Source Nodes
 
-### Community 94 - "Level3ProductDescriptor"
-Cohesion: 0.20
-Nodes (9): vector, level3_catalog, QString, Level3ProductDescriptor, awipsId, categoryDescription, categoryId, description (+1 more)
+### Community 94 - "MapObjectScope"
+Cohesion: 0.25
+Nodes (8): MapObjectScopeKind, SyncChannel, SyncGroupId, MapObjectScope, channel, kind, originGroupId, originPaneId
 
 ### Community 95 - "SetArchiveTime"
 Cohesion: 0.33
@@ -559,9 +563,9 @@ Nodes (10): unique_ptr, vector, PaneGridModel::Impl, activePaneIndex_, defaultSo
 Cohesion: 0.22
 Nodes (7): BuildLevel3ProductCatalog(), string, vector, Level3ProductCatalog, LevelTwoAndLevelThreeIdentitiesCannotCollide, MapsAvailableAwipsIdsToCanonicalCategories, TEST()
 
-### Community 103 - "map_object_store.cpp"
-Cohesion: 0.26
-Nodes (10): QObject, QPointF, DistanceBetween(), DistanceToSegment(), Clear, clearObjects, refreshFormatting, setObjectScope (+2 more)
+### Community 103 - "GeodesicInverseResult"
+Cohesion: 0.25
+Nodes (6): GeodesicDirect(), GeodesicInverse(), GeodesicInverseResult, azimuthDegrees, distanceMeters, pair
 
 ### Community 104 - "Retest checklist"
 Cohesion: 0.25
@@ -579,17 +583,13 @@ Nodes (5): Point, latitude, longitude, snapKind, snapLabel
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?, Source Nodes
 
-### Community 108 - "GeodesicInverseResult"
-Cohesion: 0.25
-Nodes (6): GeodesicDirect(), GeodesicInverse(), GeodesicInverseResult, azimuthDegrees, distanceMeters, pair
-
-### Community 109 - "PaneController"
-Cohesion: 0.36
-Nodes (11): ApplyOrigin(), PaneController, QString, QVariantList, Add, addLine, addMarker, addRangeRing (+3 more)
-
-### Community 110 - "RadarBeamProbe"
+### Community 108 - "RadarBeamProbe"
 Cohesion: 0.25
 Nodes (8): RadarBeamProbe, azimuthDegrees, beamCenterAboveRadarMeters, beamCenterAltitudeMslMeters, elevationAngleDegrees, elevationAngleKnown, rangeMeters, siteAltitudeMslMeters
+
+### Community 109 - "TEST"
+Cohesion: 0.29
+Nodes (6): AltitudeIsConvertedFromTheListsFeet, AltitudesAreSaneAsMetresAcrossTheExtremes, KnownSiteResolves, RadarSiteDatabaseTest, TEST(), UnknownSiteResolvesToNothing
 
 ### Community 111 - "ToolbarAction"
 Cohesion: 0.67
@@ -607,21 +607,21 @@ Nodes (4): QObject, PaneController, QStringList, SettingsStore
 Cohesion: 0.67
 Nodes (3): QVariantMap, applyMapDetails, PaneController::probeSourceAt()
 
+### Community 115 - "MapObjectStore::Impl"
+Cohesion: 0.33
+Nodes (6): vector, MapObjectStore::Impl, nextId_, objects_, revision_, Objects
+
 ### Community 116 - "PaneSyncTest"
 Cohesion: 0.25
 Nodes (4): PaneController, testing::Test, PaneSyncTest, model_
 
-### Community 117 - "MapObjectStore::Impl"
-Cohesion: 0.33
-Nodes (6): vector, MapObjectStore::Impl, nextId_, objects_, revision_, Objects
+### Community 117 - "roleNames"
+Cohesion: 0.67
+Nodes (3): QByteArray, QHash, roleNames
 
 ### Community 118 - "Q: Address second manual UX feedback round and explain remaining acceptance checks"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Address second manual UX feedback round and explain remaining acceptance checks, Source Nodes
-
-### Community 119 - "roleNames"
-Cohesion: 0.67
-Nodes (3): QByteArray, QHash, roleNames
 
 ## Knowledge Gaps
 - **587 isolated node(s):** `radarSite_`, `level2Provider_`, `level3Mutex_`, `level3Providers_`, `level3Cache_` (+582 more)
@@ -631,20 +631,20 @@ Nodes (3): QByteArray, QHash, roleNames
 ## Work-memory lessons
 
 **Preferred sources** — corroborated by past sessions; start here.
-- `PaletteManager` (4× useful, score=3.922617754) _(code changed — re-verify)_
-- `PaneGridModel` (2× useful, score=1.96497512)
-- `ColorTableLut` (2× useful, score=1.942707662)
-- `Phase 1 completion and release-readiness gates` (2× useful, score=1.897686275)
-- `Remaining Phase 1 Level 3 sub-slices` (2× useful, score=1.897686275)
+- `PaletteManager` (4× useful, score=3.903533413)
+- `PaneGridModel` (2× useful, score=1.955415112)
+- `ColorTableLut` (2× useful, score=1.93325599)
+- `Phase 1 completion and release-readiness gates` (2× useful, score=1.888453642)
+- `Remaining Phase 1 Level 3 sub-slices` (2× useful, score=1.888453642)
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `map_` connect `PaneController::Impl` to `AppSettings::Impl`, `app_settings.cpp`, `radar_site_data_service.cpp`, `PaletteManager`, `QString`, `settings_store.cpp`, `PaneController`, `QObject`, `RadarSweepProduct`, `RadarSiteInfo`?**
   _High betweenness centrality (0.073) - this node is a cross-community bridge._
-- **Why does `PaneController::Impl` connect `PaneController::Impl` to `OverlayManager`, `RadarSweepLayerBinding`, `ConnectProductSignals`, `RadarSiteDataService`, `PaneController`, `QVariantList`, `RadarSweepProduct`, `applyChannelValue`, `ProductDescriptor`, `Level3ProductDescriptor`, `SetArchiveTime`?**
+- **Why does `PaneController::Impl` connect `PaneController::Impl` to `OverlayManager`, `RadarSiteDataService`, `RadarSweepLayerBinding`, `ConnectProductSignals`, `PaneController`, `QVariantList`, `Level3ProductDescriptor`, `RadarSweepProduct`, `applyChannelValue`, `ProductDescriptor`, `SetArchiveTime`?**
   _High betweenness centrality (0.063) - this node is a cross-community bridge._
-- **Why does `PaneGridModel` connect `PaneGridModel` to `SourceProbeTest`, `QVariantList`, `roleNames`, `setDefaultSourceKey`, `PropagateChannel`, `PaneSyncTest`, `TEST_F`, `radarSites`, `MeasurementTest`?**
+- **Why does `PaneGridModel` connect `PaneGridModel` to `SourceProbeTest`, `roleNames`, `setDefaultSourceKey`, `PropagateChannel`, `PaneSyncTest`, `TEST_F`, `QVariantList`, `radarSites`, `MeasurementTest`?**
   _High betweenness centrality (0.058) - this node is a cross-community bridge._
 - **What connects `radarSite_`, `level2Provider_`, `level3Mutex_` to the rest of the system?**
   _587 weakly-connected nodes found - possible documentation gaps or missing edges._

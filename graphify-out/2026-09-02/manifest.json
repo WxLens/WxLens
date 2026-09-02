@@ -138,15 +138,15 @@
     "semantic_hash": ""
   },
   "app/source/wxlens/palettes/palette_manager.cpp": {
-    "mtime": 1788053431.173302,
-    "seen": 1788140712.1398623,
-    "ast_hash": "4732bf8ff558f2fa3ee58da91db42540",
+    "mtime": 1788391691.9197106,
+    "seen": 1788391843.0314457,
+    "ast_hash": "d53b1181d94b39bda92474de9362076d",
     "semantic_hash": ""
   },
   "app/source/wxlens/palettes/palette_manager.hpp": {
-    "mtime": 1788053431.1673002,
-    "seen": 1788140712.1398633,
-    "ast_hash": "6781e7efafa76e4cae8e413d9c093e9e",
+    "mtime": 1788391687.4353266,
+    "seen": 1788391843.031448,
+    "ast_hash": "7ec11a2435272e110f85072cd9e442e5",
     "semantic_hash": ""
   },
   "app/source/wxlens/palettes/palette_model.cpp": {
@@ -162,9 +162,9 @@
     "semantic_hash": ""
   },
   "app/source/wxlens/panes/pane_controller.cpp": {
-    "mtime": 1788315200.2262607,
-    "seen": 1788315574.809377,
-    "ast_hash": "ab3c27973ec50f7b5d73d5fa75ef3f11",
+    "mtime": 1788391687.4551332,
+    "seen": 1788391843.0314522,
+    "ast_hash": "3789ee4ad6ac007485a6559c0994d860",
     "semantic_hash": ""
   },
   "app/source/wxlens/panes/pane_controller.hpp": {
@@ -420,9 +420,9 @@
     "semantic_hash": ""
   },
   "test/source/wxlens/palettes/palette_manager.test.cpp": {
-    "mtime": 1787948901.2682025,
-    "seen": 1788140712.1399295,
-    "ast_hash": "5c289e98f69aa7745e36b93ec0a715a6",
+    "mtime": 1788391706.051609,
+    "seen": 1788391843.0315142,
+    "ast_hash": "9b81443874b1de43166542790f17264d",
     "semantic_hash": ""
   },
   "test/source/wxlens/palettes/palette_model.test.cpp": {
