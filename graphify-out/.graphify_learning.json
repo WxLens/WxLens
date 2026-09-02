@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-02T23:30:55.305641+00:00",
+  "generated_at": "2026-09-02T23:36:48.038036+00:00",
   "nodes": {
     "app_source_wxlens_palettes_palette_manager_palettemanager": {
       "code_fingerprint": "ab04d04a8d08955001ad5b12880bc85869c57165bb91db05f878467c5fbc84e3",
@@ -27,7 +27,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 3.903533413,
+      "score": 3.903165222,
       "source_file": "app/source/wxlens/palettes/palette_manager.hpp",
       "status": "preferred",
       "uses": 4
@@ -43,7 +43,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 0.966443657,
+      "score": 0.966352499,
       "source_file": "app/source/wxlens/panes/pane_controller.cpp",
       "status": "tentative",
       "uses": 1
@@ -64,7 +64,7 @@
           "q": "Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?"
         }
       ],
-      "score": 1.955415112,
+      "score": 1.955230673,
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
       "status": "preferred",
       "uses": 2
@@ -80,7 +80,7 @@
           "q": "Address second manual UX feedback round and explain remaining acceptance checks"
         }
       ],
-      "score": 0.990466783,
+      "score": 0.99037336,
       "source_file": "app/source/wxlens/products/level3_graphic_overlay.hpp",
       "status": "tentative",
       "uses": 1
@@ -101,7 +101,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 1.93325599,
+      "score": 1.93307364,
       "source_file": "app/source/wxlens/products/radar_sweep_product.hpp",
       "status": "preferred",
       "uses": 2
@@ -117,7 +117,7 @@
           "q": "Address second manual UX feedback round and explain remaining acceptance checks"
         }
       ],
-      "score": 0.990466783,
+      "score": 0.99037336,
       "source_file": "app/source/wxlens/settings/app_settings.hpp",
       "status": "tentative",
       "uses": 1
@@ -133,7 +133,7 @@
           "q": "Fix the Weather Overlays contrast problem."
         }
       ],
-      "score": 0.958044761,
+      "score": 0.957954396,
       "source_file": "app/source/wxlens/theme/theme_manager.cpp",
       "status": "tentative",
       "uses": 1
@@ -149,7 +149,7 @@
           "q": "what is next"
         }
       ],
-      "score": 0.953128415,
+      "score": 0.953038514,
       "source_file": "docs/phase1-acceptance-2026-08-30.md",
       "status": "tentative",
       "uses": 1
@@ -165,7 +165,7 @@
           "q": "Fix the Weather Overlays contrast problem."
         }
       ],
-      "score": 0.958044761,
+      "score": 0.957954396,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
       "status": "tentative",
       "uses": 1
@@ -181,7 +181,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 0.935325227,
+      "score": 0.935237005,
       "source_file": "docs/ROADMAP.md",
       "status": "tentative",
       "uses": 1
@@ -197,7 +197,7 @@
           "q": "Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?"
         }
       ],
-      "score": 0.975604472,
+      "score": 0.975512451,
       "source_file": "docs/ROADMAP.md",
       "status": "tentative",
       "uses": 1
@@ -218,7 +218,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 1.888453642,
+      "score": 1.888275518,
       "source_file": "docs/ROADMAP.md",
       "status": "preferred",
       "uses": 2
@@ -239,7 +239,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 1.888453642,
+      "score": 1.888275518,
       "source_file": "docs/ROADMAP.md",
       "status": "preferred",
       "uses": 2

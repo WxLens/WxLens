@@ -162,13 +162,14 @@ Rectangle {
                             Connections { target: paletteManager.editor; function onDataChanged() { hexInput.sync() } }
                         }
                     }
-                    Row { spacing: 8
-                        Rectangle { width: 104; height: 28; radius: themeManager.cornerRadius; color: themeManager.primary
+                    Rectangle {
+                        width: 216; height: 30; radius: themeManager.cornerRadius; color: themeManager.primary
                             Text { anchors.centerIn: parent; text: "Apply to product"; color: "white"; font.pixelSize: 10 }
                             MouseArea { anchors.fill: parent; onClicked: {
                                 paletteManager.applyActive()
                                 root.showNotice(paletteManager.activeName + " applied to all compatible panes")
                             } } }
+                    Row { spacing: 8
                         Rectangle { width: 104; height: 28; radius: themeManager.cornerRadius; color: themeManager.control
                             Text { anchors.centerIn: parent; text: "Reset " + paletteManager.activeName; color: paletteManager.activeIsFactoryPalette ? themeManager.textPrimary : themeManager.textMuted; font.pixelSize: 10 }
                             MouseArea { anchors.fill: parent; enabled: paletteManager.activeIsFactoryPalette; onClicked: {
