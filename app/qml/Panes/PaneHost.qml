@@ -16,6 +16,10 @@ import MapLibre 4.0
 Rectangle {
     id: root
     color: "#000000"
+    // Every visual layer belongs to this pane. Without clipping, markers, range rings, drawings,
+    // and storm tracks close to an edge can paint across the neighboring pane even though their
+    // scope and ownership are correct.
+    clip: true
 
     // The wxlens::panes::PaneController this pane renders.
     required property var paneController
