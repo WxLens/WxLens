@@ -40,6 +40,22 @@ TEST(PaletteManager, ConfirmationDoesNotAllowPendingActionToBeReplaced)
    manager.resolveUnsavedChanges(PaletteManager::UnsavedDecision::Discard);
    EXPECT_TRUE(closed);
 }
+
+TEST(PaletteManager, EditsRemainDraftUntilApplied)
+{
+   PaletteManager manager;
+   const QString original = manager.paletteText(QStringLiteral("DR"));
+   ASSERT_TRUE(manager.editor()->setStopColor(0, QColor(1, 2, 3)));
+   EXPECT_EQ(manager.paletteText(QStringLiteral("DR")), original);
+
+   int appliedCount {0};
+   QObject::connect(&manager, &PaletteManager::paletteApplied,
+                    [&appliedCount](const QString&) { ++appliedCount; });
+   manager.applyActive();
+
+   EXPECT_NE(manager.paletteText(QStringLiteral("DR")), original);
+   EXPECT_EQ(appliedCount, 1);
+}
 } // namespace
 } // namespace palettes
 } // namespace wxlens

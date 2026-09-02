@@ -16,10 +16,7 @@ Rectangle {
     border.color: themeManager.border
     border.width: 1
     property string query: ""
-    property string pendingPaletteName: paneController ? paneController.paletteName : ""
     property var expandedCategories: ({})
-
-    onVisibleChanged: if (visible && paneController) pendingPaletteName = paneController.paletteName
     readonly property var productGroups: {
         const needle = query.trim().toLowerCase()
         const products = paneController.productCatalog.filter(function(product) {
@@ -230,63 +227,5 @@ Rectangle {
             }
         }
 
-        Flow {
-            id: paletteRow
-            width: parent.width
-            height: implicitHeight
-            spacing: 5
-            Text {
-                text: root.paneController.compatiblePaletteNames.length <= 1
-                      ? "Palette · Default only (no alternatives installed)"
-                      : "Palette"
-                color: themeManager.textMuted
-                font.pixelSize: 10
-                height: 24
-                verticalAlignment: Text.AlignVCenter
-            }
-            Repeater {
-                model: ["Default"].concat(root.paneController.compatiblePaletteNames.filter(
-                    function(name) { return name !== root.paneController.defaultPaletteName }))
-                delegate: Rectangle {
-                    required property string modelData
-                    width: paletteText.implicitWidth + 12
-                    height: 24
-                    radius: themeManager.cornerRadius
-                    readonly property bool selected:
-                        (modelData === "Default" && root.pendingPaletteName === "") ||
-                        root.pendingPaletteName === modelData
-                    color: selected ? themeManager.controlActive : themeManager.control
-                    border.color: selected ? themeManager.primary : themeManager.border
-                    Text {
-                        id: paletteText
-                        anchors.centerIn: parent
-                        text: parent.modelData === "Default"
-                              ? "Default (" + root.paneController.defaultPaletteName + ")"
-                              : parent.modelData
-                        color: themeManager.textSecondary
-                        font.pixelSize: 9
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.pendingPaletteName =
-                                   parent.modelData === "Default" ? "" : parent.modelData
-                    }
-                }
-            }
-            Rectangle {
-                visible: root.paneController.compatiblePaletteNames.length > 1
-                width: 54; height: 24; radius: themeManager.cornerRadius
-                color: root.pendingPaletteName !== root.paneController.paletteName
-                       ? themeManager.primary : themeManager.control
-                Text { anchors.centerIn: parent; text: "Apply"; color: themeManager.textPrimary; font.pixelSize: 9 }
-                MouseArea {
-                    anchors.fill: parent
-                    enabled: root.pendingPaletteName !== root.paneController.paletteName
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.paneController.paletteName = root.pendingPaletteName
-                }
-            }
-        }
     }
 }

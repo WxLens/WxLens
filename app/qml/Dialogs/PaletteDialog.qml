@@ -68,7 +68,7 @@ Rectangle {
                 color: paletteManager.editor.valid ? themeManager.textSecondary : themeManager.danger; font.pixelSize: 12
             }
             Text {
-                text: "Choose a palette to edit. This does not apply it to a radar pane."
+                text: "Choose and edit a palette here. Changes remain a draft until you press Apply."
                 color: themeManager.textMuted; font.pixelSize: 10
             }
             Flickable {
@@ -163,6 +163,12 @@ Rectangle {
                         }
                     }
                     Row { spacing: 8
+                        Rectangle { width: 104; height: 28; radius: themeManager.cornerRadius; color: themeManager.primary
+                            Text { anchors.centerIn: parent; text: "Apply to product"; color: "white"; font.pixelSize: 10 }
+                            MouseArea { anchors.fill: parent; onClicked: {
+                                paletteManager.applyActive()
+                                root.showNotice(paletteManager.activeName + " applied to all compatible panes")
+                            } } }
                         Rectangle { width: 104; height: 28; radius: themeManager.cornerRadius; color: themeManager.control
                             Text { anchors.centerIn: parent; text: "Reset " + paletteManager.activeName; color: paletteManager.activeIsFactoryPalette ? themeManager.textPrimary : themeManager.textMuted; font.pixelSize: 10 }
                             MouseArea { anchors.fill: parent; enabled: paletteManager.activeIsFactoryPalette; onClicked: {

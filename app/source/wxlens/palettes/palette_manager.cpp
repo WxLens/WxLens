@@ -28,7 +28,7 @@ PaletteManager::PaletteManager(QObject* parent) : QObject(parent), editor_(this)
       if (!file.open(QIODevice::ReadOnly)) continue;
       const QString text = QString::fromUtf8(file.readAll());
       names_.append(name);
-      entries_.emplace(name, Entry {text, text, {}, true});
+      entries_.emplace(name, Entry {text, text, text, {}, true});
    }
 
    connect(&editor_,
@@ -39,7 +39,6 @@ PaletteManager::PaletteManager(QObject* parent) : QObject(parent), editor_(this)
               activeText_ = text;
               if (auto it = entries_.find(activeName_); it != entries_.end())
                  it->second.workingText = text;
-              Q_EMIT paletteTextChanged(activeText_);
            });
 
    if (entries_.contains("DR")) Activate("DR");
@@ -59,7 +58,7 @@ QString PaletteManager::activeText() const { return activeText_; }
 QString PaletteManager::paletteText(const QString& name) const
 {
    const auto it = entries_.find(name);
-   return it == entries_.end() ? QString {} : it->second.workingText;
+   return it == entries_.end() ? QString {} : it->second.appliedText;
 }
 
 bool PaletteManager::activeIsFactoryPalette() const
@@ -109,7 +108,7 @@ bool PaletteManager::openFile(const QUrl& source)
 
    const QString name = UniqueImportedName(QFileInfo(file).completeBaseName());
    names_.append(name);
-   entries_.emplace(name, Entry {text, {}, source, false});
+   entries_.emplace(name, Entry {text, text, {}, source, false});
    Q_EMIT paletteNamesChanged();
    return Activate(name);
 }
@@ -140,6 +139,15 @@ void PaletteManager::requestSelect(const QString& name) { BeginAction(PendingAct
 void PaletteManager::requestImport() { BeginAction(PendingAction::Import); }
 void PaletteManager::requestResetActive() { BeginAction(PendingAction::ResetActive); }
 void PaletteManager::requestResetAll() { BeginAction(PendingAction::ResetAll); }
+
+void PaletteManager::applyActive()
+{
+   auto it = entries_.find(activeName_);
+   if (it == entries_.end()) return;
+   it->second.appliedText = it->second.workingText;
+   Q_EMIT paletteTextChanged(it->second.appliedText);
+   Q_EMIT paletteApplied(activeName_);
+}
 
 void PaletteManager::resolveUnsavedChanges(UnsavedDecision decision)
 {

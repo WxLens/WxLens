@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-02T17:46:54.411594+00:00",
+  "generated_at": "2026-09-02T18:26:57.636550+00:00",
   "nodes": {
     "app_source_wxlens_palettes_palette_manager_palettemanager": {
       "code_fingerprint": "1a47dffb82b6195ddd950ac619e047e63b2973ee50190e7099d18088a85fdeda",
@@ -27,7 +27,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 3.925139495,
+      "score": 3.922617754,
       "source_file": "app/source/wxlens/palettes/palette_manager.hpp",
       "status": "preferred",
       "uses": 4
@@ -43,10 +43,31 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 0.971792928,
+      "score": 0.971168591,
       "source_file": "app/source/wxlens/panes/pane_controller.cpp",
       "status": "tentative",
       "uses": 1
+    },
+    "app_source_wxlens_panes_pane_grid_model_panegridmodel": {
+      "code_fingerprint": "7167cc4019c974c8d20a9b0ee846e532e1fbaf556fa8c6cef7f7fb5dfc5b99dd",
+      "label": "PaneGridModel",
+      "last": "2026-09-02T02:19:45.350824+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-02T02:19:45.350824+00:00",
+          "outcome": "useful",
+          "q": "Fix manual-test issues: full state-name radar search, site-change map recentering, and visible pane-local palette changes"
+        },
+        {
+          "date": "2026-09-01T21:51:37.879217+00:00",
+          "outcome": "useful",
+          "q": "Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?"
+        }
+      ],
+      "score": 1.96497512,
+      "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
+      "status": "preferred",
+      "uses": 2
     },
     "app_source_wxlens_products_level3_graphic_overlay_graphicoverlayprimitive": {
       "code_fingerprint": "bc28b6ed05c57851dd934adfb376e55a8161d640f88a284824eafb4985fbaa48",
@@ -59,7 +80,7 @@
           "q": "Address second manual UX feedback round and explain remaining acceptance checks"
         }
       ],
-      "score": 0.995949023,
+      "score": 0.995309166,
       "source_file": "app/source/wxlens/products/level3_graphic_overlay.hpp",
       "status": "tentative",
       "uses": 1
@@ -80,7 +101,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 1.943956574,
+      "score": 1.942707662,
       "source_file": "app/source/wxlens/products/radar_sweep_product.hpp",
       "status": "preferred",
       "uses": 2
@@ -96,7 +117,7 @@
           "q": "Address second manual UX feedback round and explain remaining acceptance checks"
         }
       ],
-      "score": 0.995949023,
+      "score": 0.995309166,
       "source_file": "app/source/wxlens/settings/app_settings.hpp",
       "status": "tentative",
       "uses": 1
@@ -112,7 +133,7 @@
           "q": "Fix the Weather Overlays contrast problem."
         }
       ],
-      "score": 0.963347545,
+      "score": 0.962728634,
       "source_file": "app/source/wxlens/theme/theme_manager.cpp",
       "status": "tentative",
       "uses": 1
@@ -128,7 +149,7 @@
           "q": "what is next"
         }
       ],
-      "score": 0.958403987,
+      "score": 0.957788252,
       "source_file": "docs/phase1-acceptance-2026-08-30.md",
       "status": "tentative",
       "uses": 1
@@ -144,7 +165,7 @@
           "q": "Fix the Weather Overlays contrast problem."
         }
       ],
-      "score": 0.963347545,
+      "score": 0.962728634,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
       "status": "tentative",
       "uses": 1
@@ -160,7 +181,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 0.940502258,
+      "score": 0.939898024,
       "source_file": "docs/ROADMAP.md",
       "status": "tentative",
       "uses": 1
@@ -176,7 +197,7 @@
           "q": "Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?"
         }
       ],
-      "score": 0.981004449,
+      "score": 0.980374194,
       "source_file": "docs/ROADMAP.md",
       "status": "tentative",
       "uses": 1
@@ -197,7 +218,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 1.898906245,
+      "score": 1.897686275,
       "source_file": "docs/ROADMAP.md",
       "status": "preferred",
       "uses": 2
@@ -218,7 +239,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 1.898906245,
+      "score": 1.897686275,
       "source_file": "docs/ROADMAP.md",
       "status": "preferred",
       "uses": 2

@@ -365,6 +365,16 @@ PaneController::PaneController(int                                paneId,
               p->ApplyPalette();
               if (!p->map_.isNull()) p->map_->triggerRepaint();
            });
+   connect(&paletteManager, &palettes::PaletteManager::paletteApplied, this,
+           [this](const QString& name)
+           {
+              if (!compatiblePaletteNames().contains(name)) return;
+              p->descriptor_.palette =
+                 name == p->defaultPalette_ ? QString {} : name;
+              p->ApplyPalette();
+              if (!p->map_.isNull()) p->map_->triggerRepaint();
+              Q_EMIT paletteChanged();
+           });
 
    if (!p->descriptor_.sourceKey.isEmpty()) refreshProductCatalog();
 

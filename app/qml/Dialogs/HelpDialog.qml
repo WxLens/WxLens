@@ -123,9 +123,9 @@ Rectangle {
                           "temporarily suppress snapping. Right-click finishes a path measurement " +
                           "or cancels a line drawing." :
                           "<h3>Palettes</h3>" +
-                          "Choose a palette inside a pane’s Product browser, then press Apply. " +
-                          "The Palette manager edits palette files; its top buttons only choose " +
-                          "which file is being edited. Import a .pal file there when you want to " +
+                          "Choose and edit palettes in the Palette manager, then press Apply to product. " +
+                          "That updates every pane displaying a compatible product; its top buttons choose " +
+                          "which palette is being edited. Import a .pal file there when you want to " +
                           "work with an external palette.<br><br>" +
                           "<h3>Storm tracking</h3>" +
                           "Choose an available Level 3 Storm Tracking Information product. Storm " +

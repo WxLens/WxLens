@@ -55,6 +55,7 @@ public:
    Q_INVOKABLE void requestImport();
    Q_INVOKABLE void requestResetActive();
    Q_INVOKABLE void requestResetAll();
+   Q_INVOKABLE void applyActive();
    Q_INVOKABLE void resolveUnsavedChanges(UnsavedDecision decision);
    Q_INVOKABLE void completePendingSave(const QUrl& destination);
 
@@ -63,6 +64,7 @@ signals:
    void activePaletteChanged();
    void confirmationRequiredChanged();
    void paletteTextChanged(const QString& text);
+   void paletteApplied(const QString& name);
    void closeRequested();
    void importFileRequested();
    void saveFileRequested();
@@ -71,6 +73,7 @@ private:
    struct Entry
    {
       QString workingText;
+      QString appliedText;
       QString factoryText;
       QUrl    source;
       bool    factory {false};
