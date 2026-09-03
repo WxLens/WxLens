@@ -59,9 +59,9 @@ Rectangle {
                 width: parent.width
                 Text { text: "Radar palette"; color: themeManager.textPrimary; font.pixelSize: 18; font.bold: true }
                 Item { width: parent.width - 300; height: 1 }
-                Text { text: "Import .pal"; color: themeManager.accent; font.pixelSize: 12; MouseArea { anchors.fill: parent; onClicked: paletteManager.requestImport() } }
+                Text { text: "Import .pal"; color: themeManager.accent; font.pixelSize: 12; MouseArea { anchors.fill: parent; preventStealing: true; onClicked: paletteManager.requestImport() } }
                 Item { width: 18; height: 1 }
-                Text { text: "Save as"; color: themeManager.accent; font.pixelSize: 12; MouseArea { anchors.fill: parent; onClicked: { saveDialog.pending = false; saveDialog.open() } } }
+                Text { text: "Save as"; color: themeManager.accent; font.pixelSize: 12; MouseArea { anchors.fill: parent; preventStealing: true; onClicked: { saveDialog.pending = false; saveDialog.open() } } }
             }
             Text {
                 text: paletteManager.activeName + (paletteManager.editor.dirty ? " - modified" : "") + (paletteManager.editor.valid ? "" : " - invalid")
@@ -84,6 +84,7 @@ Rectangle {
                             MouseArea {
                                 id: paletteChoiceArea
                                 anchors.fill: parent; hoverEnabled: true
+                                preventStealing: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: paletteManager.requestSelect(modelData)
                             }
@@ -134,7 +135,7 @@ Rectangle {
                             TextInput { width: 85; text: value.toFixed(2); color: themeManager.textPrimary; selectByMouse: true; onEditingFinished: paletteManager.editor.setStopValue(index, Number(text)) }
                             Text { text: String(stopColor); color: themeManager.textMuted; font.pixelSize: 11 }
                         }
-                        MouseArea { anchors.fill: parent; onClicked: stopList.currentIndex = index; z: -1 }
+                        MouseArea { anchors.fill: parent; preventStealing: true; onClicked: stopList.currentIndex = index; z: -1 }
                     }
                 }
                 Column {
@@ -144,10 +145,10 @@ Rectangle {
                     Row { spacing: 8
                         Rectangle { width: 104; height: 25; radius: themeManager.cornerRadius; color: !editPanel.second ? themeManager.controlActive : themeManager.control
                             Text { anchors.centerIn: parent; text: "First color"; color: themeManager.textPrimary; font.pixelSize: 10 }
-                            MouseArea { anchors.fill: parent; onClicked: { editPanel.second = false; hexInput.sync() } } }
+                            MouseArea { anchors.fill: parent; preventStealing: true; onClicked: { editPanel.second = false; hexInput.sync() } } }
                         Rectangle { visible: stopList.currentItem && stopList.currentItem.hasSecondColor; width: 104; height: 25; radius: themeManager.cornerRadius; color: editPanel.second ? themeManager.controlActive : themeManager.control
                             Text { anchors.centerIn: parent; text: "Second color"; color: themeManager.textPrimary; font.pixelSize: 10 }
-                            MouseArea { anchors.fill: parent; onClicked: { editPanel.second = true; hexInput.sync() } } }
+                            MouseArea { anchors.fill: parent; preventStealing: true; onClicked: { editPanel.second = true; hexInput.sync() } } }
                     }
                     ColorPicker { visible: stopList.currentIndex >= 0; colorValue: !stopList.currentItem ? "white" : editPanel.second ? stopList.currentItem.secondColor : stopList.currentItem.stopColor; onColorEdited: (value) => paletteManager.editor.setStopColor(stopList.currentIndex, value, editPanel.second) }
                     Text { text: "Hex color (#RRGGBB or #AARRGGBB)"; color: themeManager.textSecondary; font.pixelSize: 10 }
@@ -165,14 +166,14 @@ Rectangle {
                     Rectangle {
                         width: 216; height: 30; radius: themeManager.cornerRadius; color: themeManager.primary
                             Text { anchors.centerIn: parent; text: "Apply to product"; color: "white"; font.pixelSize: 10 }
-                            MouseArea { anchors.fill: parent; onClicked: {
+                            MouseArea { anchors.fill: parent; preventStealing: true; onClicked: {
                                 paletteManager.applyActive()
                                 root.showNotice(paletteManager.activeName + " applied to all compatible panes")
                             } } }
                     Row { spacing: 8
                         Rectangle { width: 104; height: 28; radius: themeManager.cornerRadius; color: themeManager.control
                             Text { anchors.centerIn: parent; text: "Reset " + paletteManager.activeName; color: paletteManager.activeIsFactoryPalette ? themeManager.textPrimary : themeManager.textMuted; font.pixelSize: 10 }
-                            MouseArea { anchors.fill: parent; enabled: paletteManager.activeIsFactoryPalette; onClicked: {
+                            MouseArea { anchors.fill: parent; preventStealing: true; enabled: paletteManager.activeIsFactoryPalette; onClicked: {
                                 if (!paletteManager.editor.dirty) {
                                     root.showNotice(paletteManager.activeName + " is already the original palette")
                                 } else {
@@ -182,7 +183,7 @@ Rectangle {
                             } } }
                         Rectangle { width: 104; height: 28; radius: themeManager.cornerRadius; color: themeManager.control
                             Text { anchors.centerIn: parent; text: "Reset all"; color: themeManager.textPrimary; font.pixelSize: 10 }
-                            MouseArea { anchors.fill: parent; onClicked: {
+                            MouseArea { anchors.fill: parent; preventStealing: true; onClicked: {
                                 paletteManager.requestResetAll()
                                 root.showNotice("Factory palettes restored; unchanged palettes were already original")
                             } } }
@@ -211,7 +212,7 @@ Rectangle {
         }
     }
     Timer { id: noticeTimer; interval: 2800; onTriggered: root.notice = "" }
-    MouseArea { anchors.fill: parent; visible: paletteManager.confirmationRequired; z: 199 }
+    MouseArea { anchors.fill: parent; preventStealing: true; visible: paletteManager.confirmationRequired; z: 199 }
     Rectangle {
         visible: paletteManager.confirmationRequired; z: 200; anchors.centerIn: parent; width: 410; height: 155; radius: themeManager.cornerRadius; color: themeManager.elevatedSurface; border.color: themeManager.border
         Column { anchors.fill: parent; anchors.margins: 18; spacing: 13
@@ -220,13 +221,13 @@ Rectangle {
             Row { spacing: 10
                 Rectangle { width: 104; height: 30; radius: themeManager.cornerRadius; color: themeManager.primary
                     Text { anchors.centerIn: parent; text: "Save a copy"; color: "white" }
-                    MouseArea { anchors.fill: parent; onClicked: paletteManager.resolveUnsavedChanges(0) } }
+                    MouseArea { anchors.fill: parent; preventStealing: true; onClicked: paletteManager.resolveUnsavedChanges(0) } }
                 Rectangle { width: 90; height: 30; radius: themeManager.cornerRadius; color: themeManager.danger
                     Text { anchors.centerIn: parent; text: "Discard"; color: themeManager.textPrimary }
-                    MouseArea { anchors.fill: parent; onClicked: paletteManager.resolveUnsavedChanges(1) } }
+                    MouseArea { anchors.fill: parent; preventStealing: true; onClicked: paletteManager.resolveUnsavedChanges(1) } }
                 Rectangle { width: 100; height: 30; radius: themeManager.cornerRadius; color: themeManager.control
                     Text { anchors.centerIn: parent; text: "Keep editing"; color: themeManager.textPrimary }
-                    MouseArea { anchors.fill: parent; onClicked: paletteManager.resolveUnsavedChanges(2) } }
+                    MouseArea { anchors.fill: parent; preventStealing: true; onClicked: paletteManager.resolveUnsavedChanges(2) } }
             }
         }
     }
