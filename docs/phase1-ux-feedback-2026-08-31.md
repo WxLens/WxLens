@@ -21,25 +21,24 @@ features whose underlying behavior is still wrong.
 
 ### Top bar secondary action row disappears after maximizing (found 2026-09-02)
 
-- [ ] `TopBar.qml`'s right-aligned action row (Tools menu, Help, Settings, and any enabled
-  optional shortcuts) renders correctly on a fresh, un-maximized launch but is completely absent
-  - confirmed via raw screen-pixel sampling, not merely low contrast - after the window is
-  maximized, by either the native maximize control or `WM_SYSCOMMAND`/`SC_MAXIMIZE`. This blocks
-  every UI path to Settings, Weather Overlays, Saved Places, Palette Manager, and Help whenever
-  the app is maximized, which is a common way to run a multi-pane radar app.
-- Confirmed NOT caused by: theme colors (the active theme's tokens are clearly distinct from the
-  background), a QML binding error (no warning is emitted), window width specifically (reproduces
-  at both the default size and maximized), or recent changes (reproduces against
-  `build-release-vs2026/acceptance-maximized.png` from 2026-08-30, so it predates this UX pass).
-- Two standard mitigations were tried and both failed to fix it: forcing a full-window repaint via
-  `Window.update()` on resize, and replacing the row's `anchors.right`/`anchors.verticalCenter`
-  with explicit `x`/`y` bindings. Root cause is therefore deeper in the Qt Quick Positioner/anchor
-  recalculation path than a simple repaint or anchor-timing issue - diagnosing further needs
-  interactive QML tooling (Qt Creator's QML profiler, GammaRay, or a debug build with breakpoints
-  in the scene graph) rather than static source review or packaged-build screenshots.
+- [x] **Resolved 2026-09-02: not reproducible — the defect was in the measurement, not the app.**
+  Retested the packaged Release build interactively: launched windowed, maximized via
+  `ShowWindow(SW_MAXIMIZE)`, then restored and re-maximized again. The Tools/Help/Settings action
+  row rendered correctly in every state (DPI-aware full-window captures of all three states).
+- The original report's evidence was flawed in two ways. First,
+  `build-release-vs2026/acceptance-maximized.png` (2026-08-30) shows the pre-redesign top bar and
+  is itself a bad capture: it is also missing the OS caption buttons (minimize/maximize/close) in
+  its title bar, which the app cannot affect — so the right-hand portion of that screenshot never
+  reflected the screen. Second, the "raw screen-pixel sampling" was almost certainly done in
+  logical coordinates against a physical-resolution capture (this machine runs 125 % display
+  scaling; the maximized window rect is 2066x1238 physical at (-9,-9)), so the sampled "button
+  region" fell on empty map left of the real buttons.
+- Lesson for future packaged-app verification on this machine: make the capturing process
+  DPI-aware (`SetProcessDPIAware`) and compute regions from `GetWindowRect` physical coordinates,
+  and treat "zero pixels found" as a capture-pipeline suspect before a rendering bug.
 
-Retest: launch the packaged app, maximize the window, and confirm the Tools/Help/Settings icons
-remain visible in the top-right of the top bar.
+Retest: passed 2026-09-02 (windowed, maximized, and restore→re-maximize all show the
+Tools/Help/Settings icons in the top-right of the top bar).
 
 ### Product-aware palette ownership and defaults
 
