@@ -142,6 +142,23 @@ group A or B. Presets remain thin UI sugar over per-channel membership; joining 
 existing group's current values, including an immediate palette LUT rebuild. Automated preset
 coverage passes. The box remains open until the packaged Palette-only retest below passes.
 
+Retested 2026-09-03 (packaged Release, 2x2 KEAX, two velocity panes both set to **Palette only ·
+A**): the menu and presets work, and changing the velocity family default to `SRV` repainted both
+velocity panes while leaving both reflectivity panes untouched. Two findings, neither a regression:
+
+1. **The link had no observable effect.** Nothing in the QML exposes a per-pane palette override
+   (`PaneController::setPaletteName` is not reachable from any QML file), so the only palette
+   change a user can make is the family default - which already reaches every pane of that field,
+   linked or not. "Palette only" therefore cannot yet be distinguished from "Independent" by
+   observation. The channel is real and unit-tested; what is missing is the per-pane override UI
+   that would give it something to carry. Until that ships, this preset is a control that appears
+   to do nothing.
+2. **The group letter was wrong**, showing "Palette @" instead of "Palette A". The new `group`
+   binding read `paneGridModel.syncGroupForPreset(...)` without also reading `syncRevision`, so
+   QML could not know when to re-evaluate it; it kept its initial `0` and
+   `String.fromCharCode(64 + 0)` rendered "@". This is the exact staleness the neighbouring
+   `preset` binding's comment warns about. Fixed in `PaneHost.qml`; needs a visual re-check.
+
 Retest: link two velocity panes on Palette only, change one pane's palette, confirm the other
 repaints and that an unlinked third pane does not; confirm camera stays independent when only
 Palette is linked.
@@ -158,7 +175,21 @@ Palette is linked.
 
 Implemented 2026-09-03: initial window dimensions are capped to the active screen's available
 desktop area, and the bottom toolbar is now exposed as an accessible toolbar whose reusable
-buttons are keyboard-operable and named. Packaged 125%/150% floating and docked retesting remains.
+buttons are keyboard-operable and named.
+
+Retested 2026-09-03 (packaged Release, `QT_SCALE_FACTOR`) — the first cap **did not work**: the
+window still opened 2018x1297 at 1.25 and 2418x1427 at 1.5 on a 2066x1238 screen, byte-identical
+to the pre-fix measurement. `Screen.desktopAvailableWidth/Height` in QML was not comparable with
+the window's own size in the units that size is expressed in, so `Math.min` silently chose the
+unclamped value while the same function's reposition branch still ran (the window moved but never
+shrank). Replaced with `FitWindowToScreen()` in `main/main.cpp`, which does the arithmetic in
+`QWindow`/`QScreen` device-independent pixels, accounts for the frame margins, logs what it
+changed, and re-fits when the window moves to another screen.
+
+- [x] Verified 2026-09-03: 1.25 -> 2018x1230, 1.5 -> 2066x1230 (both inside the 2066x1238
+  available area; previously 1297 and 1427 tall), 1.0 unchanged at 1618x1047. Floating/docked and
+  a visual confirmation of every bottom-bar control at scale remain for the next session - the
+  measurement above is window geometry, not a click-through of each control.
 
 Retest: run at 125 % and 150 % system scaling (and via `QT_SCALE_FACTOR`), floating and docked,
 and confirm every bottom-bar control is on screen and clickable.
@@ -191,6 +222,35 @@ and does not overlap the attribution or the control bar.
 
 Retest: add roles/names to the interactive controls, then drive the app with Narrator or NVDA and
 confirm every action is reachable and announced.
+
+### P1 — Palette tests ran against palettes the application does not ship (found 2026-09-03)
+
+- [x] `test/test.cmake` bundled `DR.pal`, `DV.pal` and `SRV.pal` from
+  `external/legacy-supercell-wx`, while `app/CMakeLists.txt` overrides `DR` and `DV` with
+  WxLens's own ramps. Every palette test therefore ran against data the application never loads:
+  the vendored `DV` declares `Units: KT`, WxLens's declares `MPH`, and units are exactly what the
+  product-family matching reads. A test asserting that a knots palette matches the velocity family
+  passed in CI while the packaged app refused the same file.
+  *Fixed 2026-09-03:* `test.cmake` now mirrors `app/CMakeLists.txt`, bundling the full vendored WCT
+  set plus the two application-owned overrides. Any future divergence changes test behaviour, so it
+  will be noticed.
+- Lesson: a test fixture that "looks equivalent" to the shipped resource is not equivalent. Where
+  the application overrides a vendored asset, the test target has to make the same substitution.
+
+### P1 — Imported palettes were matched by unit spelling, not by quantity (found 2026-09-03)
+
+- [x] The import preview matched a `.pal` to product families by comparing its `Units:` string
+  literally. WxLens's velocity ramp declares `MPH` while the community's velocity palettes - and
+  the vendored `SRV`/`SW` - declare `KT`, so importing an ordinary knots velocity palette offered
+  "Use for spectrum width" and **not** velocity: precisely the palette the user most wanted to
+  link was the one the feature hid.
+  *Fixed 2026-09-03:* added `PaletteManager::UnitsQuantity()`, which maps a declared unit to the
+  physical quantity it measures (KT/MPH/M/S/KM/H -> speed, DEG and DEG/KM -> the KDP field, and so
+  on) and matches on that. `CanonicalUnits()` keeps the declared spelling for display, so the
+  editor still shows "MPH" or "KT" as written. `BuildColorTableLut` already rescales sample values
+  to whatever the chosen table declares, so cross-unit linking renders correctly.
+  Covered by `PaletteManager.UnitsMatchByQuantityNotSpelling`, which asserts the end-to-end case
+  against the real bundled catalog.
 
 ### Retest results — what passed
 

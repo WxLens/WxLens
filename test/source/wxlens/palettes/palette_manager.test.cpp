@@ -145,11 +145,11 @@ TEST(PaletteManager, FamilyDefaultsPersistAndAreValidatedOnLoad)
 
 TEST(PaletteManager, UnitsAreParsedAndCanonicalised)
 {
+   // CanonicalUnits normalises spelling for *display* and keeps what the file declared; folding
+   // different units onto one field is UnitsQuantity's job (see UnitsMatchByQuantityNotSpelling).
    EXPECT_EQ(PaletteManager::CanonicalUnits(QStringLiteral(" kt ")), QStringLiteral("KT"));
    EXPECT_EQ(PaletteManager::CanonicalUnits(QStringLiteral("KTS")), QStringLiteral("KT"));
-   // KDP declares DEG/KM and KDP2 declares DEG for the same field, so they must compare equal.
-   EXPECT_EQ(PaletteManager::CanonicalUnits(QStringLiteral("DEG/KM")),
-             PaletteManager::CanonicalUnits(QStringLiteral("deg")));
+   EXPECT_EQ(PaletteManager::CanonicalUnits(QStringLiteral("deg/km")), QStringLiteral("DEG/KM"));
    EXPECT_TRUE(PaletteManager::CanonicalUnits(QString {}).isEmpty());
 
    EXPECT_EQ(PaletteManager::UnitsOfText(QStringLiteral("; comment\nUnits: dBZ\nColor: 0 1 2 3\n")),
@@ -159,7 +159,48 @@ TEST(PaletteManager, UnitsAreParsedAndCanonicalised)
 
    PaletteManager manager;
    EXPECT_EQ(manager.unitsOf(QStringLiteral("DR")), QStringLiteral("DBZ"));
-   EXPECT_EQ(manager.unitsOf(QStringLiteral("DV")), QStringLiteral("KT"));
+   // WxLens ships its own velocity ramp in MPH while the vendored ones are in KT. Both are
+   // velocity, and the catalog must say so, or a knots palette cannot be linked to velocity at
+   // all - the defect the 2026-09-03 packaged retest found.
+   EXPECT_EQ(manager.unitsOf(QStringLiteral("DV")), QStringLiteral("MPH"));
+   EXPECT_EQ(manager.unitsOf(QStringLiteral("SRV")), QStringLiteral("KT"));
+}
+
+TEST(PaletteManager, UnitsMatchByQuantityNotSpelling)
+{
+   EXPECT_EQ(PaletteManager::UnitsQuantity(QStringLiteral("KT")),
+             PaletteManager::UnitsQuantity(QStringLiteral("MPH")));
+   EXPECT_EQ(PaletteManager::UnitsQuantity(QStringLiteral("kts")),
+             PaletteManager::UnitsQuantity(QStringLiteral("M/S")));
+   EXPECT_EQ(PaletteManager::UnitsQuantity(QStringLiteral("DEG/KM")),
+             PaletteManager::UnitsQuantity(QStringLiteral("DEG")));
+   EXPECT_NE(PaletteManager::UnitsQuantity(QStringLiteral("DBZ")),
+             PaletteManager::UnitsQuantity(QStringLiteral("KT")));
+   EXPECT_NE(PaletteManager::UnitsQuantity(QStringLiteral("DB")),
+             PaletteManager::UnitsQuantity(QStringLiteral("DBZ")))
+      << "differential reflectivity is not reflectivity";
+   EXPECT_TRUE(PaletteManager::UnitsQuantity(QString {}).isEmpty());
+
+   // The end-to-end case: a knots velocity palette must offer the velocity family, whose bundled
+   // ramp declares MPH.
+   QTemporaryDir directory;
+   const QString path = directory.filePath("knots-velocity.pal");
+   QFile file(path);
+   ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+   file.write("Units: KT\nColor: -40 0 0 255\nColor: 40 255 0 0\n");
+   file.close();
+
+   PaletteManager manager;
+   QStringList candidateIds;
+   for (const QVariant& value :
+        manager.inspectFile(QUrl::fromLocalFile(path))
+           .value(QStringLiteral("compatibleFamilies"))
+           .toList())
+      candidateIds.append(value.toMap().value(QStringLiteral("id")).toString());
+   EXPECT_TRUE(candidateIds.contains(QStringLiteral("DV")))
+      << "a knots velocity palette must be linkable to the MPH velocity family";
+   EXPECT_TRUE(candidateIds.contains(QStringLiteral("SW"))) << "spectrum width is also a speed";
+   EXPECT_FALSE(candidateIds.contains(QStringLiteral("DR")));
 }
 
 TEST(PaletteManager, ImportIsUnlinkedUntilTheUserPicksAField)
@@ -240,6 +281,46 @@ TEST(PaletteManager, ImportCanBeLinkedAtImportTimeAndFiltersByField)
 
    EXPECT_EQ(manager.palettesForFamily(QString {}), manager.paletteNames())
       << "no filter means the whole catalog";
+}
+
+TEST(PaletteManager, InspectFileReportsWhyAFileCannotBeImported)
+{
+   QTemporaryDir directory;
+   PaletteManager manager;
+
+   // A file that is not a palette at all. The preview has to say so rather than importing an
+   // empty ramp that would render every gate transparent.
+   const QString brokenPath = directory.filePath("test04-broken.pal");
+   QFile broken(brokenPath);
+   ASSERT_TRUE(broken.open(QIODevice::WriteOnly));
+   broken.write("this file is not a palette at all\n");
+   broken.close();
+
+   const QVariantMap brokenPreview = manager.inspectFile(QUrl::fromLocalFile(brokenPath));
+   EXPECT_FALSE(brokenPreview.value(QStringLiteral("valid")).toBool());
+   EXPECT_FALSE(brokenPreview.value(QStringLiteral("error")).toString().isEmpty())
+      << "the preview must explain the refusal, not fail silently";
+   EXPECT_FALSE(manager.openFile(QUrl::fromLocalFile(brokenPath)));
+   EXPECT_FALSE(manager.paletteNames().contains(QStringLiteral("test04-broken")))
+      << "a rejected file must not join the catalog";
+
+   const QVariantMap missingPreview =
+      manager.inspectFile(QUrl::fromLocalFile(directory.filePath("does-not-exist.pal")));
+   EXPECT_FALSE(missingPreview.value(QStringLiteral("valid")).toBool());
+   EXPECT_FALSE(missingPreview.value(QStringLiteral("error")).toString().isEmpty());
+
+   // A palette whose units match no bundled field is still importable - it just cannot be
+   // auto-matched, which is what the preview's "no field matches these units" branch says.
+   const QString oddPath = directory.filePath("test05-odd-units.pal");
+   QFile odd(oddPath);
+   ASSERT_TRUE(odd.open(QIODevice::WriteOnly));
+   odd.write("Units: FURLONGS\nColor: 0 1 2 3\nColor: 10 4 5 6\n");
+   odd.close();
+   const QVariantMap oddPreview = manager.inspectFile(QUrl::fromLocalFile(oddPath));
+   EXPECT_TRUE(oddPreview.value(QStringLiteral("valid")).toBool());
+   EXPECT_EQ(oddPreview.value(QStringLiteral("units")).toString(), QStringLiteral("FURLONGS"));
+   EXPECT_TRUE(oddPreview.value(QStringLiteral("compatibleFamilies")).toList().isEmpty());
+   EXPECT_TRUE(manager.openFile(QUrl::fromLocalFile(oddPath)));
 }
 
 TEST(PaletteManager, DraftAppliedStateDistinguishesTheTwoCloseWarnings)

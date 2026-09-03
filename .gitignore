@@ -26,3 +26,6 @@ aqtinstall.log
 
 # Screenshots produced by tools/retest/ui-drive.ps1
 tools/retest/captures/
+
+# Packaged-app retest screenshots (regenerated per session, not source)
+tools/retest/captures/

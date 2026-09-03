@@ -6,13 +6,17 @@ import WxLens.App
 
 Window {
     id: mainWindow
-    width: Math.min(1280, Screen.desktopAvailableWidth)
-    height: Math.min(800, Screen.desktopAvailableHeight)
+    width: 1280
+    height: 800
     minimumWidth: 800
     minimumHeight: 600
     visible: true
     title: "WxLens"
     color: themeManager.background
+
+    // 1280x800 is the preferred size, not a guaranteed one: at increased text scaling it exceeds
+    // the desktop. main.cpp shrinks this window to the screen it lands on once it exists - see
+    // FitWindowToScreen() there for why that cannot be done from these bindings.
 
     Column {
         anchors.fill: parent

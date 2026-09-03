@@ -22,9 +22,62 @@
 #include <QQmlContext>
 #include <QQmlError>
 #include <QQuickWindow>
+#include <QScreen>
 #include <QSurfaceFormat>
 
+#include <algorithm>
+
 static const std::string logPrefix_ = "main";
+
+namespace
+{
+/**
+ * Shrinks and repositions the main window so its whole frame fits the screen it is on.
+ *
+ * Main.qml asks for 1280x800, which is a device-independent size: at increased text scaling the
+ * window becomes far larger than the desktop. At 150 % it opened 2418x1427 on a 2066x1238 screen
+ * and put the entire floating control bar under the taskbar - LIVE/Archive, the time field, the
+ * site, product and tilt controls and the layout selector were all unreachable, with no way to
+ * scroll or drag them back.
+ *
+ * Doing this from QML did not work. `Screen.desktopAvailableWidth/Height` there did not compare
+ * against the window's own size in the units the size is expressed in, so the clamp silently did
+ * nothing while its reposition branch still ran. QWindow::geometry() and QScreen::availableGeometry()
+ * are both device-independent pixels, so the arithmetic here is unambiguous - and the sizes are
+ * logged, so a future scaling report can be checked against real numbers instead of inference.
+ *
+ * Qt clamps the resize to the window's minimum size, so a screen smaller than that minimum still
+ * yields the smallest window the layout supports rather than a broken one.
+ */
+void FitWindowToScreen(QWindow* window, const std::shared_ptr<spdlog::logger>& logger)
+{
+   const QScreen* screen = window->screen();
+   if (screen == nullptr) return;
+
+   const QRect available = screen->availableGeometry();
+   const QMargins frame  = window->frameMargins();
+   const int maxWidth    = available.width() - frame.left() - frame.right();
+   const int maxHeight   = available.height() - frame.top() - frame.bottom();
+   const int width       = std::min(window->width(), maxWidth);
+   const int height      = std::min(window->height(), maxHeight);
+
+   if (width != window->width() || height != window->height())
+   {
+      logger->info("Window {}x{} exceeds the {}x{} available on \"{}\"; fitting to {}x{}",
+                   window->width(), window->height(), maxWidth, maxHeight,
+                   screen->name().toStdString(), width, height);
+      window->resize(width, height);
+   }
+
+   // Shrinking keeps the top-left corner, which can still leave the frame hanging off an edge.
+   const QRect frameGeometry = window->frameGeometry();
+   const int   x = std::clamp(frameGeometry.x(), available.left(),
+                              std::max(available.left(), available.right() - frameGeometry.width() + 1));
+   const int   y = std::clamp(frameGeometry.y(), available.top(),
+                              std::max(available.top(), available.bottom() - frameGeometry.height() + 1));
+   if (x != frameGeometry.x() || y != frameGeometry.y()) window->setFramePosition(QPoint(x, y));
+}
+} // namespace
 
 int main(int argc, char* argv[])
 {
@@ -195,6 +248,14 @@ int main(int argc, char* argv[])
    {
       logger->error("Failed to load QML application engine");
       return -1;
+   }
+
+   if (auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst()))
+   {
+      FitWindowToScreen(window, logger);
+      // A window dragged to a smaller screen has the same problem, so re-fit on every move.
+      QObject::connect(window, &QWindow::screenChanged, window,
+                       [window, logger](QScreen*) { FitWindowToScreen(window, logger); });
    }
 
    const int result = QGuiApplication::exec();

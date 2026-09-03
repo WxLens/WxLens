@@ -1,0 +1,4 @@
+; Test palette - no Units: header, so no family can be inferred
+Color: 0 10 10 10
+Color: 50 120 120 120
+Color: 100 250 250 250

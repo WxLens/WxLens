@@ -109,12 +109,21 @@ public:
    [[nodiscard]] static QStringList FamilyMembers(const QString& familyId);
 
    /**
-    * `Units:` as declared by a `.pal`, normalised for comparison (upper-case, and `DEG/KM` folded
-    * onto `DEG` so KDP's two bundled ramps compare equal). Empty when the file declares none,
-    * which is not an error - `HC` and `Default16` ship that way - but does mean units cannot
-    * suggest a family for it.
+    * `Units:` as declared by a `.pal`, normalised for display (trimmed and upper-cased, `KTS`
+    * folded onto `KT`). Empty when the file declares none, which is not an error - `HC` and
+    * `Default16` ship that way - but does mean units cannot suggest a family for it.
     */
    [[nodiscard]] static QString CanonicalUnits(const QString& declaredUnits);
+
+   /**
+    * The physical quantity a unit measures, which is what decides whether two palettes can colour
+    * the same field. Matching on the spelling instead would be wrong in practice: WxLens's own
+    * velocity ramp declares MPH while the WCT ones declare KT, and almost every velocity palette
+    * shared by the community is in knots - so a spelling comparison hides exactly the palettes a
+    * user most wants to link. Returns an empty string for units it does not recognise, which
+    * still compare equal to themselves.
+    */
+   [[nodiscard]] static QString UnitsQuantity(const QString& canonicalUnits);
 
    /// Parses the `Units:` header out of raw `.pal` text, already canonicalised.
    [[nodiscard]] static QString UnitsOfText(const QString& paletteText);

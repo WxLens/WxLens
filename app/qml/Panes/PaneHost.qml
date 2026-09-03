@@ -796,8 +796,14 @@ Rectangle {
                 root.hasController && typeof paneGridModel !== "undefined"
                     ? (paneGridModel.syncRevision,
                        paneGridModel.syncPreset(root.paneController.paneId)) : "independent"
-            readonly property int group: root.hasController
-                ? paneGridModel.syncGroupForPreset(root.paneController.paneId) : 0
+            // syncRevision has to be read here too, for the same reason the preset binding reads
+            // it: group membership comes from a method call, which QML cannot track for
+            // staleness. Without it this stayed at its initial 0 and the label rendered the
+            // character before "A" - "Palette @" instead of "Palette A".
+            readonly property int group:
+                root.hasController && typeof paneGridModel !== "undefined"
+                    ? (paneGridModel.syncRevision,
+                       paneGridModel.syncGroupForPreset(root.paneController.paneId)) : 0
             readonly property bool linked: preset !== "independent"
 
             Text {

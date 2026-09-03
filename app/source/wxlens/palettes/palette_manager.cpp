@@ -101,9 +101,34 @@ QString PaletteManager::CanonicalUnits(const QString& declaredUnits)
 {
    QString units = declaredUnits.trimmed().toUpper();
    if (units.isEmpty()) return {};
-   // Same field, two spellings in the bundled set: KDP declares DEG/KM and KDP2 declares DEG.
-   if (units == QStringLiteral("DEG/KM")) return QStringLiteral("DEG");
-   if (units == QStringLiteral("KTS")) return QStringLiteral("KT");
+   if (units == QStringLiteral("KTS") || units == QStringLiteral("KNOTS"))
+      return QStringLiteral("KT");
+   return units;
+}
+
+QString PaletteManager::UnitsQuantity(const QString& canonicalUnits)
+{
+   const QString units = CanonicalUnits(canonicalUnits);
+   if (units.isEmpty()) return {};
+   // Speed: WxLens's own DV ramp is MPH, the WCT ramps are KT, and Level 2 decodes to m/s. All
+   // three describe the same field, and BuildColorTableLut already rescales to whatever the
+   // chosen table declares, so they are interchangeable for the user's purposes.
+   if (units == QStringLiteral("KT") || units == QStringLiteral("MPH") ||
+       units == QStringLiteral("M/S") || units == QStringLiteral("MS") ||
+       units == QStringLiteral("MPS") || units == QStringLiteral("KM/H") ||
+       units == QStringLiteral("KPH"))
+      return QStringLiteral("SPEED");
+   // KDP declares DEG/KM and KDP2 declares DEG for the one field.
+   if (units == QStringLiteral("DEG") || units == QStringLiteral("DEG/KM"))
+      return QStringLiteral("ANGLE_RATE");
+   if (units == QStringLiteral("DBZ")) return QStringLiteral("REFLECTIVITY");
+   if (units == QStringLiteral("DB")) return QStringLiteral("DIFFERENTIAL");
+   if (units == QStringLiteral("IN") || units == QStringLiteral("MM") ||
+       units == QStringLiteral("CM"))
+      return QStringLiteral("DEPTH");
+   if (units == QStringLiteral("KFT") || units == QStringLiteral("FT") ||
+       units == QStringLiteral("KM") || units == QStringLiteral("M"))
+      return QStringLiteral("HEIGHT");
    return units;
 }
 
@@ -144,11 +169,12 @@ QStringList PaletteManager::compatibleFamilies(const QString& paletteName) const
    QStringList result;
    if (!it->second.family.isEmpty()) result.append(it->second.family);
    if (it->second.units.isEmpty()) return result;
+   const QString quantity = UnitsQuantity(it->second.units);
    for (const QString& family : KnownFamilies())
    {
       if (result.contains(family)) continue;
       const auto primary = entries_.find(family);
-      if (primary != entries_.end() && primary->second.units == it->second.units)
+      if (primary != entries_.end() && UnitsQuantity(primary->second.units) == quantity)
          result.append(family);
    }
    return result;
@@ -195,10 +221,10 @@ QStringList PaletteManager::palettesForFamily(const QString& familyId) const
          result.append(name); // an import the user linked to this field
          continue;
       }
-      // An unlinked import whose units match this field is worth offering - that is exactly the
-      // "does test01 work with velocity?" question the import flow answers.
+      // An unlinked import measuring this field's quantity is worth offering - that is exactly
+      // the "does test01 work with velocity?" question the import flow answers.
       if (it->second.family.isEmpty() && !familyUnits.isEmpty() &&
-          it->second.units == familyUnits)
+          UnitsQuantity(it->second.units) == UnitsQuantity(familyUnits))
          result.append(name);
    }
    return result;
@@ -354,11 +380,12 @@ QVariantMap PaletteManager::inspectFile(const QUrl& source) const
       if (line.trimmed().startsWith(QStringLiteral("Color"), Qt::CaseInsensitive)) ++stopCount;
 
    QVariantList candidates;
+   const QString quantity = UnitsQuantity(units);
    for (const QString& family : KnownFamilies())
    {
       const auto primary = entries_.find(family);
       if (primary == entries_.end()) continue;
-      if (units.isEmpty() || primary->second.units != units) continue;
+      if (quantity.isEmpty() || UnitsQuantity(primary->second.units) != quantity) continue;
       candidates.append(QVariantMap {{QStringLiteral("id"), family},
                                      {QStringLiteral("label"), FamilyLabel(family)}});
    }

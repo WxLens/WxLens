@@ -1,0 +1,9 @@
+; Test palette - velocity units, should match the DV / SRV / SW families
+Units: KT
+Color: -70 0 255 255
+Color: -40 0 0 255
+Color: -10 0 128 0
+Color: 0 70 70 70
+Color: 10 128 0 0
+Color: 40 255 0 0
+Color: 70 255 255 0

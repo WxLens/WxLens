@@ -166,12 +166,32 @@ qt_add_resources(wxlens-app-test "wxlens-app-test-config"
     BASE "${WXLENS_DIR}/app/res/config"
     FILES "${WXLENS_DIR}/app/res/config/radar_sites.json")
 
-qt_add_resources(wxlens-app-test "wxlens-app-test-palette"
+# Must mirror app/CMakeLists.txt, *including* which palettes the application overrides with its
+# own ramps. This previously bundled the vendored DR/DV while the app ships its own, so palette
+# tests were green against data the application never loads - WxLens's DV declares MPH and the
+# vendored one KT, and units are exactly what the product-family matching reads.
+set(WXLENS_TEST_WCT_DIR "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct")
+qt_add_resources(wxlens-app-test "wxlens-app-test-wct-palettes"
     PREFIX "/qt/qml/WxLens/App/res/palettes/wct"
-    BASE "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct"
-    FILES "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct/DR.pal"
-          "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct/DV.pal"
-          "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct/SRV.pal")
+    BASE "${WXLENS_TEST_WCT_DIR}"
+    FILES "${WXLENS_TEST_WCT_DIR}/CC.pal"
+          "${WXLENS_TEST_WCT_DIR}/Default16.pal"
+          "${WXLENS_TEST_WCT_DIR}/DOD_DSD.pal"
+          "${WXLENS_TEST_WCT_DIR}/ET.pal"
+          "${WXLENS_TEST_WCT_DIR}/HC.pal"
+          "${WXLENS_TEST_WCT_DIR}/KDP.pal"
+          "${WXLENS_TEST_WCT_DIR}/KDP2.pal"
+          "${WXLENS_TEST_WCT_DIR}/OHP.pal"
+          "${WXLENS_TEST_WCT_DIR}/SRV.pal"
+          "${WXLENS_TEST_WCT_DIR}/STP.pal"
+          "${WXLENS_TEST_WCT_DIR}/SW.pal"
+          "${WXLENS_TEST_WCT_DIR}/VIL.pal"
+          "${WXLENS_TEST_WCT_DIR}/ZDR.pal")
+qt_add_resources(wxlens-app-test "wxlens-app-test-app-palettes"
+    PREFIX "/qt/qml/WxLens/App/res/palettes/wct"
+    BASE "${WXLENS_DIR}/app/res/palettes/wct"
+    FILES "${WXLENS_DIR}/app/res/palettes/wct/DR.pal"
+          "${WXLENS_DIR}/app/res/palettes/wct/DV.pal")
 
 qt_add_resources(wxlens-app-test "wxlens-app-test-themes"
     PREFIX "/qt/qml/WxLens/App/res/themes"
