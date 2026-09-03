@@ -27,6 +27,8 @@ Rectangle {
     width: Math.min(parent ? parent.width - 24 : controls.implicitWidth + 24,
                     controls.implicitWidth + 24)
     height: 50
+    Accessible.role: Accessible.ToolBar
+    Accessible.name: "Pane, time, measurement, and layout controls"
     radius: appSettings.controlBarDocked ? 0 : themeManager.cornerRadius * 1.5
     color: themeManager.elevatedSurface
     border.color: themeManager.border
@@ -42,6 +44,9 @@ Rectangle {
         property color accent: themeManager.primary
         property string hint: ""
         signal triggered()
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: hint
         width: 32; height: 32
         radius: themeManager.cornerRadius
         color: active ? themeManager.controlActive
@@ -52,6 +57,8 @@ Rectangle {
             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
             onClicked: button.triggered()
         }
+        Keys.onSpacePressed: button.triggered()
+        Keys.onReturnPressed: button.triggered()
     }
 
     Rectangle {

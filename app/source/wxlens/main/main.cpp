@@ -7,7 +7,6 @@
 #include <wxlens/overlays/overlay_manager.hpp>
 #include <wxlens/panes/pane_grid_model.hpp>
 #include <wxlens/palettes/palette_manager.hpp>
-#include <wxlens/products/radar_product_status.hpp>
 #include <wxlens/settings/app_settings.hpp>
 #include <wxlens/settings/settings_store.hpp>
 #include <wxlens/theme/theme_manager.hpp>
@@ -130,11 +129,6 @@ int main(int argc, char* argv[])
       wxlens::settings::SettingsStore::Instance());
    engine.rootContext()->setContextProperty(
       "paletteManager", &wxlens::palettes::PaletteManager::Instance());
-
-   // Still a single-site status line in the top bar: a temporary bridge (see RadarProductStatus's
-   // own doc comment) that predates the grid and is superseded by per-pane chrome, not extended.
-   wxlens::products::RadarProductStatus radarStatus {kDefaultRadarSite};
-   engine.rootContext()->setContextProperty("radarStatus", &radarStatus);
 
    // The unified map-object store and its placement tools (docs/ROADMAP.md §4.3). The store is a
    // process-wide singleton because objects are scoped across panes, not owned by one.

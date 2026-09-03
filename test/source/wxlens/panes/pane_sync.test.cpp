@@ -299,6 +299,31 @@ TEST_F(PaneSyncTest, JoiningACameraGroupAdoptsItsCurrentView)
    EXPECT_NEAR(Pane(1)->centerLongitude(), -97.0, kTolerance);
 }
 
+TEST_F(PaneSyncTest, UserFacingSyncPresetsKeepChannelsIndependent)
+{
+   model_.setSyncPreset(Pane(0)->paneId(), QStringLiteral("palette"), 1);
+   EXPECT_EQ(model_.syncPreset(Pane(0)->paneId()), QStringLiteral("palette"));
+   EXPECT_EQ(Pane(0)->syncGroup(SyncChannel::Palette), 1);
+   EXPECT_EQ(Pane(0)->syncGroup(SyncChannel::Location), kNoSyncGroup);
+
+   model_.setSyncPreset(Pane(0)->paneId(), QStringLiteral("map-site"), 2);
+   EXPECT_EQ(model_.syncPreset(Pane(0)->paneId()), QStringLiteral("map-site"));
+   EXPECT_EQ(Pane(0)->syncGroup(SyncChannel::Location), 2);
+   EXPECT_EQ(Pane(0)->syncGroup(SyncChannel::RadarSite), 2);
+   EXPECT_EQ(Pane(0)->syncGroup(SyncChannel::Palette), kNoSyncGroup);
+
+   model_.setSyncPreset(Pane(0)->paneId(), QStringLiteral("all"), 1);
+   EXPECT_EQ(model_.syncPreset(Pane(0)->paneId()), QStringLiteral("all"));
+   EXPECT_EQ(Pane(0)->syncGroup(SyncChannel::Product), 1);
+   EXPECT_EQ(Pane(0)->syncGroup(SyncChannel::Time), 1);
+
+   model_.setSyncPreset(Pane(0)->paneId(), QStringLiteral("independent"), 0);
+   EXPECT_EQ(model_.syncPreset(Pane(0)->paneId()), QStringLiteral("independent"));
+   for (const auto channel : {SyncChannel::Location, SyncChannel::RadarSite,
+                              SyncChannel::Product, SyncChannel::Palette, SyncChannel::Time})
+      EXPECT_EQ(Pane(0)->syncGroup(channel), kNoSyncGroup);
+}
+
 TEST_F(PaneSyncTest, PanesKeepGroupsAcrossGridResize)
 {
    Pane(0)->setSyncGroup(SyncChannel::Location, 1);

@@ -90,6 +90,14 @@ public:
    /** Whether every camera channel of this pane is in `groupId`, for UI state. */
    Q_INVOKABLE int cameraSyncGroup(int paneId) const;
 
+   /**
+    * User-facing combinations from §4.5. Presets are deliberately named instead of exposing
+    * enum ordinals to QML: "map", "map-site", "palette", "all", and "independent".
+    */
+   Q_INVOKABLE void setSyncPreset(int paneId, const QString& preset, int groupId);
+   Q_INVOKABLE QString syncPreset(int paneId) const;
+   Q_INVOKABLE int syncGroupForPreset(int paneId) const;
+
    /** The default radar site new panes are created with, until pane chrome can set it (§4.5). */
    void setDefaultSourceKey(const QString& sourceKey);
 

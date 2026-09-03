@@ -54,9 +54,9 @@
     "semantic_hash": ""
   },
   "app/source/wxlens/main/main.cpp": {
-    "mtime": 1788453525.1809354,
-    "seen": 1788455878.5507343,
-    "ast_hash": "7404e027b4cf07c397e839ba08cd2cb8",
+    "mtime": 1788467469.853879,
+    "seen": 1788468420.2108142,
+    "ast_hash": "a98d8bf03a91e0a4a5b00d2d09e2d44b",
     "semantic_hash": ""
   },
   "app/source/wxlens/objects/map_object.hpp": {
@@ -174,15 +174,15 @@
     "semantic_hash": ""
   },
   "app/source/wxlens/panes/pane_grid_model.cpp": {
-    "mtime": 1788315223.052507,
-    "seen": 1788315574.8093808,
-    "ast_hash": "fa4f9bb308766cc4aea5cf086073ea31",
+    "mtime": 1788458450.195073,
+    "seen": 1788467452.006212,
+    "ast_hash": "3139defd7a2bf4348fddc919ee203687",
     "semantic_hash": ""
   },
   "app/source/wxlens/panes/pane_grid_model.hpp": {
-    "mtime": 1788282633.59131,
-    "seen": 1788282740.766159,
-    "ast_hash": "7a0a1eefe58f1cca37992ea7de235d7d",
+    "mtime": 1788458351.3738613,
+    "seen": 1788467452.006214,
+    "ast_hash": "0d57951ba0d2b384facdb900054d5164",
     "semantic_hash": ""
   },
   "app/source/wxlens/panes/sync_types.hpp": {
@@ -432,9 +432,9 @@
     "semantic_hash": ""
   },
   "test/source/wxlens/panes/pane_sync.test.cpp": {
-    "mtime": 1788315534.914029,
-    "seen": 1788315574.8094416,
-    "ast_hash": "febebc2f5f770808698c4f89c8184f57",
+    "mtime": 1788458353.4479067,
+    "seen": 1788467452.0062573,
+    "ast_hash": "f67723c128df556a02a15e4cd095956c",
     "semantic_hash": ""
   },
   "test/source/wxlens/panes/source_probe.test.cpp": {
@@ -642,9 +642,9 @@
     "semantic_hash": ""
   },
   "docs/phase1-ux-feedback-2026-08-31.md": {
-    "mtime": 1788455801.577376,
-    "seen": 1788455878.5508735,
-    "ast_hash": "6b191bbce5467896187767eccd3e4975",
+    "mtime": 1788467471.365698,
+    "seen": 1788468420.2111087,
+    "ast_hash": "4f12126c3ebe3f1a0f312981b5f9dc5c",
     "semantic_hash": ""
   },
   "app/source/wxlens/palettes/palette_defaults.hpp": {

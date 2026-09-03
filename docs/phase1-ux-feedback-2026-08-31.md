@@ -136,6 +136,12 @@ one blocked retest came out of it; each is filed in the appropriate priority sec
   §4.1's "link everything / link camera / link palette" presets) or explicitly defers it with the
   limitation named. Right now it is neither shipped nor recorded as deferred.
 
+Implemented 2026-09-03: the pane link indicator now opens effect-named presets for **Map view
+only**, **Map view + radar site**, **Palette only**, **Everything**, and **Independent**, in either
+group A or B. Presets remain thin UI sugar over per-channel membership; joining adopts the
+existing group's current values, including an immediate palette LUT rebuild. Automated preset
+coverage passes. The box remains open until the packaged Palette-only retest below passes.
+
 Retest: link two velocity panes on Palette only, change one pane's palette, confirm the other
 repaints and that an unlinked third pane does not; confirm camera stays independent when only
 Palette is linked.
@@ -150,6 +156,10 @@ Palette is linked.
   at scale, not general scaling breakage.
 - Docked mode may or may not be affected - not yet checked.
 
+Implemented 2026-09-03: initial window dimensions are capped to the active screen's available
+desktop area, and the bottom toolbar is now exposed as an accessible toolbar whose reusable
+buttons are keyboard-operable and named. Packaged 125%/150% floating and docked retesting remains.
+
 Retest: run at 125 % and 150 % system scaling (and via `QT_SCALE_FACTOR`), floating and docked,
 and confirm every bottom-bar control is on screen and clickable.
 
@@ -159,6 +169,10 @@ and confirm every bottom-bar control is on screen and clickable.
   the very bottom edge of the window and is cut in half. The rest of the layout is legible at that
   size - pane headers, both product labels and the floating bottom bar all fit - so this is one
   mis-anchored status element, not a general density failure.
+
+Implemented 2026-09-03: per-pane product/status details reserve the floating control zone instead
+of anchoring eight pixels from the window edge, and the obsolete process-wide single-site status
+bridge was removed from application startup. Packaged 1280x800 retesting remains.
 
 Retest: 1280x800, 2x2, while a sweep is being computed; confirm the status text is fully visible
 and does not overlap the attribution or the control bar.

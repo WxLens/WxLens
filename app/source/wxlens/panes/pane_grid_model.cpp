@@ -27,6 +27,11 @@ constexpr int kMaxGridDimension = 4;
 constexpr std::array<SyncChannel, 4> kCameraChannels {
    SyncChannel::Location, SyncChannel::Zoom, SyncChannel::Bearing, SyncChannel::Pitch};
 
+constexpr std::array<SyncChannel, 10> kUserLinkChannels {
+   SyncChannel::Location, SyncChannel::Zoom, SyncChannel::Bearing, SyncChannel::Pitch,
+   SyncChannel::RadarSite, SyncChannel::Product, SyncChannel::Palette, SyncChannel::Time,
+   SyncChannel::Animation, SyncChannel::SelectedStorm};
+
 QString RegionName(const std::string& country, const std::string& region)
 {
    static const std::map<std::string, QString> kUsRegions {
@@ -378,6 +383,117 @@ int PaneGridModel::cameraSyncGroup(int paneId) const
          // Location is the representative channel: setCameraSyncGroup always moves the whole set
          // together, so any one of them answers for the group as a whole.
          return pane->syncGroup(SyncChannel::Location);
+      }
+   }
+   return kNoSyncGroup;
+}
+
+void PaneGridModel::setSyncPreset(int paneId, const QString& preset, int groupId)
+{
+   for (const auto& pane : p->panes_)
+   {
+      if (pane->paneId() != paneId)
+      {
+         continue;
+      }
+
+      const int targetGroup = preset == QStringLiteral("independent") ? kNoSyncGroup : groupId;
+      for (const SyncChannel channel : kUserLinkChannels)
+      {
+         bool selected = preset == QStringLiteral("all");
+         selected = selected ||
+                    ((preset == QStringLiteral("map") || preset == QStringLiteral("map-site")) &&
+                     std::find(kCameraChannels.begin(), kCameraChannels.end(), channel) !=
+                        kCameraChannels.end());
+         selected = selected || (preset == QStringLiteral("map-site") &&
+                                 channel == SyncChannel::RadarSite);
+         selected = selected ||
+                    (preset == QStringLiteral("palette") && channel == SyncChannel::Palette);
+         pane->setSyncGroup(channel, selected ? targetGroup : kNoSyncGroup);
+      }
+
+      // A preset joins an existing group with that group's current values, matching the
+      // established camera-link behaviour. Palette-only therefore repaints immediately and does
+      // not have to wait for the next edit before the panes visibly agree.
+      if (targetGroup != kNoSyncGroup)
+      {
+         for (const auto& other : p->panes_)
+         {
+            if (other.get() == pane.get())
+               continue;
+            bool copiedAny = false;
+            for (const SyncChannel channel : kUserLinkChannels)
+            {
+               if (pane->syncGroup(channel) == targetGroup &&
+                   other->syncGroup(channel) == targetGroup)
+               {
+                  pane->applyChannelValue(
+                     channel, other->channelValue(channel), ChangeOrigin::ProgrammaticSync);
+                  copiedAny = true;
+               }
+            }
+            if (copiedAny)
+               break;
+         }
+      }
+
+      ++p->syncRevision_;
+      Q_EMIT syncRevisionChanged();
+      logger_->info("Pane {} sync preset '{}' set to group {}",
+                    paneId,
+                    preset.toStdString(),
+                    targetGroup);
+      return;
+   }
+}
+
+QString PaneGridModel::syncPreset(int paneId) const
+{
+   for (const auto& pane : p->panes_)
+   {
+      if (pane->paneId() != paneId)
+      {
+         continue;
+      }
+
+      const int group = syncGroupForPreset(paneId);
+      if (group == kNoSyncGroup)
+      {
+         return QStringLiteral("independent");
+      }
+      const auto linked = [&](SyncChannel channel) { return pane->syncGroup(channel) == group; };
+      const bool camera = std::all_of(kCameraChannels.begin(), kCameraChannels.end(), linked);
+      const bool site = linked(SyncChannel::RadarSite);
+      const bool product = linked(SyncChannel::Product);
+      const bool palette = linked(SyncChannel::Palette);
+      const bool time = linked(SyncChannel::Time);
+      const bool animation = linked(SyncChannel::Animation);
+      const bool selectedStorm = linked(SyncChannel::SelectedStorm);
+
+      if (camera && site && product && palette && time && animation && selectedStorm)
+         return QStringLiteral("all");
+      if (camera && site && !product && !palette && !time && !animation && !selectedStorm)
+         return QStringLiteral("map-site");
+      if (camera && !site && !product && !palette && !time && !animation && !selectedStorm)
+         return QStringLiteral("map");
+      if (!camera && !site && !product && palette && !time && !animation && !selectedStorm)
+         return QStringLiteral("palette");
+      return QStringLiteral("custom");
+   }
+   return QStringLiteral("independent");
+}
+
+int PaneGridModel::syncGroupForPreset(int paneId) const
+{
+   for (const auto& pane : p->panes_)
+   {
+      if (pane->paneId() != paneId)
+         continue;
+      for (const SyncChannel channel : kUserLinkChannels)
+      {
+         const int group = pane->syncGroup(channel);
+         if (group != kNoSyncGroup)
+            return group;
       }
    }
    return kNoSyncGroup;

@@ -47,6 +47,7 @@ Rectangle {
     signal configureRequested(string sectionId)
     property bool productBrowserOpen: false
     property bool sitePickerOpen: false
+    property bool syncMenuOpen: false
 
     border.width: active && showLabel ? 2 : 0
     border.color: themeManager.primary
@@ -770,10 +771,8 @@ Rectangle {
         }
     }
 
-    // Quick sync control (docs/ROADMAP.md §4.5): linking must be reachable without opening
-    // Settings. Cycles this pane through camera-link groups A and B and back to independent.
-    // Deliberately minimal - it drives the general per-channel model underneath, which supports
-    // combinations (e.g. shared location with independent zoom) this control does not yet expose.
+    // Quick sync control (docs/ROADMAP.md §4.5). The menu names effects rather than raw channel
+    // names, while Palette-only and the custom-state label keep the per-channel model visible.
     Row {
         anchors.right: parent.right
         anchors.top: parent.top
@@ -783,7 +782,7 @@ Rectangle {
         z: 12
 
         Rectangle {
-            width: 62
+            width: 92
             height: 22
             radius: themeManager.cornerRadius
             color: linked ? themeManager.controlActive : themeManager.control
@@ -793,29 +792,86 @@ Rectangle {
 
             // Referencing syncRevision is what makes this binding re-evaluate: group membership
             // is read through a method, which QML cannot track for staleness on its own.
-            readonly property int group:
+            readonly property string preset:
                 root.hasController && typeof paneGridModel !== "undefined"
                     ? (paneGridModel.syncRevision,
-                       paneGridModel.cameraSyncGroup(root.paneController.paneId))
-                    : 0
-            readonly property bool linked: group !== 0
+                       paneGridModel.syncPreset(root.paneController.paneId)) : "independent"
+            readonly property int group: root.hasController
+                ? paneGridModel.syncGroupForPreset(root.paneController.paneId) : 0
+            readonly property bool linked: preset !== "independent"
 
             Text {
                 anchors.centerIn: parent
-                text: parent.linked
-                    ? "Link " + String.fromCharCode(64 + parent.group)
-                    : "Unlinked"
+                text: parent.preset === "independent" ? "Independent ▾"
+                    : (parent.preset === "custom" ? "Custom " :
+                       parent.preset === "map" ? "Map " :
+                       parent.preset === "map-site" ? "Map + site " :
+                       parent.preset === "palette" ? "Palette " : "Everything ") +
+                      String.fromCharCode(64 + parent.group) + " ▾"
                 color: parent.linked ? themeManager.textPrimary : themeManager.textMuted
                 font.pixelSize: 10
             }
 
             MouseArea {
+                id: syncButtonArea
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                // none -> A -> B -> none. Two groups is enough to demonstrate that groups are
-                // independent of one another, which one group alone would not show.
-                onClicked: paneGridModel.setCameraSyncGroup(
-                    root.paneController.paneId, (parent.group + 1) % 3)
+                Accessible.role: Accessible.Button
+                Accessible.name: "Synchronization: " + parent.preset +
+                                 (parent.group ? " group " + String.fromCharCode(64 + parent.group) : "")
+                onClicked: root.syncMenuOpen = !root.syncMenuOpen
+            }
+        }
+    }
+
+    Rectangle {
+        visible: root.syncMenuOpen
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.topMargin: 34
+        anchors.rightMargin: 6
+        width: 196
+        height: syncMenuColumn.implicitHeight + 12
+        radius: themeManager.cornerRadius
+        color: themeManager.elevatedSurface
+        border.color: themeManager.border
+        z: 30
+
+        Column {
+            id: syncMenuColumn
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.top: parent.top; anchors.margins: 6
+            Repeater {
+                model: [
+                    {label:"Independent", preset:"independent", group:0},
+                    {label:"Map view only · A", preset:"map", group:1},
+                    {label:"Map view + radar site · A", preset:"map-site", group:1},
+                    {label:"Palette only · A", preset:"palette", group:1},
+                    {label:"Everything · A", preset:"all", group:1},
+                    {label:"Map view only · B", preset:"map", group:2},
+                    {label:"Map view + radar site · B", preset:"map-site", group:2},
+                    {label:"Palette only · B", preset:"palette", group:2},
+                    {label:"Everything · B", preset:"all", group:2}
+                ]
+                delegate: Rectangle {
+                    required property var modelData
+                    width: syncMenuColumn.width; height: 28
+                    radius: themeManager.cornerRadius
+                    color: syncPresetArea.containsMouse ? themeManager.controlHover : "transparent"
+                    Text { anchors.left: parent.left; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter; text: parent.modelData.label; color: themeManager.textPrimary; font.pixelSize: 10 }
+                    MouseArea {
+                        id: syncPresetArea; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        Accessible.role: Accessible.MenuItem
+                        Accessible.name: parent.modelData.label
+                        onClicked: {
+                            paneGridModel.setSyncPreset(root.paneController.paneId,
+                                                       parent.modelData.preset,
+                                                       parent.modelData.group)
+                            root.syncMenuOpen = false
+                        }
+                    }
+                }
             }
         }
     }
@@ -900,7 +956,8 @@ Rectangle {
         visible: root.hasController && root.paneController.productDetailsText !== ""
         anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.margins: 8
+        anchors.leftMargin: 8
+        anchors.bottomMargin: 58
         width: Math.min(420, parent.width - 16)
         height: Math.min(180, detailsText.implicitHeight + 20)
         z: 8

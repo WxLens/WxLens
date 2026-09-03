@@ -6,8 +6,10 @@ import WxLens.App
 
 Window {
     id: mainWindow
-    width: 1280
-    height: 800
+    width: Math.min(1280, Screen.desktopAvailableWidth)
+    height: Math.min(800, Screen.desktopAvailableHeight)
+    minimumWidth: 800
+    minimumHeight: 600
     visible: true
     title: "WxLens"
     color: themeManager.background
