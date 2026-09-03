@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
    // Warnings and placefiles are shared meteorological overlays. Each pane projects the same
    // geographic model independently, keeping them out of both radar-product state and the user
    // analysis MapObjectStore.
-   wxlens::overlays::OverlayManager overlayManager;
+   wxlens::overlays::OverlayManager overlayManager {wxlens::settings::SettingsStore::Instance()};
    engine.rootContext()->setContextProperty("overlayManager", &overlayManager);
    overlayManager.refreshWarnings();
 

@@ -1,17 +1,24 @@
 #include <wxlens/overlays/overlay_manager.hpp>
 
 #include <wxlens/log/logger.hpp>
+#include <wxlens/settings/settings_store.hpp>
 
 #include <scwx/awips/phenomenon.hpp>
 #include <scwx/awips/text_product_file.hpp>
 #include <scwx/gr/placefile.hpp>
 #include <scwx/provider/warnings_provider.hpp>
 
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPointer>
+#include <QSaveFile>
 #include <QTimer>
 #include <QUrlQuery>
 
@@ -212,7 +219,8 @@ public:
       bool loading {false};
    };
 
-   explicit Impl(OverlayManager* self) : self_ {self}, network_ {self}, warningTimer_ {self}
+   explicit Impl(OverlayManager* self, settings::SettingsStore& settings) :
+      self_ {self}, settings_ {settings}, network_ {self}, warningTimer_ {self}
    {
       warningTimer_.setInterval(std::chrono::minutes {1});
       QObject::connect(&warningTimer_, &QTimer::timeout, self_, &OverlayManager::refreshWarnings);
@@ -224,6 +232,52 @@ public:
       if (statusText_ == value) return;
       statusText_ = value;
       Q_EMIT self_->statusTextChanged();
+   }
+
+   QString ConfigPath() const
+   {
+      return QDir(settings_.ConfigDirectory()).filePath(QStringLiteral("weather-overlays.json"));
+   }
+
+   /// Persists visibility + placefile *sources* only - fetched content is always re-derived by
+   /// re-fetching, so it is never worth persisting (and would just go stale on disk).
+   void SaveConfig() const
+   {
+      QJsonArray sources;
+      for (const auto& record : placefiles_) sources.append(record.source.toString());
+      QSaveFile file {ConfigPath()};
+      if (!QDir().mkpath(QFileInfo(file.fileName()).absolutePath()) ||
+          !file.open(QIODevice::WriteOnly))
+      {
+         return;
+      }
+      const QByteArray data =
+         QJsonDocument {QJsonObject {{"version", 1},
+                                     {"warningsVisible", warningsVisible_},
+                                     {"placefilesVisible", placefilesVisible_},
+                                     {"placefiles", sources}}}
+            .toJson();
+      if (file.write(data) == data.size()) file.commit();
+   }
+
+   /// Restores visibility + placefile sources. Malformed/missing config is left at the built-in
+   /// defaults, never a crash or a half-applied state (matches SettingsStore's error policy).
+   void LoadConfig()
+   {
+      QFile file {ConfigPath()};
+      if (!file.open(QIODevice::ReadOnly)) return;
+      QJsonParseError error;
+      const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &error);
+      if (error.error != QJsonParseError::NoError || !document.isObject()) return;
+      const QJsonObject root = document.object();
+      if (root.value("version").toInt() != 1) return;
+      warningsVisible_ = root.value("warningsVisible").toBool(warningsVisible_);
+      placefilesVisible_ = root.value("placefilesVisible").toBool(placefilesVisible_);
+      for (const QJsonValue value : root.value("placefiles").toArray())
+      {
+         const QUrl url {value.toString()};
+         if (url.isValid() && !url.isEmpty()) placefiles_.push_back({url, url.fileName(), {}, {}, true});
+      }
    }
 
    void ApplyPlacefile(int index, const QByteArray& bytes)
@@ -257,6 +311,7 @@ public:
    }
 
    OverlayManager* self_;
+   settings::SettingsStore& settings_;
    QNetworkAccessManager network_;
    QTimer warningTimer_;
    QVariantList warningPolygons_;
@@ -268,7 +323,17 @@ public:
    QString statusText_;
 };
 
-OverlayManager::OverlayManager(QObject* parent) : QObject(parent), p(std::make_unique<Impl>(this)) {}
+OverlayManager::OverlayManager(settings::SettingsStore& settings, QObject* parent) :
+   QObject(parent), p(std::make_unique<Impl>(this, settings))
+{
+   p->LoadConfig();
+   // Sources restored from disk still need their content fetched - only the source list itself
+   // was persisted, per LoadConfig's comment.
+   for (int index = 0; index < static_cast<int>(p->placefiles_.size()); ++index)
+   {
+      refreshPlacefile(index);
+   }
+}
 OverlayManager::~OverlayManager() = default;
 QVariantList OverlayManager::warningPolygons() const { return p->warningPolygons_; }
 QVariantList OverlayManager::placefileItems() const { return p->placefileItems_; }
@@ -291,12 +356,14 @@ void OverlayManager::setWarningsVisible(bool value)
 {
    if (p->warningsVisible_ == value) return;
    p->warningsVisible_ = value;
+   p->SaveConfig();
    Q_EMIT warningsVisibleChanged();
 }
 void OverlayManager::setPlacefilesVisible(bool value)
 {
    if (p->placefilesVisible_ == value) return;
    p->placefilesVisible_ = value;
+   p->SaveConfig();
    Q_EMIT placefilesVisibleChanged();
 }
 
@@ -358,6 +425,7 @@ void OverlayManager::addPlacefile(const QUrl& url)
 {
    if (!url.isValid() || url.isEmpty()) return;
    p->placefiles_.push_back({url, url.fileName(), {}, {}, true});
+   p->SaveConfig();
    Q_EMIT placefilesChanged();
    refreshPlacefile(static_cast<int>(p->placefiles_.size()) - 1);
 }
@@ -367,6 +435,7 @@ void OverlayManager::removePlacefile(int index)
    if (index < 0 || index >= static_cast<int>(p->placefiles_.size())) return;
    p->placefiles_.erase(p->placefiles_.begin() + index);
    p->RebuildItems();
+   p->SaveConfig();
    Q_EMIT placefilesChanged();
 }
 

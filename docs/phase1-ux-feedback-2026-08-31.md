@@ -19,6 +19,28 @@ features whose underlying behavior is still wrong.
 
 ## P0 — correctness and interaction defects
 
+### Top bar secondary action row disappears after maximizing (found 2026-09-02)
+
+- [ ] `TopBar.qml`'s right-aligned action row (Tools menu, Help, Settings, and any enabled
+  optional shortcuts) renders correctly on a fresh, un-maximized launch but is completely absent
+  - confirmed via raw screen-pixel sampling, not merely low contrast - after the window is
+  maximized, by either the native maximize control or `WM_SYSCOMMAND`/`SC_MAXIMIZE`. This blocks
+  every UI path to Settings, Weather Overlays, Saved Places, Palette Manager, and Help whenever
+  the app is maximized, which is a common way to run a multi-pane radar app.
+- Confirmed NOT caused by: theme colors (the active theme's tokens are clearly distinct from the
+  background), a QML binding error (no warning is emitted), window width specifically (reproduces
+  at both the default size and maximized), or recent changes (reproduces against
+  `build-release-vs2026/acceptance-maximized.png` from 2026-08-30, so it predates this UX pass).
+- Two standard mitigations were tried and both failed to fix it: forcing a full-window repaint via
+  `Window.update()` on resize, and replacing the row's `anchors.right`/`anchors.verticalCenter`
+  with explicit `x`/`y` bindings. Root cause is therefore deeper in the Qt Quick Positioner/anchor
+  recalculation path than a simple repaint or anchor-timing issue - diagnosing further needs
+  interactive QML tooling (Qt Creator's QML profiler, GammaRay, or a debug build with breakpoints
+  in the scene graph) rather than static source review or packaged-build screenshots.
+
+Retest: launch the packaged app, maximize the window, and confirm the Tools/Help/Settings icons
+remain visible in the top-right of the top bar.
+
 ### Product-aware palette ownership and defaults
 
 - [ ] Remove the process-wide active palette from Level 2 renderer state. Editing or selecting a

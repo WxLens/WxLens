@@ -8,8 +8,23 @@
 class QNetworkAccessManager;
 class QNetworkReply;
 
-namespace wxlens { namespace overlays {
+namespace wxlens
+{
+namespace settings
+{
+class SettingsStore;
+}
+namespace overlays {
 
+/**
+ * Weather Overlays (warnings/watches + GR placefiles), docs/ROADMAP.md §7 Phase 1 slice 12.
+ *
+ * The visibility toggles and the placefile source list are user configuration, not session
+ * state - they persist through the structured config store (§3.2) exactly like SavedPlaceManager,
+ * so adding a placefile or hiding warnings survives a restart instead of resetting every launch.
+ * Only the *source* (URL/path) is persisted; fetched content (titles, item geometry) is always
+ * re-derived by re-fetching on startup, the same as a manual refresh.
+ */
 class OverlayManager : public QObject
 {
    Q_OBJECT
@@ -22,7 +37,7 @@ class OverlayManager : public QObject
    Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
 
 public:
-   explicit OverlayManager(QObject* parent = nullptr);
+   explicit OverlayManager(settings::SettingsStore& settings, QObject* parent = nullptr);
    ~OverlayManager() override;
 
    QVariantList warningPolygons() const;

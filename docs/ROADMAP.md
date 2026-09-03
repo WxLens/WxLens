@@ -2546,6 +2546,18 @@ config/data-model choices don't accidentally preclude it later.
 - Additional overlay data layers beyond the Phase 3 set (lightning, SPC mesoanalysis, storm
   reports) — natural extension of overlay-stacking architecture once it exists; add if/when
   requested, not speculatively.
+- **County boundary overlay** — requested by the user 2026-09-02, wanted fairly soon. Two viable
+  paths: (a) near-zero-effort, works today — add a GR-format county-line placefile through the
+  existing Weather Overlays dialog (`overlays::OverlayManager` already renders placefile
+  Line/Polygon items); (b) a first-class "Counties" toggle with its own styling and real
+  performance at national scale needs GPU rendering instead of `WeatherOverlaysLayer.qml`'s
+  per-frame QML Canvas redraw. For (b),
+  [app/source/wxlens/render/polyline_layer.hpp](../app/source/wxlens/render/polyline_layer.hpp)
+  is a salvaged-but-unwired starting point (a generic GL custom-layer line renderer, ported
+  2026-09-02 from the abandoned slice-12 branch, tag `archive/slice-12-warnings-placefiles`) —
+  not in `app/CMakeLists.txt` yet and unverified against the current codebase; wire it in and
+  recompile against current APIs when a consumer (e.g. a `CountyLayer`/`CountyDataService` pair
+  loading a bundled Census TIGER/Line county dataset) is actually built.
 - Skew-T sounding diagram as a first-class view vs. raw data access (Phase 3 open question).
 - Publishing `wxdata` as a proper Conan package (vs. submodule + `add_subdirectory`).
 
