@@ -8,6 +8,7 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QRegularExpression>
 
 namespace wxlens
 {
@@ -21,6 +22,28 @@ const QStringList kFactoryNames {"DR", "DV", "SRV", "SW", "ZDR", "CC", "KDP", "K
                                  "HC", "ET", "VIL", "OHP", "STP", "DOD_DSD", "Default16"};
 const QString kPalettesCategory = QStringLiteral("palettes");
 const QString kFamilyDefaultKeyPrefix = QStringLiteral("family_default_");
+
+/// Display names for the field each family colours. Only used for UI text; the family id remains
+/// the primary palette's name so nothing depends on these strings.
+QString FamilyLabel(const QString& familyId)
+{
+   static const std::map<QString, QString> kLabels {
+      {QStringLiteral("DR"), QStringLiteral("Reflectivity")},
+      {QStringLiteral("DV"), QStringLiteral("Velocity")},
+      {QStringLiteral("SW"), QStringLiteral("Spectrum width")},
+      {QStringLiteral("ZDR"), QStringLiteral("Differential reflectivity")},
+      {QStringLiteral("CC"), QStringLiteral("Correlation coefficient")},
+      {QStringLiteral("KDP"), QStringLiteral("Specific differential phase")},
+      {QStringLiteral("HC"), QStringLiteral("Hydrometeor classification")},
+      {QStringLiteral("ET"), QStringLiteral("Echo tops")},
+      {QStringLiteral("VIL"), QStringLiteral("Vertically integrated liquid")},
+      {QStringLiteral("OHP"), QStringLiteral("One-hour precipitation")},
+      {QStringLiteral("STP"), QStringLiteral("Storm-total precipitation")},
+      {QStringLiteral("DOD_DSD"), QStringLiteral("Precipitation difference")},
+      {QStringLiteral("Default16"), QStringLiteral("Generic 16-colour")}};
+   const auto it = kLabels.find(familyId);
+   return it == kLabels.end() ? familyId : it->second;
+}
 } // namespace
 
 PaletteManager::PaletteManager(QObject* parent) : QObject(parent), editor_(this)
@@ -31,7 +54,8 @@ PaletteManager::PaletteManager(QObject* parent) : QObject(parent), editor_(this)
       if (!file.open(QIODevice::ReadOnly)) continue;
       const QString text = QString::fromUtf8(file.readAll());
       names_.append(name);
-      entries_.emplace(name, Entry {text, text, text, {}, true});
+      entries_.emplace(name,
+                       Entry {text, text, text, {}, true, UnitsOfText(text), FamilyOf(name)});
    }
 
    connect(&editor_,
@@ -42,6 +66,7 @@ PaletteManager::PaletteManager(QObject* parent) : QObject(parent), editor_(this)
               activeText_ = text;
               if (auto it = entries_.find(activeName_); it != entries_.end())
                  it->second.workingText = text;
+              NotifyDraftAppliedChanged();
            });
 
    if (entries_.contains("DR")) Activate("DR");
@@ -72,7 +97,112 @@ QStringList PaletteManager::FamilyMembers(const QString& familyId)
    return {familyId};
 }
 
-QString PaletteManager::familyOf(const QString& paletteName) const { return FamilyOf(paletteName); }
+QString PaletteManager::CanonicalUnits(const QString& declaredUnits)
+{
+   QString units = declaredUnits.trimmed().toUpper();
+   if (units.isEmpty()) return {};
+   // Same field, two spellings in the bundled set: KDP declares DEG/KM and KDP2 declares DEG.
+   if (units == QStringLiteral("DEG/KM")) return QStringLiteral("DEG");
+   if (units == QStringLiteral("KTS")) return QStringLiteral("KT");
+   return units;
+}
+
+QString PaletteManager::UnitsOfText(const QString& paletteText)
+{
+   // Deliberately parsed here rather than read off scwx::common::ColorTable: that class keeps its
+   // Units: value private and external/ is read-only (docs/adr/0002). One line, same tokenisation
+   // rule as the vendored parser (first whitespace-separated token after the directive).
+   const QStringList lines = paletteText.split(QLatin1Char('\n'));
+   for (const QString& line : lines)
+   {
+      const QString trimmed = line.trimmed();
+      if (!trimmed.startsWith(QStringLiteral("Units:"), Qt::CaseInsensitive)) continue;
+      const QString value = trimmed.mid(QStringLiteral("Units:").size()).trimmed();
+      const QStringList tokens = value.split(QRegularExpression(QStringLiteral("\\s+")),
+                                             Qt::SkipEmptyParts);
+      return tokens.isEmpty() ? QString {} : CanonicalUnits(tokens.first());
+   }
+   return {};
+}
+
+QString PaletteManager::familyOf(const QString& paletteName) const
+{
+   const auto it = entries_.find(paletteName);
+   return it == entries_.end() ? QString {} : it->second.family;
+}
+
+QString PaletteManager::unitsOf(const QString& paletteName) const
+{
+   const auto it = entries_.find(paletteName);
+   return it == entries_.end() ? QString {} : it->second.units;
+}
+
+QStringList PaletteManager::compatibleFamilies(const QString& paletteName) const
+{
+   const auto it = entries_.find(paletteName);
+   if (it == entries_.end()) return {};
+   QStringList result;
+   if (!it->second.family.isEmpty()) result.append(it->second.family);
+   if (it->second.units.isEmpty()) return result;
+   for (const QString& family : KnownFamilies())
+   {
+      if (result.contains(family)) continue;
+      const auto primary = entries_.find(family);
+      if (primary != entries_.end() && primary->second.units == it->second.units)
+         result.append(family);
+   }
+   return result;
+}
+
+QVariantList PaletteManager::families() const
+{
+   QVariantList result;
+   for (const QString& family : KnownFamilies())
+   {
+      const auto primary = entries_.find(family);
+      result.append(QVariantMap {
+         {QStringLiteral("id"), family},
+         {QStringLiteral("label"), FamilyLabel(family)},
+         {QStringLiteral("units"), primary == entries_.end() ? QString {} : primary->second.units},
+         {QStringLiteral("defaultName"),
+          familyDefault(family).isEmpty() ? family : familyDefault(family)},
+         {QStringLiteral("usesBundledDefault"), familyDefault(family).isEmpty()}});
+   }
+   return result;
+}
+
+QStringList PaletteManager::palettesForFamily(const QString& familyId) const
+{
+   if (familyId.isEmpty()) return names_;
+   const QStringList members = FamilyMembers(familyId);
+   if (members.isEmpty()) return names_;
+   const auto primary = entries_.find(familyId);
+   const QString familyUnits = primary == entries_.end() ? QString {} : primary->second.units;
+
+   QStringList result;
+   for (const QString& name : names_)
+   {
+      const auto it = entries_.find(name);
+      if (it == entries_.end()) continue;
+      if (members.contains(name))
+      {
+         result.append(name);
+         continue;
+      }
+      if (it->second.factory) continue; // another field's bundled ramp: never relevant here
+      if (it->second.family == familyId)
+      {
+         result.append(name); // an import the user linked to this field
+         continue;
+      }
+      // An unlinked import whose units match this field is worth offering - that is exactly the
+      // "does test01 work with velocity?" question the import flow answers.
+      if (it->second.family.isEmpty() && !familyUnits.isEmpty() &&
+          it->second.units == familyUnits)
+         result.append(name);
+   }
+   return result;
+}
 
 QStringList PaletteManager::KnownFamilies() const
 {
@@ -124,7 +254,7 @@ QString PaletteManager::familyDefault(const QString& familyId) const
 
 bool PaletteManager::isFamilyDefault(const QString& paletteName) const
 {
-   const QString family = FamilyOf(paletteName);
+   const QString family = familyOf(paletteName);
    if (family.isEmpty()) return false;
    const QString chosen = familyDefault(family);
    return chosen.isEmpty() ? paletteName == family : chosen == paletteName;
@@ -144,9 +274,14 @@ QStringList PaletteManager::familyDefaultNames() const
 void PaletteManager::setFamilyDefault(const QString& familyId, const QString& paletteName)
 {
    if (FamilyMembers(familyId).isEmpty()) return;
-   if (!paletteName.isEmpty() &&
-       (!FamilyMembers(familyId).contains(paletteName) || !entries_.contains(paletteName)))
-      return;
+   if (!paletteName.isEmpty())
+   {
+      const auto it = entries_.find(paletteName);
+      if (it == entries_.end()) return;
+      const bool member = FamilyMembers(familyId).contains(paletteName);
+      const bool linkedImport = !it->second.factory && it->second.family == familyId;
+      if (!member && !linkedImport) return;
+   }
    if (familyDefault(familyId) == paletteName) return;
    if (paletteName.isEmpty())
       familyDefaults_.erase(familyId);
@@ -154,6 +289,97 @@ void PaletteManager::setFamilyDefault(const QString& familyId, const QString& pa
       familyDefaults_[familyId] = paletteName;
    PersistFamilyDefault(familyId);
    Q_EMIT familyDefaultsChanged();
+}
+
+void PaletteManager::resetFamilyDefaults()
+{
+   if (familyDefaults_.empty()) return;
+   const QStringList families = KnownFamilies();
+   familyDefaults_.clear();
+   for (const QString& family : families) PersistFamilyDefault(family);
+   Q_EMIT familyDefaultsChanged();
+}
+
+bool PaletteManager::setPaletteFamily(const QString& paletteName, const QString& familyId)
+{
+   auto it = entries_.find(paletteName);
+   if (it == entries_.end() || it->second.factory) return false;
+   if (!familyId.isEmpty() && FamilyMembers(familyId).isEmpty()) return false;
+   if (it->second.family == familyId) return true;
+
+   // Dropping a link must not leave the palette as a family default it no longer belongs to.
+   if (const QString previous = it->second.family;
+       !previous.isEmpty() && familyDefault(previous) == paletteName)
+   {
+      familyDefaults_.erase(previous);
+      PersistFamilyDefault(previous);
+   }
+   it->second.family = familyId;
+   Q_EMIT paletteNamesChanged();
+   Q_EMIT familyDefaultsChanged();
+   return true;
+}
+
+QVariantMap PaletteManager::inspectFile(const QUrl& source) const
+{
+   QVariantMap result {{QStringLiteral("valid"), false},
+                       {QStringLiteral("error"), QString {}},
+                       {QStringLiteral("name"), QString {}},
+                       {QStringLiteral("units"), QString {}},
+                       {QStringLiteral("stopCount"), 0},
+                       {QStringLiteral("compatibleFamilies"), QVariantList {}}};
+
+   const QString path = source.isLocalFile() ? source.toLocalFile() : source.toString();
+   QFile file(path);
+   if (!file.open(QIODevice::ReadOnly))
+   {
+      result[QStringLiteral("error")] = QStringLiteral("Could not open %1").arg(path);
+      return result;
+   }
+   const QString text = QString::fromUtf8(file.readAll());
+   result[QStringLiteral("name")] = QFileInfo(file).completeBaseName();
+
+   std::istringstream stream(text.toStdString());
+   auto table = scwx::common::ColorTable::Load(stream);
+   if (table == nullptr || !table->IsValid())
+   {
+      result[QStringLiteral("error")] =
+         QStringLiteral("Not a readable GRLevelX palette - no valid colour stops found");
+      return result;
+   }
+
+   const QString units = UnitsOfText(text);
+   int stopCount = 0;
+   for (const QString& line : text.split(QLatin1Char('\n')))
+      if (line.trimmed().startsWith(QStringLiteral("Color"), Qt::CaseInsensitive)) ++stopCount;
+
+   QVariantList candidates;
+   for (const QString& family : KnownFamilies())
+   {
+      const auto primary = entries_.find(family);
+      if (primary == entries_.end()) continue;
+      if (units.isEmpty() || primary->second.units != units) continue;
+      candidates.append(QVariantMap {{QStringLiteral("id"), family},
+                                     {QStringLiteral("label"), FamilyLabel(family)}});
+   }
+
+   result[QStringLiteral("valid")]              = true;
+   result[QStringLiteral("units")]              = units;
+   result[QStringLiteral("stopCount")]          = stopCount;
+   result[QStringLiteral("compatibleFamilies")] = candidates;
+   return result;
+}
+
+bool PaletteManager::activeDraftApplied() const { return draftApplied_; }
+
+void PaletteManager::NotifyDraftAppliedChanged()
+{
+   const auto it = entries_.find(activeName_);
+   const bool applied = it != entries_.end() && editor_.dirty() &&
+                        it->second.workingText == it->second.appliedText;
+   if (applied == draftApplied_) return;
+   draftApplied_ = applied;
+   Q_EMIT activeDraftAppliedChanged();
 }
 
 QStringList PaletteManager::paletteNames() const { return names_; }
@@ -184,6 +410,7 @@ bool PaletteManager::Activate(const QString& name)
    activeName_ = name;
    activeText_ = it->second.workingText;
    editor_.load(name, activeText_);
+   NotifyDraftAppliedChanged();
    Q_EMIT activePaletteChanged();
    Q_EMIT paletteTextChanged(activeText_);
    logger_->info("Activated palette {}", name.toStdString());
@@ -203,9 +430,9 @@ QString PaletteManager::UniqueImportedName(const QString& baseName) const
    }
 }
 
-bool PaletteManager::openFile(const QUrl& source)
+bool PaletteManager::openFile(const QUrl& source, const QString& familyId)
 {
-   QFile file(source.toLocalFile());
+   QFile file(source.isLocalFile() ? source.toLocalFile() : source.toString());
    if (!file.open(QIODevice::ReadOnly)) return false;
    const QString text = QString::fromUtf8(file.readAll());
    std::istringstream stream(text.toStdString());
@@ -213,9 +440,11 @@ bool PaletteManager::openFile(const QUrl& source)
    if (table == nullptr || !table->IsValid()) return false;
 
    const QString name = UniqueImportedName(QFileInfo(file).completeBaseName());
+   const QString family = FamilyMembers(familyId).isEmpty() ? QString {} : familyId;
    names_.append(name);
-   entries_.emplace(name, Entry {text, text, {}, source, false});
+   entries_.emplace(name, Entry {text, text, {}, source, false, UnitsOfText(text), family});
    Q_EMIT paletteNamesChanged();
+   if (!family.isEmpty()) Q_EMIT familyDefaultsChanged();
    return Activate(name);
 }
 
@@ -255,14 +484,16 @@ void PaletteManager::applyActive()
    // Applying is the one gesture that changes which palette a product family uses. Order matters:
    // the text is published first so a pane re-resolving on familyDefaultsChanged already sees it.
    bool familyChanged = false;
-   const QString family = FamilyOf(activeName_);
-   if (!family.isEmpty() && familyDefault(family) != activeName_)
+   const QString family = it->second.family;
+   if (!family.isEmpty() && familyDefault(family) != activeName_ &&
+       (FamilyMembers(family).contains(activeName_) || !it->second.factory))
    {
       familyDefaults_[family] = activeName_;
       PersistFamilyDefault(family);
       familyChanged = true;
    }
 
+   NotifyDraftAppliedChanged();
    Q_EMIT paletteTextChanged(it->second.appliedText);
    Q_EMIT paletteApplied(activeName_);
    if (familyChanged) Q_EMIT familyDefaultsChanged();

@@ -612,6 +612,7 @@ void AppSettings::resetToDefaults()
    Q_EMIT mapDetailsChanged();
    Q_EMIT toolbarActionsChanged();
    Q_EMIT geometryRowsChanged();
+   Q_EMIT defaultsReset();
 }
 
 QString AppSettings::configDirectory() const

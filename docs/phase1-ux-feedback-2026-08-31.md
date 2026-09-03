@@ -116,6 +116,81 @@ turned out to be the physical mouse being nudged onto the map mid-burst, and one
 of a window covering the app — the driver now verifies the foreground window and the window under
 the cursor before and after every burst and reports displaced runs as invalid rather than as leaks.
 
+## Retest session 2026-09-03 (second pass) — new defects found
+
+Driven with `tools/retest/ui-drive.ps1` against the packaged Release build. Four new defects and
+one blocked retest came out of it; each is filed in the appropriate priority section below.
+
+### P0 — Palette synchronization has no user interface
+
+- [ ] The Palette sync channel exists in the model (`SyncChannel::Palette`, per-pane groups,
+  covered by `PanePaletteTest.PaletteSyncChannelRebuildsTheReceivingPanesLut`) but **nothing in
+  the QML calls `setSyncGroup` at all**. The only sync control shipped is the per-pane
+  "Unlinked / Link A / Link B" button, which calls `setCameraSyncGroup` and therefore links only
+  Location, Zoom, Bearing and Pitch. Product, Palette, Time, Animation and SelectedStorm cannot be
+  linked from the packaged app.
+- This makes the P0 palette-ownership retest's "repeat with Palette synchronization both disabled
+  and enabled" step **impossible to perform as written**, and it means §4.1's per-channel sync
+  model - the thing the pane architecture is built around - is ~80 % unreachable by users.
+- Decide whether Phase 1 ships the full per-channel link surface (a menu on the link button, per
+  §4.1's "link everything / link camera / link palette" presets) or explicitly defers it with the
+  limitation named. Right now it is neither shipped nor recorded as deferred.
+
+Retest: link two velocity panes on Palette only, change one pane's palette, confirm the other
+repaints and that an unlinked third pane does not; confirm camera stays independent when only
+Palette is linked.
+
+### P1 — Bottom control bar is unreachable at increased text scaling
+
+- [ ] Launched with `QT_SCALE_FACTOR=1.25` (app-local simulation of a 150 %-scaled desktop; the
+  machine's own scaling was not changed) the window opens 2018x1297 and the floating bottom
+  control bar is **clipped below the bottom of the screen, behind the taskbar** - LIVE/Archive,
+  the time field, site, product, tilt and the layout selector are all unreachable. The top bar and
+  pane headers scale correctly, so this is specifically the window sizing / floating-bar anchoring
+  at scale, not general scaling breakage.
+- Docked mode may or may not be affected - not yet checked.
+
+Retest: run at 125 % and 150 % system scaling (and via `QT_SCALE_FACTOR`), floating and docked,
+and confirm every bottom-bar control is on screen and clickable.
+
+### P1 — Clipped status text at 1280x800
+
+- [ ] At 1280x800 in a 2x2 layout an orange status string (observed: "Calculating") is drawn at
+  the very bottom edge of the window and is cut in half. The rest of the layout is legible at that
+  size - pane headers, both product labels and the floating bottom bar all fit - so this is one
+  mis-anchored status element, not a general density failure.
+
+Retest: 1280x800, 2x2, while a sweep is being computed; confirm the status text is fully visible
+and does not overlap the attribution or the control bar.
+
+### P1 — Accessible names and roles are absent almost everywhere
+
+- [ ] A static audit of `app/qml` found **89 `MouseArea`-based controls across 17 files with no
+  `Accessible.role` or `Accessible.name`**; the only accessible metadata in the entire UI is the
+  three entries in `OverlaysDialog.qml` added on 2026-09-03. Because the app's controls are
+  `Rectangle` + `Text` + `MouseArea` rather than Qt Quick Controls, a screen reader sees no
+  actionable elements at all - not the Tools menu, Settings, the pane headers, the product
+  browser, the site picker, or the palette editor.
+- This is the "accessible names/roles" half of the Phase 1 first-run-and-polish gate. A screen
+  reader pass is pointless until roles and names exist, so the *audit* below replaces the reader
+  pass as the immediate next step.
+
+Retest: add roles/names to the interactive controls, then drive the app with Narrator or NVDA and
+confirm every action is reachable and announced.
+
+### Retest results — what passed
+
+- **Direct pane targeting** (P1 below): clicking a non-first pane makes it active. Verified in 2x2:
+  clicking the bottom-left pane moved the active indicator to it, the bottom bar switched to `P3`,
+  and the active pane's header border became visible. The **per-pane site-picker search** half was
+  not exercised (the driver's click missed the station button and the session ended), so that
+  bullet stays open.
+- **Product-family palette defaults** end-to-end in the packaged app: two panes set to velocity
+  both rendered the DV ramp while the two reflectivity panes were untouched.
+- **1280x800 legibility** apart from the clipped status text above.
+- **Top bar at 1.25 scale**: Tools/Help/Settings all render correctly, so the resolved
+  "disappearing action row" P0 stays resolved at increased scaling.
+
 ## P1 — usability and accessibility blockers
 
 ### Weather Overlays contrast and control styling
@@ -137,7 +212,8 @@ the cursor before and after every burst and reports displaced runs as invalid ra
   *2026-09-03:* `python tools/contrast-audit.py` — 17/17 targeted pairs pass in both bundled
   themes (4.5:1 text, 3:1 focus ring and outlines); the two informational rows (labelled-button
   border, disabled label) are WCAG-exempt and recorded so a theme change is noticed. Text scaling
-  was not exercised in this pass.
+  was exercised later the same day and found an app-wide defect, filed separately as "Bottom
+  control bar is unreachable at increased text scaling".
 
 Retest: open Weather Overlays in both bundled themes and operate every control using pointer and
 keyboard, including disabled, focused and error states.
@@ -250,9 +326,13 @@ contrast defect, include automated regression coverage, and contain a short chan
 each fix to the retest steps above. The remaining P1/P2 work may ship incrementally, but its open
 status must remain visible here and in the applicable Phase 1 roadmap gates.
 
-**Status 2026-09-03:** both P0 items and the Weather Overlays contrast item are closed with the
-evidence recorded above (automated: `wxlens-app-test` 146/146, `tools/contrast-audit.py`;
-packaged: the dated retest notes). Still open before the next user test: the packaged
-Palette-sync-UI half of the palette retest, text scaling, and the P1 direct-pane-targeting /
-information-density retests, plus every gate in `docs/ROADMAP.md` "Phase 1 completion and
-release-readiness gates".
+**Status 2026-09-03:** the two original P0 items and the Weather Overlays contrast item are closed
+with the evidence recorded above (automated: `wxlens-app-test` 151/151,
+`tools/contrast-audit.py`; packaged: the dated retest notes).
+
+The second retest pass that same day then found **four new defects** - see "Retest session
+2026-09-03 (second pass)" above - of which one is a new P0 (the Palette sync channel, and in fact
+every non-camera channel, has no user interface). So the next test build's bar has moved: it now
+needs the sync-UI decision plus the scaling and accessibility work, not just the three items that
+closed. The remaining `docs/ROADMAP.md` completion gates are unchanged except that the name
+screening is now closed.

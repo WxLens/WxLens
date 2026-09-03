@@ -2442,21 +2442,40 @@ acceptance rerun.
   stalls), CPU and GPU utilization, memory/working-set behavior, radar decode latency, network
   request volume/latency, cache hit/miss behavior, and repeated/live-update behavior. Establish
   reproducible baselines before optimization and document regressions or accepted limits.
+
+  **Target class decided 2026-09-03** (the machine the baselines must be acceptable on, not the
+  development machine): 14"–15.6" display; Intel Core i5 or AMD Ryzen 5; 16 GB RAM as the
+  reference point with **8 GB treated as the low-end floor that must still work**; 256–512 GB SSD.
+  Integrated graphics are implied by that CPU class, so the renderer's baselines must hold without
+  a discrete GPU. Baselines gathered on the development machine are *reference numbers only* and
+  do not close this gate.
 - [ ] **Packaging, release, and update readiness.** Exercise clean-machine installation and
   uninstall/repair behavior; verify runtime dependency and license/attribution packaging; expand
   CI across supported configurations; define artifact signing/versioning and release-channel
   mechanics; and make an explicit, documented decision about installation and update behavior.
   A developer-tree executable or deploy-folder smoke test alone is not release readiness.
+
+  **Update behavior decided 2026-09-03:** ask the end user, defaulting to automatic updates. The
+  first-run path offers the choice, the preference is persisted like any other setting, and
+  automatic is the shipped default. Deliberately **not implemented yet**: there is no updater, so
+  no dead toggle ships ahead of one — a preference the app cannot honour is worse than none. The
+  implementing work owns the `updates` settings section, the first-run prompt, and the mechanism,
+  and must honour this decision rather than re-deciding it.
 - [ ] **First-run usability and general polish.** Validate a new-user path from empty settings to
   a useful live radar view; accessible names/roles, contrast, text scaling, focus visibility and
   reduced-motion implications; complete keyboard navigation and shortcuts; actionable loading,
   empty, permission, provider-failure, corrupt-data, and offline/cache states; and recovery without
   restarting or losing the workspace. Check error messages and logs without exposing secrets.
-- [ ] **“WxLens” name and trademark due diligence.** Before registering domains/accounts or
+- [x] **“WxLens” name and trademark due diligence.** Before registering domains/accounts or
   publishing broadly, search relevant software, weather, and mapping products plus applicable
   trademark databases for confusingly similar names. Record the date, jurisdictions/databases,
   findings, and resulting decision. This is practical collision screening, not a substitute for
   legal advice when registration or material distribution warrants counsel.
+
+  *Screened 2026-09-03 — see [name-screening-2026-09-03.md](name-screening-2026-09-03.md).* No
+  collision found for `WxLens` as a product, app, domain or mark. Registration is not being
+  pursued, so this closes as collision screening only; the record names what was **not** queried
+  (USPTO/WIPO/EUIPO directly) and the conditions that require re-running it.
 
 **Completion rule:** Phase 1 closes only when the Level 3 completion rule and every gate above
 has evidence in the repository (tests, CI/release configuration, or a dated validation record),

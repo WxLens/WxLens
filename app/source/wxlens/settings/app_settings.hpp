@@ -197,6 +197,15 @@ signals:
    void toolbarActionsChanged();
    void geometryRowsChanged();
 
+   /**
+    * resetToDefaults() finished. Preferences owned by other subsystems (the palette family
+    * defaults in palettes::PaletteManager) hang off this rather than being reached into from
+    * here, so `settings` stays independent of them and the wiring is visible in main.cpp - the
+    * same direction of coupling used for the default object scope. A global "Reset to defaults"
+    * that silently kept another subsystem's override would be a lie.
+    */
+   void defaultsReset();
+
 private:
    class Impl;
    std::unique_ptr<Impl> p;

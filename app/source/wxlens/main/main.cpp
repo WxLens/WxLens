@@ -148,6 +148,14 @@ int main(int argc, char* argv[])
    wxlens::theme::ThemeManager themeManager {wxlens::settings::SettingsStore::Instance()};
    engine.rootContext()->setContextProperty("themeManager", &themeManager);
 
+   // "Reset to defaults" has to mean every preference, including the palette a product family
+   // renders with. Wired here so `settings` stays independent of `palettes` - same direction of
+   // coupling as the default object scope below.
+   QObject::connect(&appSettings,
+                    &wxlens::settings::AppSettings::defaultsReset,
+                    &wxlens::palettes::PaletteManager::Instance(),
+                    &wxlens::palettes::PaletteManager::resetFamilyDefaults);
+
    wxlens::objects::SavedPlaceManager savedPlaces {
       wxlens::objects::MapObjectStore::Instance(), wxlens::settings::SettingsStore::Instance()};
    engine.rootContext()->setContextProperty("savedPlaces", &savedPlaces);
