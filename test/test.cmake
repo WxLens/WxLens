@@ -118,6 +118,7 @@ add_executable(wxlens-app-test
     source/wxlens/products/level3_raster_product.test.cpp
     source/wxlens/products/level3_graphic_overlay.test.cpp
     source/wxlens/products/level3_text_product.test.cpp
+    source/wxlens/panes/pane_palette.test.cpp
     source/wxlens/panes/pane_sync.test.cpp
     source/wxlens/panes/source_probe.test.cpp
     source/wxlens/settings/settings_store.test.cpp

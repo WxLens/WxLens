@@ -123,6 +123,11 @@ int main(int argc, char* argv[])
    wxlens::panes::PaneGridModel paneGridModel;
    paneGridModel.setDefaultSourceKey(QString::fromStdString(kDefaultRadarSite));
    engine.rootContext()->setContextProperty("paneGridModel", &paneGridModel);
+   // Family defaults (which palette velocity/reflectivity/... panes use) persist like any other
+   // preference; the editor's own drafts deliberately do not (factory palettes are never
+   // overwritten - users save a .pal copy instead).
+   wxlens::palettes::PaletteManager::Instance().bindSettings(
+      wxlens::settings::SettingsStore::Instance());
    engine.rootContext()->setContextProperty(
       "paletteManager", &wxlens::palettes::PaletteManager::Instance());
 

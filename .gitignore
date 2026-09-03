@@ -23,3 +23,6 @@ _deps
 
 # aqtinstall
 aqtinstall.log
+
+# Screenshots produced by tools/retest/ui-drive.ps1
+tools/retest/captures/

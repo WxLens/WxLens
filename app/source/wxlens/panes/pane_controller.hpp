@@ -16,6 +16,11 @@
 
 namespace wxlens
 {
+namespace render
+{
+class RadarSweepLayerBinding;
+}
+
 namespace panes
 {
 
@@ -98,6 +103,15 @@ public:
    [[nodiscard]] QString defaultPaletteName() const;
    [[nodiscard]] QString effectivePaletteName() const;
    [[nodiscard]] QStringList compatiblePaletteNames() const;
+
+   /**
+    * The pane's Visualization Layer seam: the sweep-plus-LUT pair its radar layer renders from.
+    * What attachLayers hands to RadarSweepLayer, exposed so the effective colour LUT can be
+    * checked directly - palette-ownership rules are about what gets rendered, and a test that
+    * only compares palette *names* cannot see a LUT baked from the wrong text.
+    */
+   [[nodiscard]] std::shared_ptr<render::RadarSweepLayerBinding> layerBinding() const;
+
    void setPaletteName(const QString& paletteName);
    Q_INVOKABLE void refreshProductCatalog();
    Q_INVOKABLE bool selectProduct(const QString& identityKind,

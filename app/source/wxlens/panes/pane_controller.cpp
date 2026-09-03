@@ -52,20 +52,13 @@ QString DefaultPalette(const products::ProductDescriptor& descriptor)
       scwx::common::GetLevel2Product(descriptor.identity.toStdString()))));
 }
 
+/// Palettes that may stand in for the product whose bundled default is `defaultPalette` - the
+/// product's family (palettes::PaletteManager::FamilyOf). Overrides are confined to it so, for
+/// example, reflectivity can never be made to look like velocity. Imported palettes remain
+/// editor-only until they carry explicit family metadata.
 QStringList CompatiblePalettes(const QString& defaultPalette)
 {
-   // Palettes describe a meteorological field, not just a visual style. Keep overrides within
-   // the selected product family so, for example, reflectivity can never be made to look like
-   // velocity. Imported palettes remain editor-only until they carry explicit family metadata.
-   if (defaultPalette == QStringLiteral("KDP") || defaultPalette == QStringLiteral("KDP2"))
-      return {QStringLiteral("KDP"), QStringLiteral("KDP2")};
-   // Both ramps describe radial velocity in knots. SRV is useful as an alternate colour ramp
-   // even when the selected data product is base velocity; choosing it changes presentation,
-   // not the underlying meteorological product.
-   if (defaultPalette == QStringLiteral("DV"))
-      return {QStringLiteral("DV"), QStringLiteral("SRV")};
-   if (defaultPalette.isEmpty()) return {};
-   return {defaultPalette};
+   return palettes::PaletteManager::FamilyMembers(palettes::PaletteManager::FamilyOf(defaultPalette));
 }
 } // namespace
 
@@ -79,6 +72,21 @@ public:
 
    void RebindProduct();
    void ConnectProductSignals(PaneController* self);
+
+   /**
+    * The palette this pane renders with: its explicit override when it has one, else the
+    * user-chosen default for its product family, else the product's bundled default. The single
+    * resolver every palette path (Level 2 sweeps, Level 3 loads, sync, the editor) goes through,
+    * so the precedence cannot drift between them.
+    */
+   [[nodiscard]] QString ResolvedPaletteName() const;
+
+   /**
+    * Re-bakes this pane's colour LUT for the current sweep from ResolvedPaletteName() and hands
+    * the pair to the layer binding. Always pane-local: the shared RadarSweepProduct's own LUT is
+    * only a fallback for when no palette text exists at all, never the normal path - otherwise an
+    * applied edit to a family default would be invisible on every pane without an override.
+    */
    void ApplyPalette();
    void SetArchiveTime(PaneController* self,
                        std::optional<std::chrono::system_clock::time_point> time);
@@ -91,7 +99,6 @@ public:
    std::shared_ptr<products::RadarSweepProduct> radarProduct_ {nullptr};
    std::shared_ptr<render::RadarSweepLayerBinding> radarLayerBinding_ {
       std::make_shared<render::RadarSweepLayerBinding>(nullptr)};
-   QMetaObject::Connection repaintConnection_ {};
    QMetaObject::Connection sourceDataConnection_ {};
    QMetaObject::Connection loadStateConnection_ {};
    QMetaObject::Connection level3LoadedConnection_ {};
@@ -155,31 +162,40 @@ void PaneController::Impl::RebindProduct()
    radarLayerBinding_->setProduct(radarProduct_);
 }
 
+QString PaneController::Impl::ResolvedPaletteName() const
+{
+   if (!descriptor_.palette.isEmpty()) return descriptor_.palette;
+   const QString family = palettes::PaletteManager::FamilyOf(defaultPalette_);
+   const QString familyDefault =
+      family.isEmpty() ? QString {} : palettes::PaletteManager::Instance().familyDefault(family);
+   return familyDefault.isEmpty() ? defaultPalette_ : familyDefault;
+}
+
 void PaneController::Impl::ApplyPalette()
 {
-   if (descriptor_.palette.isEmpty())
-   {
-      if (radarProduct_ != nullptr) radarLayerBinding_->setProduct(radarProduct_);
-      if (radarProduct_ != nullptr) return;
-   }
    products::SweepSnapshot snapshot = radarProduct_ != nullptr
       ? radarProduct_->sweep_snapshot() : radarLayerBinding_->snapshot();
-   if (snapshot.sweep == nullptr) return;
-   const QString palette = descriptor_.palette.isEmpty() ? defaultPalette_ : descriptor_.palette;
-   const QString text = palettes::PaletteManager::Instance().paletteText(palette);
-   if (text.isEmpty()) return;
+   const QString text =
+      snapshot.sweep == nullptr
+         ? QString {}
+         : palettes::PaletteManager::Instance().paletteText(ResolvedPaletteName());
+   if (text.isEmpty())
+   {
+      // Nothing to bake from yet (no sweep, or a palette the manager does not know). Fall back to
+      // the product's own bundled LUT rather than leaving a stale pane-baked snapshot in place.
+      if (radarProduct_ != nullptr) radarLayerBinding_->setProduct(radarProduct_);
+      return;
+   }
    snapshot.colorTableLut = products::BuildColorTableLut(*snapshot.sweep, text);
    radarLayerBinding_->setSnapshot(std::move(snapshot));
 }
 
 void PaneController::Impl::ConnectProductSignals(PaneController* self)
 {
-   QObject::disconnect(repaintConnection_);
    QObject::disconnect(sourceDataConnection_);
    QObject::disconnect(loadStateConnection_);
    QObject::disconnect(level3LoadedConnection_);
    QObject::disconnect(level3FailedConnection_);
-   repaintConnection_    = {};
    sourceDataConnection_ = {};
    loadStateConnection_  = {};
    level3LoadedConnection_ = {};
@@ -212,13 +228,12 @@ void PaneController::Impl::ConnectProductSignals(PaneController* self)
             }
             if (renderSnapshot.sweep != nullptr)
             {
-               auto& manager = palettes::PaletteManager::Instance();
                defaultPalette_ = palettes::BundledPaletteName(defaultPalette);
                if (!descriptor_.palette.isEmpty() &&
                    !CompatiblePalettes(defaultPalette_).contains(descriptor_.palette))
                   descriptor_.palette.clear();
-               QString palette = descriptor_.palette.isEmpty() ? defaultPalette_ : descriptor_.palette;
-               QString text = manager.paletteText(palette);
+               const QString palette = ResolvedPaletteName();
+               const QString text = palettes::PaletteManager::Instance().paletteText(palette);
                if (text.isEmpty())
                   logger_->warn("No palette {} for Level 3 product {}",
                                 palette.toStdString(), descriptor_.identity.toStdString());
@@ -299,26 +314,19 @@ void PaneController::Impl::ConnectProductSignals(PaneController* self)
       return;
    }
 
-   if (!map_.isNull())
-   {
-      repaintConnection_ = QObject::connect(radarProduct_.get(),
-                                            &products::RadarSweepProduct::SweepUpdated,
-                                            map_,
-                                            [this, map = map_]()
-                                            {
-                                               ApplyPalette();
-                                               if (!map.isNull())
-                                               {
-                                                  map->triggerRepaint();
-                                               }
-                                            });
-      map_->triggerRepaint();
-   }
-
+   // Re-bake this pane's LUT for every published sweep whether or not a map is attached yet: the
+   // binding holds a pane-baked snapshot, so a sweep that arrived while no map existed would
+   // otherwise be rendered with the previous sweep's geometry once one does.
    sourceDataConnection_ = QObject::connect(radarProduct_.get(),
                                              &products::RadarSweepProduct::SweepUpdated,
                                              self,
-                                             [self]() { Q_EMIT self->sourceDataChanged(); });
+                                             [this, self]()
+                                             {
+                                                ApplyPalette();
+                                                if (!map_.isNull()) map_->triggerRepaint();
+                                                Q_EMIT self->sourceDataChanged();
+                                             });
+   if (!map_.isNull()) map_->triggerRepaint();
    loadStateConnection_ = QObject::connect(
       radarProduct_.get(),
       &products::RadarSweepProduct::LoadStateChanged,
@@ -357,20 +365,22 @@ PaneController::PaneController(int                                paneId,
 {
    p->RebindProduct();
 
+   // The editor's *active* palette is deliberately not listened to: selecting a palette to look at
+   // must never recolour a pane. Only an applied text or a changed family default can, and neither
+   // touches descriptor_.palette - an explicit per-pane override stays local unless the Palette
+   // sync channel links it (docs/phase1-ux-feedback-2026-08-31.md, palette-ownership P0).
    auto& paletteManager = palettes::PaletteManager::Instance();
-   connect(&paletteManager, &palettes::PaletteManager::paletteTextChanged, this,
-           [this, &paletteManager](const QString&)
-           {
-              if (effectivePaletteName() != paletteManager.activeName()) return;
-              p->ApplyPalette();
-              if (!p->map_.isNull()) p->map_->triggerRepaint();
-           });
    connect(&paletteManager, &palettes::PaletteManager::paletteApplied, this,
            [this](const QString& name)
            {
               if (!compatiblePaletteNames().contains(name)) return;
-              p->descriptor_.palette =
-                 name == p->defaultPalette_ ? QString {} : name;
+              p->ApplyPalette();
+              if (!p->map_.isNull()) p->map_->triggerRepaint();
+              Q_EMIT paletteChanged();
+           });
+   connect(&paletteManager, &palettes::PaletteManager::familyDefaultsChanged, this,
+           [this]()
+           {
               p->ApplyPalette();
               if (!p->map_.isNull()) p->map_->triggerRepaint();
               Q_EMIT paletteChanged();
@@ -449,13 +459,14 @@ bool PaneController::level3Product() const
 }
 QString PaneController::paletteName() const { return p->descriptor_.palette; }
 QString PaneController::defaultPaletteName() const { return p->defaultPalette_; }
-QString PaneController::effectivePaletteName() const
-{
-   return p->descriptor_.palette.isEmpty() ? p->defaultPalette_ : p->descriptor_.palette;
-}
+QString PaneController::effectivePaletteName() const { return p->ResolvedPaletteName(); }
 QStringList PaneController::compatiblePaletteNames() const
 {
    return CompatiblePalettes(p->defaultPalette_);
+}
+std::shared_ptr<render::RadarSweepLayerBinding> PaneController::layerBinding() const
+{
+   return p->radarLayerBinding_;
 }
 QVariantList PaneController::productOverlays() const { return p->productOverlays_; }
 QString PaneController::productDetailsText() const { return p->productDetailsText_; }
@@ -1103,7 +1114,8 @@ void PaneController::attachLayers(QMapLibre::Map* map)
    if (p->radarProduct_ != nullptr && p->radarProduct_->sweep_data() != nullptr)
    {
       // The data load beat the style load (a network race, not a guaranteed order), so
-      // SweepUpdated already fired before the connection above existed.
+      // SweepUpdated already fired before the connection above existed - bake now.
+      p->ApplyPalette();
       map->triggerRepaint();
    }
 }

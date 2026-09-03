@@ -1,5 +1,6 @@
 #include <wxlens/palettes/palette_manager.hpp>
 #include <wxlens/log/logger.hpp>
+#include <wxlens/settings/settings_store.hpp>
 
 #include <scwx/common/color_table.hpp>
 
@@ -18,7 +19,9 @@ namespace
 const auto logger_ = wxlens::log::Create("palettes.palette_manager");
 const QStringList kFactoryNames {"DR", "DV", "SRV", "SW", "ZDR", "CC", "KDP", "KDP2",
                                  "HC", "ET", "VIL", "OHP", "STP", "DOD_DSD", "Default16"};
-}
+const QString kPalettesCategory = QStringLiteral("palettes");
+const QString kFamilyDefaultKeyPrefix = QStringLiteral("family_default_");
+} // namespace
 
 PaletteManager::PaletteManager(QObject* parent) : QObject(parent), editor_(this)
 {
@@ -48,6 +51,109 @@ PaletteManager& PaletteManager::Instance()
 {
    static PaletteManager instance;
    return instance;
+}
+
+QString PaletteManager::FamilyOf(const QString& paletteName)
+{
+   // Presentation variants of one meteorological field. Palettes describe a field, not just a
+   // visual style, so this is the only place a palette may stand in for another - reflectivity
+   // can never be made to look like velocity (docs/ROADMAP.md §4.5 palette-ownership rules).
+   if (paletteName == QStringLiteral("SRV")) return QStringLiteral("DV");
+   if (paletteName == QStringLiteral("KDP2")) return QStringLiteral("KDP");
+   if (kFactoryNames.contains(paletteName)) return paletteName;
+   return {};
+}
+
+QStringList PaletteManager::FamilyMembers(const QString& familyId)
+{
+   if (familyId == QStringLiteral("DV")) return {QStringLiteral("DV"), QStringLiteral("SRV")};
+   if (familyId == QStringLiteral("KDP")) return {QStringLiteral("KDP"), QStringLiteral("KDP2")};
+   if (familyId.isEmpty() || FamilyOf(familyId) != familyId) return {};
+   return {familyId};
+}
+
+QString PaletteManager::familyOf(const QString& paletteName) const { return FamilyOf(paletteName); }
+
+QStringList PaletteManager::KnownFamilies() const
+{
+   QStringList families;
+   for (const QString& name : names_)
+   {
+      const QString family = FamilyOf(name);
+      if (!family.isEmpty() && !families.contains(family)) families.append(family);
+   }
+   return families;
+}
+
+void PaletteManager::bindSettings(settings::SettingsStore& store)
+{
+   store_ = &store;
+   familyDefaults_.clear();
+   for (const QString& family : KnownFamilies())
+   {
+      const QString stored =
+         store_->GetString(kPalettesCategory, kFamilyDefaultKeyPrefix + family, QString {});
+      if (stored.isEmpty()) continue;
+      if (!FamilyMembers(family).contains(stored) || !entries_.contains(stored))
+      {
+         logger_->warn("Ignoring {} default \"{}\": not a member of that palette family",
+                       family.toStdString(), stored.toStdString());
+         continue;
+      }
+      familyDefaults_[family] = stored;
+   }
+   Q_EMIT familyDefaultsChanged();
+}
+
+void PaletteManager::PersistFamilyDefault(const QString& familyId)
+{
+   if (store_ == nullptr) return;
+   const auto it = familyDefaults_.find(familyId);
+   store_->SetString(kPalettesCategory,
+                     kFamilyDefaultKeyPrefix + familyId,
+                     it == familyDefaults_.end() ? QString {} : it->second);
+   if (!store_->Save())
+      logger_->error("Could not persist the {} palette default", familyId.toStdString());
+}
+
+QString PaletteManager::familyDefault(const QString& familyId) const
+{
+   const auto it = familyDefaults_.find(familyId);
+   return it == familyDefaults_.end() ? QString {} : it->second;
+}
+
+bool PaletteManager::isFamilyDefault(const QString& paletteName) const
+{
+   const QString family = FamilyOf(paletteName);
+   if (family.isEmpty()) return false;
+   const QString chosen = familyDefault(family);
+   return chosen.isEmpty() ? paletteName == family : chosen == paletteName;
+}
+
+QStringList PaletteManager::familyDefaultNames() const
+{
+   QStringList result;
+   for (const QString& family : KnownFamilies())
+   {
+      const QString chosen = familyDefault(family);
+      result.append(chosen.isEmpty() ? family : chosen);
+   }
+   return result;
+}
+
+void PaletteManager::setFamilyDefault(const QString& familyId, const QString& paletteName)
+{
+   if (FamilyMembers(familyId).isEmpty()) return;
+   if (!paletteName.isEmpty() &&
+       (!FamilyMembers(familyId).contains(paletteName) || !entries_.contains(paletteName)))
+      return;
+   if (familyDefault(familyId) == paletteName) return;
+   if (paletteName.isEmpty())
+      familyDefaults_.erase(familyId);
+   else
+      familyDefaults_[familyId] = paletteName;
+   PersistFamilyDefault(familyId);
+   Q_EMIT familyDefaultsChanged();
 }
 
 QStringList PaletteManager::paletteNames() const { return names_; }
@@ -145,8 +251,21 @@ void PaletteManager::applyActive()
    auto it = entries_.find(activeName_);
    if (it == entries_.end()) return;
    it->second.appliedText = it->second.workingText;
+
+   // Applying is the one gesture that changes which palette a product family uses. Order matters:
+   // the text is published first so a pane re-resolving on familyDefaultsChanged already sees it.
+   bool familyChanged = false;
+   const QString family = FamilyOf(activeName_);
+   if (!family.isEmpty() && familyDefault(family) != activeName_)
+   {
+      familyDefaults_[family] = activeName_;
+      PersistFamilyDefault(family);
+      familyChanged = true;
+   }
+
    Q_EMIT paletteTextChanged(it->second.appliedText);
    Q_EMIT paletteApplied(activeName_);
+   if (familyChanged) Q_EMIT familyDefaultsChanged();
 }
 
 void PaletteManager::resolveUnsavedChanges(UnsavedDecision decision)
@@ -184,6 +303,7 @@ void PaletteManager::ExecutePendingAction()
    case PendingAction::Import: Q_EMIT importFileRequested(); break;
    case PendingAction::ResetActive:
    {
+      // Resets the *draft* only - like any other edit it reaches panes when applied.
       auto it = entries_.find(activeName_);
       if (it != entries_.end() && it->second.factory)
       {
@@ -193,13 +313,27 @@ void PaletteManager::ExecutePendingAction()
       break;
    }
    case PendingAction::ResetAll:
+   {
+      // Unlike ResetActive this is the "get me back to how it shipped" action, so it restores
+      // what panes render (applied text and family defaults) as well as the drafts. Leaving the
+      // applied palettes edited while telling the user everything was restored is the confusing
+      // half-measure this replaces.
       for (auto& [name, entry] : entries_)
-         if (entry.factory) entry.workingText = entry.factoryText;
+      {
+         if (!entry.factory) continue;
+         entry.workingText = entry.factoryText;
+         entry.appliedText = entry.factoryText;
+      }
+      const QStringList families = KnownFamilies();
+      familyDefaults_.clear();
+      for (const QString& family : families) PersistFamilyDefault(family);
       // Stay on whatever the user was looking at - its text was just reset in place above, so
       // re-activating it (rather than always jumping to "DR") picks that reset up without moving
       // the editor to a palette the user never asked to see.
       Activate(activeName_);
+      Q_EMIT familyDefaultsChanged();
       break;
+   }
    case PendingAction::None: break;
    }
 }

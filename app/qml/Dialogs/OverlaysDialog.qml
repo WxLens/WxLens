@@ -51,8 +51,12 @@ Popup {
                                      : checkBox.down ? themeManager.controlActive
                                                      : checkBox.hovered ? themeManager.controlHover
                                                                         : themeManager.control
+            // textMuted, not border: an unchecked box is identified by its outline alone, so that
+            // outline needs WCAG 1.4.11's 3:1 against the surface (border is ~1.4:1 in both
+            // bundled themes; textMuted clears 4:1 in both - see the contrast audit recorded in
+            // docs/phase1-ux-feedback-2026-08-31.md).
             border.width: checkBox.visualFocus ? 2 : 1
-            border.color: checkBox.visualFocus ? themeManager.primary : themeManager.border
+            border.color: checkBox.visualFocus ? themeManager.primary : themeManager.textMuted
 
             Text {
                 anchors.centerIn: parent
@@ -86,8 +90,9 @@ Popup {
         background: Rectangle {
             radius: themeManager.cornerRadius
             color: textField.enabled ? themeManager.control : themeManager.surface
+            // Same 3:1 boundary requirement as the checkbox above: an empty field is only its outline.
             border.width: textField.activeFocus ? 2 : 1
-            border.color: textField.activeFocus ? themeManager.primary : themeManager.border
+            border.color: textField.activeFocus ? themeManager.primary : themeManager.textMuted
         }
     }
 
@@ -137,7 +142,18 @@ Popup {
                 required property var modelData
                 required property int index
                 width: ListView.view.width; height: 50; color: index % 2 ? themeManager.elevatedSurface : "transparent"
-                Text { anchors.left: parent.left; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 190; elide: Text.ElideMiddle; text: modelData.title || modelData.source; color: modelData.error ? themeManager.danger : themeManager.textSecondary }
+                Accessible.role: Accessible.ListItem
+                Accessible.name: (modelData.title || modelData.source) + (modelData.error ? ", failed: " + modelData.error : "")
+                Column {
+                    anchors.left: parent.left; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - 190; spacing: 2
+                    Text { width: parent.width; elide: Text.ElideMiddle; text: modelData.title || modelData.source; color: themeManager.textSecondary; font.pixelSize: 12 }
+                    // A failed placefile keeps its name readable and says what went wrong on its own
+                    // line. The ⚠ carries the state without relying on colour (WCAG 1.4.1), and
+                    // `warning` is the one status token that reaches 4.5:1 on both row backgrounds
+                    // in both bundled themes - `danger` does not in Operational Dark.
+                    Text { visible: modelData.error !== ""; width: parent.width; elide: Text.ElideRight; text: "⚠ " + modelData.error; color: themeManager.warning; font.pixelSize: 11 }
+                }
                 OverlayButton { anchors.right: removeButton.left; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter; text: modelData.loading ? "Refreshing…" : "Refresh"; enabled: !modelData.loading; onClicked: overlayManager.refreshPlacefile(index) }
                 OverlayButton { id: removeButton; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "Remove"; onClicked: overlayManager.removePlacefile(index) }
             }

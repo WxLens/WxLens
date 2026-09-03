@@ -42,47 +42,111 @@ Tools/Help/Settings icons in the top-right of the top bar).
 
 ### Product-aware palette ownership and defaults
 
-- [ ] Remove the process-wide active palette from Level 2 renderer state. Editing or selecting a
+- [x] Remove the process-wide active palette from Level 2 renderer state. Editing or selecting a
   velocity palette must never recolor reflectivity, and vice versa.
-- [ ] Assign the correct bundled default palette by canonical Level 2 moment and Level 3 product
+  *2026-09-03:* the editor's active palette is no longer observed by panes at all
+  (`PaneController` listens only to `paletteApplied` / `familyDefaultsChanged`), and every pane
+  bakes its own LUT from its resolved palette (`PaneController::Impl::ApplyPalette`). Fixing this
+  exposed a second defect: a pane with no explicit override used to hand rendering back to the
+  shared `RadarSweepProduct`'s factory-baked LUT, so **"Apply to product" on an edited
+  reflectivity palette was a silent no-op on every Level 2 pane** — now covered by
+  `PanePaletteTest.AppliedEditToAFamilyDefaultReachesPanesWithoutAnOverride`.
+- [x] Assign the correct bundled default palette by canonical Level 2 moment and Level 3 product
   identity. Velocity should open with the conventional red/green velocity palette; reflectivity
   should open with its reflectivity palette.
-- [ ] Define the distinction between a product-family default and an explicit per-pane override.
+  *2026-09-03:* packaged retest, 2×2 KEAX: switching pane 2 to Velocity opened it with the
+  red/green DV ramp while the three reflectivity panes kept DR.
+- [x] Define the distinction between a product-family default and an explicit per-pane override.
   Changing a velocity-family default should update open velocity panes without touching other
   product families; an explicit pane override remains local unless the Palette synchronization
   channel intentionally links it.
-- [ ] Applying an incoming Palette synchronization change must rebuild the receiving pane's LUT
+  *2026-09-03:* `PaletteManager` now owns palette **families** (`SRV`→`DV`, `KDP2`→`KDP`, every
+  other bundled palette its own family) and a persisted **family default** (`palettes.toml`,
+  `family_default_<FAMILY>`, validated on load so a hand-edited reflectivity ramp can never become
+  the velocity default). "Apply to product" publishes the edited text *and* makes that palette its
+  family's default; panes resolve explicit override → family default → bundled product default
+  (`Impl::ResolvedPaletteName`, shared by the Level 2 and Level 3 paths). Apply no longer writes to
+  any pane's `descriptor_.palette`, so an explicit override survives it
+  (`PanePaletteTest.ExplicitPaneOverrideSurvivesAFamilyDefaultChange`). The palette chips mark each
+  family's current default (●) and the apply notice names the family.
+- [x] Applying an incoming Palette synchronization change must rebuild the receiving pane's LUT
   and repaint immediately.
-- [ ] Add renderer-level tests that compare effective LUT/default identity across simultaneous
+  *2026-09-03:* `PanePaletteTest.PaletteSyncChannelRebuildsTheReceivingPanesLut` compares the
+  linked pane's baked LUT colours, not its palette name, and checks the unlinked case stays local.
+- [x] Add renderer-level tests that compare effective LUT/default identity across simultaneous
   reflectivity and velocity panes. Tests that assert only palette-name strings are insufficient.
+  *2026-09-03:* `test/source/wxlens/panes/pane_palette.test.cpp` (7 tests) installs synthetic
+  reflectivity (offset 66) and velocity (offset 129, m/s) sweeps on real `PaneController`s through
+  the new `PaneController::layerBinding()` seam and compares the `ColorTableLut` colours the radar
+  layer would upload; `palette_manager.test.cpp` gained 5 tests for families, defaults, persistence
+  and validation, and full-factory "Reset all". Suite: 146/146 pass.
 
 Retest: open KICX reflectivity and velocity in separate panes; verify their defaults; change and
 edit the velocity palette; confirm every intended velocity pane changes and no reflectivity pane
 does; repeat with Palette synchronization both disabled and enabled.
 
+Retest 2026-09-03 (packaged Release, 2×2 KEAX, pane 2 Velocity): edited DV's −40 kt stop to
+`#0000ff` and pressed Apply → pane 2's "toward" region turned blue, all three reflectivity panes
+unchanged; discarding the editor draft afterwards left the applied palette in place;
+`palettes.toml` gained `family_default_DV`. The Palette-sync-enabled half of the retest is covered
+by the automated LUT test above and was **not** driven through the packaged sync UI in this pass —
+include it in the next manual test session. Follow-up (P2, not blocking): after Apply the editor
+still reports the draft as unsaved, so closing asks "Save changes to DV?" even though the change is
+already applied — the prompt should distinguish "applied but not saved to a .pal" from "unapplied".
+
 ### Product-browser wheel isolation
 
-- [ ] Consume wheel/touchpad scrolling while the pointer is over the product browser so browsing
+- [x] Consume wheel/touchpad scrolling while the pointer is over the product browser so browsing
   products never zooms or moves the underlying map.
-- [ ] Test rapid wheel input at both ends of the product list, where event leakage is easiest to
+  *Implemented 2026-08-31* (`ProductBrowser.qml` root `WheelHandler` consumes what the list
+  declines at either end); *verified 2026-09-03*, see below.
+- [x] Test rapid wheel input at both ends of the product list, where event leakage is easiest to
   expose.
 
 Retest: record the pane camera, rapidly scroll the complete product list, and verify the camera is
 pixel-for-pixel unchanged until the pointer leaves the browser.
 
+Retest 2026-09-03 (packaged Release, KEAX Level 3 catalog loaded, `tools/retest/ui-drive.ps1`):
+ten synthetic wheel bursts of 15–40 notches at 25 ms and 40 ms spacing, both directions, driven
+through both ends of the list; plus single notches and 100–200 ms bursts at each boundary. In every
+run where the cursor stayed over the browser the map region (1000×850 px right of the browser) was
+**pixel-identical** before and after (`tools/retest/compare-region.ps1`), while the list moved only
+when it had room to. Caveat for whoever repeats this: an early pass showed apparent "leaks" that
+turned out to be the physical mouse being nudged onto the map mid-burst, and one capture that was
+of a window covering the app — the driver now verifies the foreground window and the window under
+the cursor before and after every burst and reports displaced runs as invalid rather than as leaks.
+
 ## P1 — usability and accessibility blockers
 
 ### Weather Overlays contrast and control styling
 
-- [ ] Replace platform-default controls mixed into the dark dialog with theme-controlled QML
+- [x] Replace platform-default controls mixed into the dark dialog with theme-controlled QML
   controls for consistent foreground, background, border, hover, focus and disabled states.
-- [ ] Correct the low-contrast checkbox labels and status text, and make URL actions visually
+  *Implemented 2026-09-01* (`OverlayButton` / `OverlayCheckBox` / `OverlayTextField` components).
+- [x] Correct the low-contrast checkbox labels and status text, and make URL actions visually
   legible and understandable.
-- [ ] Verify dark and light themes, keyboard focus visibility, text scaling and relevant WCAG
+  *2026-09-03:* the token audit (`tools/contrast-audit.py`) found three real problems the
+  themed controls still had: the unchecked checkbox box and the empty text field were only their
+  `border`-token outline at 1.3–1.7:1 (WCAG 1.4.11 needs 3:1 for a form control's boundary), and a
+  failed placefile's row used `danger` text at 3.7:1 in Operational Dark. Outlines now use
+  `textMuted` (≥3.6:1 in both themes); a failed placefile keeps its name in `textSecondary` and
+  shows "⚠ <error>" on its own line in `warning` (≥4.7:1 on both row backgrounds, and not
+  colour-only), with an accessible name that includes the error.
+- [x] Verify dark and light themes, keyboard focus visibility, text scaling and relevant WCAG
   contrast targets.
+  *2026-09-03:* `python tools/contrast-audit.py` — 17/17 targeted pairs pass in both bundled
+  themes (4.5:1 text, 3:1 focus ring and outlines); the two informational rows (labelled-button
+  border, disabled label) are WCAG-exempt and recorded so a theme change is noticed. Text scaling
+  was not exercised in this pass.
 
 Retest: open Weather Overlays in both bundled themes and operate every control using pointer and
 keyboard, including disabled, focused and error states.
+
+Retest 2026-09-03 (packaged Release): opened the dialog in Operational Dark and Daylight; added a
+placefile from an unreachable address to produce the error row; tabbed to a button to confirm the
+2 px `primary` focus ring; exercised the disabled "Add from web" state; removed the placefile.
+Everything legible in both themes. Remaining for the next manual session: text scaling (Windows
+125 %/150 %) and a screen-reader pass over the dialog's accessible names.
 
 ### Direct pane targeting and radar-site selection
 
@@ -185,3 +249,10 @@ The next packaged test build should, at minimum, close both P0 items and the Wea
 contrast defect, include automated regression coverage, and contain a short change list mapping
 each fix to the retest steps above. The remaining P1/P2 work may ship incrementally, but its open
 status must remain visible here and in the applicable Phase 1 roadmap gates.
+
+**Status 2026-09-03:** both P0 items and the Weather Overlays contrast item are closed with the
+evidence recorded above (automated: `wxlens-app-test` 146/146, `tools/contrast-audit.py`;
+packaged: the dated retest notes). Still open before the next user test: the packaged
+Palette-sync-UI half of the palette retest, text scaling, and the P1 direct-pane-targeting /
+information-density retests, plus every gate in `docs/ROADMAP.md` "Phase 1 completion and
+release-readiness gates".

@@ -78,9 +78,20 @@ Rectangle {
                         Rectangle {
                             id: paletteChoice
                             required property string modelData
-                            width: label.implicitWidth + 16; height: 26; radius: 4
+                            // Which palette each product family currently renders with. Marked on
+                            // the chip so "which one is my velocity default right now" is visible
+                            // without applying anything.
+                            readonly property bool familyDefault:
+                                paletteManager.familyDefaultNames.indexOf(modelData) >= 0
+                            width: label.implicitWidth + 16 + (familyDefault ? 10 : 0); height: 26; radius: 4
                             color: modelData === paletteManager.activeName ? themeManager.controlActive : themeManager.control
-                            Text { id: label; anchors.centerIn: parent; text: modelData; color: themeManager.textPrimary; font.pixelSize: 10 }
+                            border.width: familyDefault ? 1 : 0
+                            border.color: themeManager.primary
+                            Row {
+                                anchors.centerIn: parent; spacing: 4
+                                Text { id: label; text: paletteChoice.modelData; color: themeManager.textPrimary; font.pixelSize: 10 }
+                                Text { visible: paletteChoice.familyDefault; text: "●"; color: themeManager.primary; font.pixelSize: 7; anchors.verticalCenter: parent.verticalCenter }
+                            }
                             MouseArea {
                                 id: paletteChoiceArea
                                 anchors.fill: parent; hoverEnabled: true
@@ -91,6 +102,9 @@ Rectangle {
                             ToolTip.visible: paletteChoiceArea.containsMouse
                             ToolTip.delay: 450
                             ToolTip.text: root.paletteDescription(modelData) +
+                                          (familyDefault ? " — current default for "
+                                               + root.paletteDescription(paletteManager.familyOf(modelData)).toLowerCase()
+                                               + " products" : "") +
                                           " — click to edit; does not apply to a pane"
                         }
                     }
@@ -167,8 +181,14 @@ Rectangle {
                         width: 216; height: 30; radius: themeManager.cornerRadius; color: themeManager.primary
                             Text { anchors.centerIn: parent; text: "Apply to product"; color: "white"; font.pixelSize: 10 }
                             MouseArea { anchors.fill: parent; preventStealing: true; onClicked: {
+                                const name = paletteManager.activeName
+                                const family = paletteManager.familyOf(name)
                                 paletteManager.applyActive()
-                                root.showNotice(paletteManager.activeName + " applied to all compatible panes")
+                                root.showNotice(family === ""
+                                    ? name + " applied — imported palettes stay editor-only until they declare a product family"
+                                    : name + " applied — now the default for "
+                                      + root.paletteDescription(family).toLowerCase()
+                                      + " products (panes with their own palette keep it)")
                             } } }
                     Row { spacing: 8
                         Rectangle { width: 104; height: 28; radius: themeManager.cornerRadius; color: themeManager.control
@@ -185,7 +205,7 @@ Rectangle {
                             Text { anchors.centerIn: parent; text: "Reset all"; color: themeManager.textPrimary; font.pixelSize: 10 }
                             MouseArea { anchors.fill: parent; preventStealing: true; onClicked: {
                                 paletteManager.requestResetAll()
-                                root.showNotice("Factory palettes restored; unchanged palettes were already original")
+                                root.showNotice("Factory palettes and product defaults restored")
                             } } }
                     }
                 }
