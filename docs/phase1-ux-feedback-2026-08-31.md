@@ -262,10 +262,13 @@ Progress:
       children rather than a misleading single button over the whole canvas).
 - [ ] Screen-reader pass with Narrator or NVDA, once the migration is complete
 
-**`Chrome/SideRail.qml` is dead code** (found 2026-09-03): it is referenced by no QML file and is
-not even listed in `app/CMakeLists.txt`'s `QML_FILES`, so it never loads. Its capabilities moved to
-`BottomControlBar` and `PaneHost` long ago. Its 4 controls are therefore excluded from the counts
-above. Delete it rather than migrating it - pending confirmation that nothing planned needs it.
+**`Chrome/SideRail.qml` was dead code, now deleted** (found 2026-09-03, removed 2026-09-04): it
+was referenced by no QML file and was not listed in `app/CMakeLists.txt`'s `QML_FILES`, so it never
+loaded. Every capability it carried - object tools, new-object scope, measurement modes and the
+1/2/4/9 grid buttons - had already moved to `BottomControlBar` and `PaneHost`, which is why the
+deletion removes no reachable behavior. Its 4 controls are excluded from the counts above. Slice
+16 (§5.4) replaced the left rail with the bottom cluster deliberately; the ROADMAP's references to
+this file are that slice's history, not a live dependency.
 
 Retest: add roles/names to the interactive controls, then drive the app with Narrator or NVDA and
 confirm every action is reachable and announced.

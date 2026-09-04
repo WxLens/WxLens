@@ -924,6 +924,75 @@ stops, so this work follows it and reuses that component — but note the *widge
 the *systems* stay separate per §0's rule: `.pal` palettes, UI themes, and place colors are three
 independent things that happen to need the same picker.
 
+### 4.10 Radar site markers — static reference data, not a new object family
+
+The bundled site database is already the app's most-used geographic fact and its least visible
+one. Choosing a site means opening a searchable list and knowing the four-letter ID or the city;
+the map itself never shows where the radars *are*. That inverts the natural question. "Which
+radar covers this storm?" is spatial, and the answer is on the map — one click away — as soon as
+the sites are drawn on it.
+
+Everything this needs already exists and must be reused rather than rebuilt:
+
+- `data::RadarSites()` returns all 205 bundled sites with coordinates, altitude and time zone;
+  `PaneGridModel::radarSites()` already publishes them to QML as a `CONSTANT` list.
+- `PaneController::pixelForCoordinate` plus the `cameraTick` re-projection pattern in
+  `MapObjectsLayer.qml` is how geographic things are anchored while each pane pans independently.
+- `SnapTargetRegistry` already treats the pane's radar site as a screen-space target (§4.4), with
+  the nearest-within-N-pixels rule this needs for hit testing.
+- The `RadarSite` sync channel and its §4.2 origin guard already propagate a site change.
+
+**One known data gap:** the loader drops the bundled JSON's `type` field, so `RadarSiteInfo` cannot
+distinguish the 160 WSR-88D sites from the 45 TDWRs. The markers need that distinction to style
+and filter them, so carry the field through the existing loader — do not read the JSON a second
+time.
+
+**This is reference data, not user analysis.** Sites are owned by the bundled database exactly as
+Level 3 storm graphics are owned by their product. They must not enter `MapObjectStore`, gain
+scope resolution, or become saved places. §4.3 exists to stop parallel object systems; it equally
+forbids laundering static data through the object store to get it drawn. Concretely, the layer
+sits **above** the radar/Level 3 product and **below** `MapObjectsLayer`, because a reference dot
+must never occlude something the user drew.
+
+**Selection must have exactly one implementation.** `SitePicker.choose()` currently sets
+`paneController.sourceKey` and then conditionally calls `centerOn` based on
+`appSettings.centerMapOnSiteChange`. A marker click needs identical behavior, and a second copy of
+that two-step will diverge the first time either half changes. Lift it into one invokable on
+`PaneController` and have the picker and the marker layer both call it. The default radar-site
+scope preference (**All panes** / **Active pane only**) already promised in the Phase 1 settings
+gate governs both entry points for the same reason.
+
+**Density is the real design problem, and zoom is the answer.** 205 markers per pane across a 3×3
+grid is 1,845 projected items, re-evaluated on every camera change — the wrong side of the line
+`MapObjectsLayer`'s own comment draws about when Qt Quick items stop being the right tool. Two
+rules keep it cheap and legible:
+
+- **Cull to the viewport before instantiating.** Publish only sites projecting inside the pane
+  (plus a margin) so the delegate count is typically under 25, not 205. Culling belongs in C++
+  next to the database, not in a QML filter that runs after the items exist.
+- **Disclose by zoom** (§5.3): dot only at continental zoom, dot + ID once sites are meaningfully
+  separated, dot + ID + place name when zoomed into one. The pane's **active** site is drawn
+  distinctly and labelled at every zoom, because that one is answering a different question.
+
+Deliberately **not** in scope: a label-collision/decluttering algorithm. Zoom thresholds plus
+active-site emphasis solve the legibility problem at a fraction of the cost, and a declutterer
+added speculatively is a permanent maintenance burden.
+
+**Clicks belong to the armed tool.** When an object tool or a measurement mode is active, a click
+on a marker must place/measure, not switch sites — and the same site points already serve as §4.4
+snap targets in that state, which is the behavior users actually want there. A click that hits no
+site must fall through to the map, or panning and object placement break.
+
+**Accessibility, honestly scoped.** 205 map-anchored tab stops would be worse than none. The
+keyboard and screen-reader path for choosing a site stays `SitePicker`, which is already
+labelled and operable; markers are a pointer affordance and an at-a-glance display. Give the
+layer one accessible summary, and do not fabricate per-marker focus.
+
+**Visibility lives with the other overlays.** A "Radar sites" toggle (and a separate TDWR filter,
+since many users want the 45 terminal radars off) belongs in the existing Weather Overlays
+surface, persisted like any other preference — which makes it part of the Phase 1 settings
+coverage gate rather than a runtime-only switch.
+
 ---
 
 ## 5. Palette/theming system design
@@ -1327,6 +1396,39 @@ sequence, and none of them is a tail-end nice-to-have:
     tree built without it is the expensive way to get here" - and slices 5–8 have each shipped
     inline controls already, so that debt is being taken on now and paid later either way. Doing
     this before slice 14 stops the queue growing and unblocks 14 and 15 at the same time.
+
+**Added 2026-09-04 from user request.** Numbered after 17 for the same cross-reference reason.
+
+18. **Clickable radar-site markers** (§4.10) — draw the bundled radar sites on each pane's map and
+    make clicking one select it for that pane. **Depends on nothing unbuilt:** the site database,
+    per-pane projection, snap-target registry, `RadarSite` sync channel and settings store all
+    exist, which is why this is a small slice rather than a subsystem. Its work is:
+    - carry the bundled JSON's `type` (`wsr88d`/`tdwr`) through the existing loader into
+      `RadarSiteInfo` — the one genuine data gap;
+    - a C++ viewport-culling source that publishes only the sites projecting into a given pane,
+      so the delegate count stays bounded (§4.10);
+    - `Panes/RadarSiteLayer.qml`, following `MapObjectsLayer`'s `cameraTick` re-projection
+      pattern, stacked above the radar/Level 3 product and below the user analysis layer;
+    - a single `PaneController` site-selection invokable that `SitePicker` and the marker layer
+      both call, so the `centerMapOnSiteChange` and default-scope behavior cannot diverge;
+    - nearest-within-tolerance hit testing via `SnapTargetRegistry` rather than per-marker
+      `MouseArea`s, with misses falling through to the map and armed tools keeping their clicks;
+    - a persisted "Radar sites" visibility toggle and TDWR filter in the Weather Overlays surface.
+
+    **Verification:** unit tests for viewport culling at several cameras, for nearest-site
+    resolution with two near-coincident sites, and for marker-selection and picker-selection
+    producing identical pane state; then a packaged visual pass at 1×1 and 2×2 with the retest
+    driver, including the armed-tool case.
+
+    **Sequencing — decide before starting.** This touches three things that are about to be
+    validated: the settings coverage gate (a new persisted preference), §4.8 acceptance (a new
+    pointer gesture and map surface), and the accessibility migration. Landing it *after* those
+    gates close means reopening them, so the recommendation is to run it **before** the acceptance
+    rerun, accepting that it adds scope to a phase we are trying to close. The alternative —
+    deferring it to Phase 2 — keeps Phase 1's boundary clean at the cost of a second acceptance
+    pass later. This is a scope decision for the project owner, recorded here rather than made
+    silently.
+
 
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
 structure, not a rigid contract — but keep the principle: each slice buildable and testable on
@@ -2428,8 +2530,9 @@ acceptance rerun.
   modifier, geometry-row visibility, map details, optional-toolbar-control visibility/order, and
   other preferences already promised elsewhere in this roadmap remain part of the same audit.
   Include the default radar-site scope (**All panes** / **Active pane only**), the explicit
-  apply-to-current-workspace action, link-menu preset default, and Level 3 tilt-label format
-  (**Angle** / **AWIPS code** / **Both**).
+  apply-to-current-workspace action, link-menu preset default, Level 3 tilt-label format
+  (**Angle** / **AWIPS code** / **Both**), and - once slice 18 lands - radar-site marker
+  visibility and the TDWR filter (§4.10).
   Do not silently resolve open question 11 while adding the floating/docked preference.
 - [ ] **Phase-wide UX and acceptance validation.** Rerun every criterion in §4.8 against the
   packaged application, including primary pointer gestures and keyboard paths, and record which
