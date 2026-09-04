@@ -77,14 +77,21 @@ function Get-App {
 }
 function Get-Rect($h) { $r = New-Object W+RECT; [W]::GetWindowRect($h, [ref]$r) | Out-Null; return $r }
 function Format-Rect($r) { "rect=$($r.Left),$($r.Top) $($r.Right - $r.Left)x$($r.Bottom - $r.Top)" }
-function Read-NewLog($path, $offset) {
+# Reads this run's log in full.
+#
+# Deliberately does NOT seek past a previously recorded offset. wxdata's file sink is a
+# rotating_file_sink with rotateOnOpen=true (external/legacy-supercell-wx wxdata/source/scwx/util/
+# logger.cpp), so every launch renames the old wxlens.log to wxlens.1.log and starts a fresh,
+# empty one. Seeking to the previous file's length therefore landed at or past EOF of the new
+# file and read nothing at all, which made the QML-error check silently inert - it reported
+# "QML-errors=0" without ever looking at a line. Because the file only ever contains the run that
+# just happened, reading the whole thing is both simpler and correct.
+function Read-RunLog($path) {
     if (-not (Test-Path -LiteralPath $path)) { return "" }
     $stream = [System.IO.File]::Open($path, [System.IO.FileMode]::Open,
                                     [System.IO.FileAccess]::Read,
                                     [System.IO.FileShare]::ReadWrite)
     try {
-        $start = [Math]::Min([int64]$offset, $stream.Length)
-        $stream.Position = $start
         $reader = [System.IO.StreamReader]::new($stream, [Text.Encoding]::UTF8, $true, 1024, $true)
         try { return $reader.ReadToEnd() } finally { $reader.Dispose() }
     } finally { $stream.Dispose() }
@@ -113,7 +120,7 @@ switch ($Action) {
         if (Get-Process -Name "wxlens-app" -ErrorAction SilentlyContinue) {
             throw "Close the running wxlens-app before the smoke test"
         }
-        $logLength = if (Test-Path -LiteralPath $LogPath) { (Get-Item -LiteralPath $LogPath).Length } else { 0 }
+        # The log rotates on open, so the file this run writes is a fresh one - no offset needed.
         $proc = Start-Process -FilePath $ExePath -PassThru
         try {
             $deadline = (Get-Date).AddSeconds(45)
@@ -128,12 +135,19 @@ switch ($Action) {
             $proc.Refresh()
             if ($proc.HasExited) { throw "wxlens-app exited after showing its window with code $($proc.ExitCode)" }
 
-            $newLog = Read-NewLog $LogPath $logLength
-            $qmlErrors = @($newLog -split "`r?`n" | Where-Object {
+            $runLog = Read-RunLog $LogPath
+            # An empty log means the check never looked at anything - report that rather than
+            # passing, which is the failure mode that made this check inert in the first place.
+            if ($runLog.Trim().Length -eq 0) {
+                throw "No log content found at $LogPath - the smoke check could not verify anything"
+            }
+            $qmlErrors = @($runLog -split "`r?`n" | Where-Object {
                 $_ -match "QML warning:|Failed to load QML application engine"
             })
             if ($qmlErrors.Count -gt 0) { throw "QML startup errors:`n$($qmlErrors -join "`n")" }
-            Write-Output ("SMOKE PASS PID=$($proc.Id) " + (Format-Rect (Get-Rect $proc.MainWindowHandle)) + " QML-errors=0")
+            $lines = @($runLog -split "`r?`n" | Where-Object { $_.Trim().Length -gt 0 }).Count
+            Write-Output ("SMOKE PASS PID=$($proc.Id) " + (Format-Rect (Get-Rect $proc.MainWindowHandle)) +
+                          " QML-errors=0 log-lines=$lines")
         } finally {
             if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
         }
