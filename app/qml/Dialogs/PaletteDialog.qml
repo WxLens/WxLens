@@ -253,10 +253,13 @@ Rectangle {
                 }
             }
             Row {
-                width: parent.width; height: parent.height - 187; spacing: 14
+                // Use the space below the actual header/filter/preview, including spacing.
+                // A fixed header allowance lets the stop list spill outside the dialog.
+                width: parent.width; height: Math.max(0, parent.height - y); spacing: 14
                 ListView {
                     id: stopList
                     width: parent.width - 250; height: parent.height; clip: true; model: paletteManager.editor
+                    ScrollBar.vertical: ScrollBar {}
                     onCurrentIndexChanged: Qt.callLater(hexInput.sync)
                     delegate: Rectangle {
                         required property real value; required property color stopColor; required property color secondColor; required property bool hasSecondColor; required property int index

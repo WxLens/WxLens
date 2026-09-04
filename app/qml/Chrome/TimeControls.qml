@@ -3,16 +3,11 @@ import QtQuick
 
 import WxLens.App
 
-Rectangle {
+Item {
     id: root
     required property var paneController
-    width: controls.width + 20
-    height: controls.height + 12
-    radius: themeManager.cornerRadius
-    color: themeManager.elevatedSurface
-    border.color: themeManager.border
-    border.width: 1
-    opacity: 0.96
+    width: controls.width
+    height: controls.height
 
     Row {
         id: controls
@@ -20,14 +15,14 @@ Rectangle {
         spacing: 6
 
         WxButton {
-            width: 52; height: 28; radius: themeManager.cornerRadius
+            width: 52; height: 32; radius: themeManager.cornerRadius
             text: "LIVE"
             name: "Use live radar data"
             highlighted: root.paneController.liveMode
             onClicked: root.paneController.selectLive()
         }
         Rectangle {
-            width: 142; height: 28; radius: themeManager.cornerRadius
+            width: 142; height: 32; radius: themeManager.cornerRadius
             color: themeManager.control; border.color: themeManager.border; border.width: 1
             TextInput {
                 id: archiveInput
@@ -43,7 +38,7 @@ Rectangle {
             }
         }
         WxButton {
-            width: 62; height: 28; radius: themeManager.cornerRadius
+            width: 62; height: 32; radius: themeManager.cornerRadius
             text: root.paneController.timeLoading ? "Loading…" : "Archive"
             name: "Load archive radar data"
             highlighted: !root.paneController.liveMode
@@ -51,13 +46,14 @@ Rectangle {
             onClicked: root.paneController.selectArchiveTime(archiveInput.text)
         }
         Rectangle {
-            width: 62; height: 28; radius: themeManager.cornerRadius
+            width: 62; height: 32; radius: themeManager.cornerRadius
             color: themeManager.control; border.color: themeManager.border; border.width: 1
             TextInput {
                 anchors.fill: parent; anchors.margins: 6
                 text: root.paneController.sourceKey
                 color: themeManager.textPrimary; selectionColor: themeManager.primary
                 font.pixelSize: 11; maximumLength: 4; horizontalAlignment: TextInput.AlignHCenter
+                verticalAlignment: TextInput.AlignVCenter
                 onAccepted: root.paneController.sourceKey = text.toUpperCase()
                 Accessible.role: Accessible.EditableText
                 Accessible.name: "Radar site identifier"

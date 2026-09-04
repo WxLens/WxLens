@@ -43,12 +43,14 @@ Rectangle {
         property bool active: false
         property color accent: themeManager.primary
         property string hint: ""
+        property alias holdInterval: area.pressAndHoldInterval
         signal triggered()
         signal held()
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
         Accessible.name: hint
         width: 32; height: 32
+        anchors.verticalCenter: parent.verticalCenter
         radius: themeManager.cornerRadius
         color: active ? themeManager.controlActive
                       : (area.containsMouse ? themeManager.controlHover : themeManager.control)
@@ -293,9 +295,13 @@ Rectangle {
 
         ToolButton {
             id: layoutButton
+            holdInterval: 300
+            readonly property bool singlePane: root.gridModel.gridWidth === 1 && root.gridModel.gridHeight === 1
+            readonly property int targetColumns: singlePane ? root.lastGridWidth : 1
+            readonly property int targetRows: singlePane ? root.lastGridHeight : 1
             active: root.layoutOpen
             width: 38
-            hint: "Pane layout. Activate to toggle the last layout; hold or press Down to choose a layout"
+            hint: "Switch to " + targetColumns + " × " + targetRows + " panes; hold or press Down to choose a layout"
             onTriggered: root.toggleLastLayout()
             onHeld: {
                 root.layoutOpen = true
@@ -313,11 +319,11 @@ Rectangle {
                 anchors.centerIn: parent
 
                 Repeater {
-                    model: root.gridModel.gridWidth * root.gridModel.gridHeight
+                    model: layoutButton.targetColumns * layoutButton.targetRows
                     Rectangle {
                         required property int index
-                        readonly property int cols: root.gridModel.gridWidth
-                        readonly property int rows: root.gridModel.gridHeight
+                        readonly property int cols: layoutButton.targetColumns
+                        readonly property int rows: layoutButton.targetRows
                         width: (22 - (cols - 1) * 2) / cols
                         height: (22 - (rows - 1) * 2) / rows
                         x: (index % cols) * (width + 2)
