@@ -2613,10 +2613,16 @@ acceptance rerun.
   implementing work owns the `updates` settings section, the first-run prompt, and the mechanism,
   and must honour this decision rather than re-deciding it.
 - [ ] **First-run usability and general polish.** Validate a new-user path from empty settings to
-  a useful live radar view; accessible names/roles, contrast, text scaling, focus visibility and
-  reduced-motion implications; complete keyboard navigation and shortcuts; actionable loading,
+  a useful live radar view; contrast, text scaling, focus visibility and reduced-motion
+  implications; complete keyboard navigation and shortcuts; actionable loading,
   empty, permission, provider-failure, corrupt-data, and offline/cache states; and recovery without
   restarting or losing the workspace. Check error messages and logs without exposing secrets.
+
+  **Screen-reader scope decision (2026-09-04):** a complete accessible-semantics audit and
+  Narrator/NVDA validation are deferred to Phase 2 and do not gate Phase 1. Existing passive
+  accessibility metadata remains harmless when no operating-system screen reader is enabled;
+  do not add an application toggle for it. Ordinary keyboard operation, visible focus, contrast
+  and text scaling remain Phase 1 requirements.
 - [x] **“WxLens” name and trademark due diligence.** Before registering domains/accounts or
   publishing broadly, search relevant software, weather, and mapping products plus applicable
   trademark databases for confusingly similar names. Record the date, jurisdictions/databases,
@@ -2675,6 +2681,11 @@ sync system as single-site panes.
 - Mosaic tiling/LOD strategy for "modest laptop" perf — likely a coarser base resolution with
   viewport-driven detail loading (standard tile-pyramid pattern). This is genuinely new
   engineering with no direct precedent in the current app.
+- Complete the application-wide screen-reader accessibility pass deferred from Phase 1: audit
+  interactive QML controls and canvas-backed selections for correct accessible names, roles,
+  state and virtual children, then validate the packaged app with Windows Narrator or NVDA.
+  Support remains passive and follows the operating-system screen-reader state; it is not an
+  in-app feature toggle and requires no WxLens preference.
 - **[OPEN QUESTION]** whether the national mosaic layer alone satisfies "see the whole storm
   across site boundaries," or whether bespoke edge-blending between adjacent single-site panes
   is still wanted. Recommend deciding after using the mosaic layer in practice, not before.

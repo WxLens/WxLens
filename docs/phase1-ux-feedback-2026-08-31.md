@@ -224,7 +224,7 @@ bridge was removed from application startup. Packaged 1280x800 retesting remains
 Retest: 1280x800, 2x2, while a sweep is being computed; confirm the status text is fully visible
 and does not overlap the attribution or the control bar.
 
-### P1 — Accessible names and roles are absent almost everywhere
+### Deferred to Phase 2 — complete screen-reader semantics and validation
 
 - [ ] A static audit of `app/qml` found **89 `MouseArea`-based controls across 17 files with no
   `Accessible.role` or `Accessible.name`**; the only accessible metadata in the entire UI is the
@@ -256,11 +256,17 @@ Progress:
       `ColorPicker` migrated 2026-09-04. Besides roles and names, the bespoke picker rows,
       geometry actions, and RGB sliders now accept keyboard input; the native text fields have
       explicit task-oriented names. Release QML compilation verifies every binding.
-- [ ] The larger surfaces remain: `PaletteDialog` (27), `SavedPlacesDialog` (14),
+- [ ] **Deferred to Phase 2 by project-owner decision on 2026-09-04.** The larger surfaces remain:
+      `PaletteDialog` (27), `SavedPlacesDialog` (14),
       `SettingsDialog` (10), `PaneHost` (8), the unfinished portion of `BottomControlBar`, and
       the canvas-backed storm selection in `Level3ProductLayer` (which needs accessible virtual
       children rather than a misleading single button over the whole canvas).
-- [ ] Screen-reader pass with Narrator or NVDA, once the migration is complete
+- [ ] **Phase 2:** screen-reader pass with Narrator or NVDA once the migration is complete.
+
+This work no longer gates Phase 1. Passive metadata already present remains in place and no
+WxLens on/off preference will be added: assistive output is naturally inactive unless the user
+enables a screen reader in the operating system. Phase 1 still owns keyboard operation, visible
+focus, contrast and text scaling.
 
 **`Chrome/SideRail.qml` was dead code, now deleted** (found 2026-09-03, removed 2026-09-04): it
 was referenced by no QML file and was not listed in `app/CMakeLists.txt`'s `QML_FILES`, so it never
@@ -479,6 +485,7 @@ with the evidence recorded above (automated: `wxlens-app-test` 151/151,
 The second retest pass that same day then found **four new defects** - see "Retest session
 2026-09-03 (second pass)" above - of which one is a new P0 (the Palette sync channel, and in fact
 every non-camera channel, has no user interface). So the next test build's bar has moved: it now
-needs the sync-UI decision plus the scaling and accessibility work, not just the three items that
-closed. The remaining `docs/ROADMAP.md` completion gates are unchanged except that the name
-screening is now closed.
+needs the sync-UI decision plus the Phase 1 scaling, keyboard and focus work, not just the three
+items that closed. The complete screen-reader semantics/validation pass was moved to Phase 2 by
+project-owner decision on 2026-09-04; the remaining `docs/ROADMAP.md` completion gates are
+unchanged except that the name screening is now closed.
