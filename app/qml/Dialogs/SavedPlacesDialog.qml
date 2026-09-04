@@ -65,10 +65,16 @@ Rectangle {
         anchors.centerIn: parent; width: Math.min(820, root.width - 40); height: Math.min(650, root.height - 40)
         radius: themeManager.cornerRadius; color: themeManager.surface; border.color: themeManager.border
         MouseArea { anchors.fill: parent }
+        DialogCloseButton {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 12
+            onClicked: root.close()
+        }
         Column {
             anchors.fill: parent; anchors.margins: 18; spacing: 10
             Row {
-                width: parent.width; spacing: 16
+                width: parent.width - 30; spacing: 16
                 Text { text: "Saved places"; color: themeManager.textPrimary; font.pixelSize: 18; font.bold: true }
                 Item { width: parent.width - 330; height: 1 }
                 Text { text: "Import"; color: themeManager.accent; MouseArea { anchors.fill: parent; onClicked: importDialog.open() } }

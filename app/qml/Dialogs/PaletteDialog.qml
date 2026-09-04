@@ -81,10 +81,16 @@ Rectangle {
             preventStealing: true
             onWheel: (wheel) => wheel.accepted = true
         }
+        DialogCloseButton {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 12
+            onClicked: root.close()
+        }
         Column {
             anchors.fill: parent; anchors.margins: 18; spacing: 12
             Row {
-                width: parent.width
+                width: parent.width - 30
                 Text { text: "Radar palette"; color: themeManager.textPrimary; font.pixelSize: 18; font.bold: true }
                 Item { width: parent.width - 300; height: 1 }
                 Text {

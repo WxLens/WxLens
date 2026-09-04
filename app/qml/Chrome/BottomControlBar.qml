@@ -44,6 +44,7 @@ Rectangle {
         property color accent: themeManager.primary
         property string hint: ""
         signal triggered()
+        signal held()
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
         Accessible.name: hint
@@ -54,8 +55,17 @@ Rectangle {
         border.color: active ? accent : themeManager.border
         MouseArea {
             id: area
+            property bool heldThisPress: false
             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: button.triggered()
+            onPressed: heldThisPress = false
+            onPressAndHold: {
+                heldThisPress = true
+                button.held()
+            }
+            onClicked: {
+                if (!heldThisPress)
+                    button.triggered()
+            }
         }
         Keys.onSpacePressed: button.triggered()
         Keys.onReturnPressed: button.triggered()
@@ -284,25 +294,37 @@ Rectangle {
         ToolButton {
             id: layoutButton
             active: root.layoutOpen
-            width: 48
-            hint: "Toggle 1×1 and last pane layout"
+            width: 38
+            hint: "Pane layout. Activate to toggle the last layout; hold or press Down to choose a layout"
             onTriggered: root.toggleLastLayout()
-            Text {
-                anchors.left: parent.left; anchors.leftMargin: 5
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.gridModel.gridWidth + "×" + root.gridModel.gridHeight
-                color: themeManager.textSecondary; font.pixelSize: 9; font.bold: true
+            onHeld: {
+                root.layoutOpen = true
+                root.analysisOpen = false
             }
-            Rectangle {
-                anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
-                width: 17; color: "transparent"
-                Text {
-                    anchors.centerIn: parent; text: root.layoutOpen ? "⌃" : "⌄"
-                    color: themeManager.textMuted; font.pixelSize: 11
-                }
-                MouseArea {
-                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.layoutOpen = !root.layoutOpen; root.analysisOpen = false }
+
+            Keys.onDownPressed: {
+                root.layoutOpen = true
+                root.analysisOpen = false
+            }
+
+            Item {
+                width: 22
+                height: 22
+                anchors.centerIn: parent
+
+                Repeater {
+                    model: root.gridModel.gridWidth * root.gridModel.gridHeight
+                    Rectangle {
+                        required property int index
+                        readonly property int cols: root.gridModel.gridWidth
+                        readonly property int rows: root.gridModel.gridHeight
+                        width: (22 - (cols - 1) * 2) / cols
+                        height: (22 - (rows - 1) * 2) / rows
+                        x: (index % cols) * (width + 2)
+                        y: Math.floor(index / cols) * (height + 2)
+                        color: layoutButton.active ? themeManager.primary : themeManager.textSecondary
+                        radius: 1
+                    }
                 }
             }
         }

@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
+import "../Controls"
 
 Popup {
     id: root
@@ -109,13 +110,18 @@ Popup {
         onAccepted: overlayManager.importWarningFile(selectedFile)
     }
 
+    DialogCloseButton {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: 12
+        onClicked: root.close()
+    }
     Column {
         anchors.fill: parent; anchors.margins: 18; spacing: 12
         Row {
-            width: parent.width
+            width: parent.width - 30
             Text { text: "Weather overlays"; color: themeManager.textPrimary; font.pixelSize: 19; font.bold: true }
             Item { width: parent.width - 190; height: 1 }
-            OverlayButton { text: "Close"; onClicked: root.close() }
         }
         Row {
             spacing: 10

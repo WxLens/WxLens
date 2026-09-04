@@ -45,13 +45,20 @@ Rectangle {
             onWheel: (wheel) => wheel.accepted = true
         }
 
+        DialogCloseButton {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 12
+            onClicked: root.close()
+        }
+
         Column {
             anchors.fill: parent
             anchors.margins: 18
             spacing: 12
 
             Row {
-                width: parent.width
+                width: parent.width - 30
                 Text {
                     text: "WxLens help and shortcuts"
                     color: themeManager.textPrimary
@@ -59,11 +66,6 @@ Rectangle {
                     font.bold: true
                 }
                 Item { width: Math.max(0, parent.width - 245); height: 1 }
-                WxButton {
-                    width: 28; height: 28; flat: true
-                    text: "×"; name: "Close help"
-                    onClicked: root.close()
-                }
             }
 
             Row {

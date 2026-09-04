@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
+import "../Controls"
 
 // The settings surface (docs/ROADMAP.md §3.2, §4.5, slice 17).
 //
@@ -95,27 +96,11 @@ Item {
             font.bold: true
         }
 
-        Item {
-            width: 24
-            height: 24
+        DialogCloseButton {
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.margins: 12
-
-            Text {
-                anchors.centerIn: parent
-                text: "✕"
-                color: closeArea.containsMouse ? themeManager.textPrimary : themeManager.textMuted
-                font.pixelSize: 13
-            }
-
-            MouseArea {
-                id: closeArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.close()
-            }
+            onClicked: root.close()
         }
 
         // ---- section list -------------------------------------------------------------------
