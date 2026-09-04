@@ -1,6 +1,7 @@
 # Drives the packaged wxlens-app for interactive retests (docs/phase1-ux-feedback-2026-08-31.md).
 # Each call is stateless - the app process is found by name - so a retest is a sequence of calls:
 #   ui-drive.ps1 launch [-Maximize] [-Settle 12]   start the app, wait for its window, settle
+#   ui-drive.ps1 smoke [-Settle 3]                 assert startup window and zero QML errors
 #   ui-drive.ps1 capture -Out name.png             DPI-aware screenshot of the whole window
 #   ui-drive.ps1 click|rclick -X 100 -Y 200        click at window-relative *physical* pixels
 #   ui-drive.ps1 wheel -X 100 -Y 200 -Notches -5 [-IntervalMs 40]   (negative = scroll down)
@@ -25,7 +26,8 @@ param(
     [switch]$Maximize,
     [int]$Settle = 0,
     [string]$ExePath = (Join-Path $PSScriptRoot "..\..\build-release-vs2026\Release\bin\wxlens-app.exe"),
-    [string]$OutDir = (Join-Path $PSScriptRoot "captures")
+    [string]$OutDir = (Join-Path $PSScriptRoot "captures"),
+    [string]$LogPath = (Join-Path $env:APPDATA "WxLens\WxLens\logs\wxlens.log")
 )
 $ErrorActionPreference = 'Stop'
 if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Path $OutDir | Out-Null }
@@ -75,6 +77,18 @@ function Get-App {
 }
 function Get-Rect($h) { $r = New-Object W+RECT; [W]::GetWindowRect($h, [ref]$r) | Out-Null; return $r }
 function Format-Rect($r) { "rect=$($r.Left),$($r.Top) $($r.Right - $r.Left)x$($r.Bottom - $r.Top)" }
+function Read-NewLog($path, $offset) {
+    if (-not (Test-Path -LiteralPath $path)) { return "" }
+    $stream = [System.IO.File]::Open($path, [System.IO.FileMode]::Open,
+                                    [System.IO.FileAccess]::Read,
+                                    [System.IO.FileShare]::ReadWrite)
+    try {
+        $start = [Math]::Min([int64]$offset, $stream.Length)
+        $stream.Position = $start
+        $reader = [System.IO.StreamReader]::new($stream, [Text.Encoding]::UTF8, $true, 1024, $true)
+        try { return $reader.ReadToEnd() } finally { $reader.Dispose() }
+    } finally { $stream.Dispose() }
+}
 function Focus-App($h) {
     for ($i = 0; $i -lt 5; $i++) {
         if ([W]::GetForegroundWindow() -eq $h) { Start-Sleep -Milliseconds 150; return }
@@ -94,6 +108,36 @@ function Move-To($h, $x, $y) {
 }
 
 switch ($Action) {
+    "smoke" {
+        if (-not (Test-Path -LiteralPath $ExePath)) { throw "Executable not found: $ExePath" }
+        if (Get-Process -Name "wxlens-app" -ErrorAction SilentlyContinue) {
+            throw "Close the running wxlens-app before the smoke test"
+        }
+        $logLength = if (Test-Path -LiteralPath $LogPath) { (Get-Item -LiteralPath $LogPath).Length } else { 0 }
+        $proc = Start-Process -FilePath $ExePath -PassThru
+        try {
+            $deadline = (Get-Date).AddSeconds(45)
+            while ((Get-Date) -lt $deadline) {
+                $proc.Refresh()
+                if ($proc.HasExited) { throw "wxlens-app exited during startup with code $($proc.ExitCode)" }
+                if ($proc.MainWindowHandle -ne 0) { break }
+                Start-Sleep -Milliseconds 300
+            }
+            if ($proc.MainWindowHandle -eq 0) { throw "No main window appeared within 45 seconds" }
+            Start-Sleep -Seconds ($(if ($Settle) { $Settle } else { 3 }))
+            $proc.Refresh()
+            if ($proc.HasExited) { throw "wxlens-app exited after showing its window with code $($proc.ExitCode)" }
+
+            $newLog = Read-NewLog $LogPath $logLength
+            $qmlErrors = @($newLog -split "`r?`n" | Where-Object {
+                $_ -match "QML warning:|Failed to load QML application engine"
+            })
+            if ($qmlErrors.Count -gt 0) { throw "QML startup errors:`n$($qmlErrors -join "`n")" }
+            Write-Output ("SMOKE PASS PID=$($proc.Id) " + (Format-Rect (Get-Rect $proc.MainWindowHandle)) + " QML-errors=0")
+        } finally {
+            if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+        }
+    }
     "launch" {
         $proc = Start-Process -FilePath $ExePath -PassThru
         $deadline = (Get-Date).AddSeconds(45)

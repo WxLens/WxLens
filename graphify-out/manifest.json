@@ -54,9 +54,9 @@
     "semantic_hash": ""
   },
   "app/source/wxlens/main/main.cpp": {
-    "mtime": 1788478350.2949452,
-    "seen": 1788479042.8156466,
-    "ast_hash": "5a9d27da9a152e9e3fc093e2f0267928",
+    "mtime": 1788526935.3430283,
+    "seen": 1788527472.3870158,
+    "ast_hash": "98fe728c46a79c779ac9760ce8c4c2f2",
     "semantic_hash": ""
   },
   "app/source/wxlens/objects/map_object.hpp": {
@@ -540,9 +540,9 @@
     "semantic_hash": ""
   },
   "app/CMakeLists.txt": {
-    "mtime": 1788492386.0852056,
-    "seen": 1788493183.9552348,
-    "ast_hash": "dd156b4f2bf6fcddbb10803b16443e3a",
+    "mtime": 1788526935.8986485,
+    "seen": 1788527472.3871136,
+    "ast_hash": "54fd5ae5f0ac737c763d0ff668057d61",
     "semantic_hash": ""
   },
   "docs/ROADMAP.md": {
@@ -5562,9 +5562,9 @@
     "semantic_hash": ""
   },
   "tools/retest/ui-drive.ps1": {
-    "mtime": 1788438523.8505073,
-    "seen": 1788438571.3444836,
-    "ast_hash": "e85c19b1054864dbcfb6fe54a262811f",
+    "mtime": 1788527839.979103,
+    "seen": 1788527876.072727,
+    "ast_hash": "1f2b204f0ec868c8c4ab221d33d8cb30",
     "semantic_hash": ""
   },
   "docs/name-screening-2026-09-03.md": {

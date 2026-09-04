@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-04T12:47:29.485841+00:00",
+  "generated_at": "2026-09-04T13:11:12.554165+00:00",
   "nodes": {
     "app_source_wxlens_palettes_palette_manager_palettemanager": {
       "code_fingerprint": "667c462ca826ca25acbd8b154a4b88930319f252996c22ddf14cfaef85e23b90",
@@ -27,7 +27,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 3.765935191,
+      "score": 3.764502322,
       "source_file": "app/source/wxlens/palettes/palette_manager.hpp",
       "status": "preferred",
       "uses": 4
@@ -43,7 +43,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 0.932376847,
+      "score": 0.932022095,
       "source_file": "app/source/wxlens/panes/pane_controller.cpp",
       "status": "tentative",
       "uses": 1
@@ -64,7 +64,7 @@
           "q": "Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?"
         }
       ],
-      "score": 1.886487396,
+      "score": 1.885769623,
       "source_file": "app/source/wxlens/panes/pane_grid_model.hpp",
       "status": "preferred",
       "uses": 2
@@ -80,7 +80,7 @@
           "q": "Address second manual UX feedback round and explain remaining acceptance checks"
         }
       ],
-      "score": 0.955553167,
+      "score": 0.955189596,
       "source_file": "app/source/wxlens/products/level3_graphic_overlay.hpp",
       "status": "tentative",
       "uses": 1
@@ -101,7 +101,7 @@
           "q": "Why is WxLens velocity less vivid than RadarOmega and how should palette buttons be categorized without mixing radar fields?"
         }
       ],
-      "score": 1.865109376,
+      "score": 1.864399736,
       "source_file": "app/source/wxlens/products/radar_sweep_product.hpp",
       "status": "preferred",
       "uses": 2
@@ -117,7 +117,7 @@
           "q": "Address second manual UX feedback round and explain remaining acceptance checks"
         }
       ],
-      "score": 0.955553167,
+      "score": 0.955189596,
       "source_file": "app/source/wxlens/settings/app_settings.hpp",
       "status": "tentative",
       "uses": 1
@@ -133,7 +133,7 @@
           "q": "Fix the Weather Overlays contrast problem."
         }
       ],
-      "score": 0.92427401,
+      "score": 0.923922341,
       "source_file": "app/source/wxlens/theme/theme_manager.cpp",
       "status": "tentative",
       "uses": 1
@@ -149,7 +149,7 @@
           "q": "what is next"
         }
       ],
-      "score": 0.919530964,
+      "score": 0.919181099,
       "source_file": "docs/phase1-acceptance-2026-08-30.md",
       "status": "tentative",
       "uses": 1
@@ -165,7 +165,7 @@
           "q": "Is stage one complete"
         }
       ],
-      "score": 0.965574232,
+      "score": 0.965206849,
       "source_file": "docs/phase1-acceptance-2026-08-30.md",
       "status": "tentative",
       "uses": 1
@@ -181,7 +181,7 @@
           "q": "Is stage one complete"
         }
       ],
-      "score": 0.965574232,
+      "score": 0.965206849,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
       "status": "tentative",
       "uses": 1
@@ -197,7 +197,7 @@
           "q": "Fix the Weather Overlays contrast problem."
         }
       ],
-      "score": 0.92427401,
+      "score": 0.923922341,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
       "status": "tentative",
       "uses": 1
@@ -213,7 +213,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 0.902355332,
+      "score": 0.902012002,
       "source_file": "docs/ROADMAP.md",
       "status": "tentative",
       "uses": 1
@@ -229,7 +229,7 @@
           "q": "Could WxLens support two windows on separate monitors, with a 2x2 layout on one and 1x1 on the other, all panes linked, and how hard would that be?"
         }
       ],
-      "score": 0.941214747,
+      "score": 0.940856633,
       "source_file": "docs/ROADMAP.md",
       "status": "tentative",
       "uses": 1
@@ -255,7 +255,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 2.787460528,
+      "score": 2.78639995,
       "source_file": "docs/ROADMAP.md",
       "status": "preferred",
       "uses": 3
@@ -276,7 +276,7 @@
           "q": "OK, so what is the next step in this process?"
         }
       ],
-      "score": 1.821886295,
+      "score": 1.821193101,
       "source_file": "docs/ROADMAP.md",
       "status": "preferred",
       "uses": 2
