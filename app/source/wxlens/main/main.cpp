@@ -21,6 +21,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQmlError>
+#include <QQuickStyle>
 #include <QQuickWindow>
 #include <QScreen>
 #include <QSurfaceFormat>
@@ -93,6 +94,14 @@ int main(int argc, char* argv[])
    QSurfaceFormat surfaceFormat = QSurfaceFormat::defaultFormat();
    surfaceFormat.setSamples(4);
    QSurfaceFormat::setDefaultFormat(surfaceFormat);
+
+   // Qt Quick Controls defaults to the platform's native style on Windows, and a native style
+   // *silently refuses* every contentItem/background/indicator customization - the controls in
+   // OverlaysDialog were being drawn as native Windows widgets no matter what the theme said, and
+   // Qt only says so through a qWarning nothing was capturing. Basic is the neutral, fully
+   // customizable style, which is what this app wants: every other control it draws is a themed
+   // Rectangle, so there is no native look to preserve.
+   QQuickStyle::setStyle(QStringLiteral("Basic"));
 
    QGuiApplication app(argc, argv);
    QGuiApplication::setApplicationName("WxLens");

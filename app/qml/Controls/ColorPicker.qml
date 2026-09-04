@@ -69,8 +69,16 @@ Rectangle {
                     Keys.onDownPressed: setChannel(channelValue - 1)
                     Keys.onRightPressed: setChannel(channelValue + 1)
                     Keys.onUpPressed: setChannel(channelValue + 1)
-                    Keys.onHomePressed: setChannel(0)
-                    Keys.onEndPressed: setChannel(255)
+                    // Keys has no onHome/onEndPressed handler (only the arrows, Space, Return,
+                    // Enter, Escape, Tab, Backtab, Delete and the digits), so the jump-to-limit
+                    // keys go through the generic handler. Page Up/Down step by ten, which is the
+                    // conventional coarse step for a 0-255 slider.
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_Home) { setChannel(0); event.accepted = true }
+                        else if (event.key === Qt.Key_End) { setChannel(255); event.accepted = true }
+                        else if (event.key === Qt.Key_PageDown) { setChannel(channelValue - 10); event.accepted = true }
+                        else if (event.key === Qt.Key_PageUp) { setChannel(channelValue + 10); event.accepted = true }
+                    }
                 }
             }
         }

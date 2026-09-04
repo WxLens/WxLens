@@ -15,7 +15,7 @@ Rectangle {
     property string text: ""
     property string detail: ""
     property bool selected: false
-    property bool enabled: true
+    // See WxButton: Item already provides `enabled`, and redeclaring it shadows the base member.
     property string name: root.detail === "" ? root.text : root.text + ", " + root.detail
 
     signal triggered()

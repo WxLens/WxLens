@@ -2,6 +2,8 @@
 import QtQuick
 import QtQuick.Controls
 
+import WxLens.App
+
 Rectangle {
     id: root
     required property var paneController

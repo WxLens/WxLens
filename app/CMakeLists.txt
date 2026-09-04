@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(wxlens-app CXX)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick OpenGL Network)
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 OpenGL Network)
 qt_standard_project_setup(REQUIRES 6.5)
 
 # Boost::timer/Boost::json are used by wxdata (boost::timer::cpu_timer in
@@ -159,6 +159,7 @@ set_target_properties(wxlens-app PROPERTIES
 
 target_link_libraries(wxlens-app PRIVATE
     Qt6::Quick
+    Qt6::QuickControls2
     Qt6::OpenGL
     Qt6::Network
     wxdata

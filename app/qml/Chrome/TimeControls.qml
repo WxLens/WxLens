@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
 
+import WxLens.App
+
 Rectangle {
     id: root
     required property var paneController

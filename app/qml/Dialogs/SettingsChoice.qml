@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
 
+import WxLens.App
+
 // A labelled one-of-N choice for the settings surface.
 //
 // Segmented buttons rather than a dropdown: every one of these has three or fewer options, and a

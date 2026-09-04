@@ -29,7 +29,9 @@ Rectangle {
     property string tooltip: root.description
     property bool flat: false
     property bool highlighted: false
-    property bool enabled: true
+    // No `enabled` property here: Item already has one, and redeclaring it shadowed the base
+    // member (qt.qml.propertyCache warned about exactly that) while also breaking the automatic
+    // propagation that disables child items.
     property alias hovered: mouseArea.containsMouse
     property alias font: label.font
     property int horizontalPadding: 12
