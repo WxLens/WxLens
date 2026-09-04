@@ -938,8 +938,9 @@ Everything this needs already exists and must be reused rather than rebuilt:
   `PaneGridModel::radarSites()` already publishes them to QML as a `CONSTANT` list.
 - `PaneController::pixelForCoordinate` plus the `cameraTick` re-projection pattern in
   `MapObjectsLayer.qml` is how geographic things are anchored while each pane pans independently.
-- `SnapTargetRegistry` already treats the pane's radar site as a screen-space target (§4.4), with
-  the nearest-within-N-pixels rule this needs for hit testing.
+- `SnapTargetRegistry` already treats the pane's radar site as a screen-space target (§4.4), and
+  its nearest-within-N-pixels rule is the model for marker hit testing - but see below for why
+  the two must not share one resolver.
 - The `RadarSite` sync channel and its §4.2 origin guard already propagate a site change.
 
 **One known data gap:** the loader drops the bundled JSON's `type` field, so `RadarSiteInfo` cannot
@@ -954,13 +955,29 @@ forbids laundering static data through the object store to get it drawn. Concret
 sits **above** the radar/Level 3 product and **below** `MapObjectsLayer`, because a reference dot
 must never occlude something the user drew.
 
+**Assign every pane layer an explicit `z`** rather than relying on declaration order. Auditing the
+stack for this slice found the invariant already violated: `Level3ProductLayer` carries `z: 3`
+while `WeatherOverlaysLayer`, `MapObjectsLayer` and `MeasurementLayer` carry none, so
+meteorological storm graphics currently paint *above* the user's own objects - the opposite of what
+the locked stack and that file's own comment state. Declaration order silently stopped governing
+the stack the moment one layer took a `z`. The order is: weather overlays, Level 3 product graphics,
+radar site markers, user analysis objects, in-progress measurement.
+
 **Selection must have exactly one implementation.** `SitePicker.choose()` currently sets
 `paneController.sourceKey` and then conditionally calls `centerOn` based on
 `appSettings.centerMapOnSiteChange`. A marker click needs identical behavior, and a second copy of
-that two-step will diverge the first time either half changes. Lift it into one invokable on
-`PaneController` and have the picker and the marker layer both call it. The default radar-site
-scope preference (**All panes** / **Active pane only**) already promised in the Phase 1 settings
-gate governs both entry points for the same reason.
+that two-step will diverge the first time either half changes. Lift it into one invokable and have
+the picker and the marker layer both call it.
+
+That invokable belongs on **`PaneGridModel`, not `PaneController`** (corrected 2026-09-04 - an
+earlier draft of this section said `PaneController`). §4.6's audit note forbids radar-specific
+state on a pane, and resolving a *radar site id* to coordinates is exactly that; `PaneGridModel`
+already owns the site list for `radarSites()`, and it is where `centerMapOnSiteChange` can be
+mirrored from settings using the connection pattern `ObjectToolController` already uses for its
+own default. It must **reject an unknown id and change nothing** rather than writing `sourceKey`
+and then having no valid coordinates to recentre on - a half-applied selection is worse than a
+refused one. The default radar-site scope preference (**All panes** / **Active pane only**)
+already promised in the Phase 1 settings gate governs both entry points for the same reason.
 
 **Density is the real design problem, and zoom is the answer.** 205 markers per pane across a 3×3
 grid is 1,845 projected items, re-evaluated on every camera change — the wrong side of the line
@@ -1403,22 +1420,38 @@ sequence, and none of them is a tail-end nice-to-have:
     make clicking one select it for that pane. **Depends on nothing unbuilt:** the site database,
     per-pane projection, snap-target registry, `RadarSite` sync channel and settings store all
     exist, which is why this is a small slice rather than a subsystem. Its work is:
-    - carry the bundled JSON's `type` (`wsr88d`/`tdwr`) through the existing loader into
-      `RadarSiteInfo` — the one genuine data gap;
+    - carry the bundled JSON's `type` through the existing loader into `RadarSiteInfo` — the one
+      genuine data gap — as a C++ enum internally and a stable lowercase string (`"wsr88d"`,
+      `"tdwr"`, `"unknown"`) where it crosses into QML, so the wire format does not move when the
+      enum gains a member. Exposing it does not by itself change `SitePicker`, whose delegate
+      renders only ID, name, region and country: this slice additionally folds the type into the
+      picker's `searchText` so typing "tdwr" filters, and badges TDWR rows only — badging all 160
+      WSR-88D rows would be noise;
     - a C++ viewport-culling source that publishes only the sites projecting into a given pane,
       so the delegate count stays bounded (§4.10);
     - `Panes/RadarSiteLayer.qml`, following `MapObjectsLayer`'s `cameraTick` re-projection
       pattern, stacked above the radar/Level 3 product and below the user analysis layer;
-    - a single `PaneController` site-selection invokable that `SitePicker` and the marker layer
-      both call, so the `centerMapOnSiteChange` and default-scope behavior cannot diverge;
-    - nearest-within-tolerance hit testing via `SnapTargetRegistry` rather than per-marker
-      `MouseArea`s, with misses falling through to the map and armed tools keeping their clicks;
+    - a single `PaneGridModel` site-selection invokable (§4.10 — *not* `PaneController`, which
+      §4.6 forbids to hold radar-specific state) that `SitePicker` and the marker layer both call,
+      so the `centerMapOnSiteChange` and default-scope behavior cannot diverge, and which refuses
+      an unknown site id rather than half-applying it;
+    - nearest-within-tolerance hit testing owned by the marker source rather than by
+      `SnapTargetRegistry` or per-marker `MouseArea`s. **These are deliberately different
+      populations:** snapping a measurement to a site that is not drawn is legitimate and useful,
+      while *clicking* one is a bug, so sharing a resolver would force marker visibility and the
+      TDWR filter onto measurement snapping where neither belongs. Ties resolve to the nearest
+      site, then to the lexicographically smallest site id, so a result never depends on database
+      order. A click that hits nothing falls through to the map, and an armed tool keeps its
+      clicks;
     - a persisted "Radar sites" visibility toggle and TDWR filter in the Weather Overlays surface.
 
-    **Verification:** unit tests for viewport culling at several cameras, for nearest-site
-    resolution with two near-coincident sites, and for marker-selection and picker-selection
-    producing identical pane state; then a packaged visual pass at 1×1 and 2×2 with the retest
-    driver, including the armed-tool case.
+    **Verification:** unit tests for viewport culling at several cameras — explicitly including
+    the margin boundary, where a marker just outside the visible rectangle is kept and one beyond
+    the margin is dropped, since that edge is where culling bugs hide — for nearest-site resolution
+    with two near-coincident sites and for the id tiebreak, for a rejected unknown site id leaving
+    pane state untouched, and for marker-selection and picker-selection producing identical pane
+    state; then a packaged visual pass at 1×1 and 2×2 with the retest driver, including the
+    armed-tool case.
 
     **Sequencing — decided 2026-09-04 (project owner): runs before the Phase 1 acceptance
     rerun.** This touches three things that are about to be validated: the settings coverage gate
