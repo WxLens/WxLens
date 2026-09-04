@@ -1,7 +1,7 @@
 # Graph Report - WxLens  (2026-09-04)
 
 ## Corpus Check
-- 117 files · ~135,451 words
+- 117 files · ~135,338 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `06360bb4`
+- Built from commit: `b909252a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -657,11 +657,11 @@ Nodes (5): FitWindowToScreen(), main(), logger, QWindow, shared_ptr
 ## Work-memory lessons
 
 **Preferred sources** — corroborated by past sessions; start here.
-- `PaletteManager` (4× useful, score=3.767379521)
-- `Phase 1 completion and release-readiness gates` (3× useful, score=2.788529588)
-- `PaneGridModel` (2× useful, score=1.887210911)
-- `ColorTableLut` (2× useful, score=1.865824691)
-- `Remaining Phase 1 Level 3 sub-slices` (2× useful, score=1.822585034)
+- `PaletteManager` (4× useful, score=3.799178968)
+- `Phase 1 completion and release-readiness gates` (3× useful, score=2.812066824)
+- `PaneGridModel` (2× useful, score=1.903140356)
+- `ColorTableLut` (2× useful, score=1.881573621)
+- `Remaining Phase 1 Level 3 sub-slices` (2× useful, score=1.837968989)
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

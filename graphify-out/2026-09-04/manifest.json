@@ -540,9 +540,9 @@
     "semantic_hash": ""
   },
   "app/CMakeLists.txt": {
-    "mtime": 1788354993.6381333,
-    "seen": 1788355963.4083679,
-    "ast_hash": "c21c86ecbab9fbb595d1ca221d37daf0",
+    "mtime": 1788492386.0852056,
+    "seen": 1788493183.9552348,
+    "ast_hash": "dd156b4f2bf6fcddbb10803b16443e3a",
     "semantic_hash": ""
   },
   "docs/ROADMAP.md": {
@@ -642,9 +642,9 @@
     "semantic_hash": ""
   },
   "docs/phase1-ux-feedback-2026-08-31.md": {
-    "mtime": 1788478923.0165167,
-    "seen": 1788479042.815888,
-    "ast_hash": "3098b8990ff75d276855db4652c31681",
+    "mtime": 1788524587.2812579,
+    "seen": 1788524615.2803142,
+    "ast_hash": "ebf2cd66c596370b5848a955fa7b2fd1",
     "semantic_hash": ""
   },
   "app/source/wxlens/palettes/palette_defaults.hpp": {

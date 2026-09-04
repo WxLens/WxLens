@@ -54,9 +54,9 @@
     "semantic_hash": ""
   },
   "app/source/wxlens/main/main.cpp": {
-    "mtime": 1788467469.853879,
-    "seen": 1788468420.2108142,
-    "ast_hash": "a98d8bf03a91e0a4a5b00d2d09e2d44b",
+    "mtime": 1788478350.2949452,
+    "seen": 1788479042.8156466,
+    "ast_hash": "5a9d27da9a152e9e3fc093e2f0267928",
     "semantic_hash": ""
   },
   "app/source/wxlens/objects/map_object.hpp": {
@@ -138,15 +138,15 @@
     "semantic_hash": ""
   },
   "app/source/wxlens/palettes/palette_manager.cpp": {
-    "mtime": 1788453505.044852,
-    "seen": 1788455878.5507586,
-    "ast_hash": "17990bf97685ae60c0f863c50fc33fd7",
+    "mtime": 1788475689.5638545,
+    "seen": 1788479042.8156905,
+    "ast_hash": "a2708002de592328f52bd31b7b86eb3d",
     "semantic_hash": ""
   },
   "app/source/wxlens/palettes/palette_manager.hpp": {
-    "mtime": 1788453385.4643433,
-    "seen": 1788455878.5507603,
-    "ast_hash": "cd84afd242787a916e5f3675b0c8c3ee",
+    "mtime": 1788475580.8915956,
+    "seen": 1788479042.8156931,
+    "ast_hash": "a4a4704ca7d3242fc3ae6d570d0bea4a",
     "semantic_hash": ""
   },
   "app/source/wxlens/palettes/palette_model.cpp": {
@@ -294,15 +294,15 @@
     "semantic_hash": ""
   },
   "app/source/wxlens/settings/app_settings.cpp": {
-    "mtime": 1788453507.3453813,
-    "seen": 1788455878.5508006,
-    "ast_hash": "ece0a33f04366437ac509735c25054ef",
+    "mtime": 1788491766.2202764,
+    "seen": 1788492265.846855,
+    "ast_hash": "229f80a9604db24618f77455c4b5d3cf",
     "semantic_hash": ""
   },
   "app/source/wxlens/settings/app_settings.hpp": {
-    "mtime": 1788453506.2706628,
-    "seen": 1788455878.550802,
-    "ast_hash": "bebd67bdeeb3271899fc08100d18ec17",
+    "mtime": 1788491736.9386544,
+    "seen": 1788492265.846857,
+    "ast_hash": "db3701ef807c797aa130488cb637ddbd",
     "semantic_hash": ""
   },
   "app/source/wxlens/settings/settings_store.cpp": {
@@ -366,15 +366,15 @@
     "semantic_hash": ""
   },
   "app/source/wxlens/util/unit_format.cpp": {
-    "mtime": 1787948901.1908364,
-    "seen": 1788140712.139918,
-    "ast_hash": "8f87c990dbb31fe96945f98bd7c4ed35",
+    "mtime": 1788491691.0899508,
+    "seen": 1788492265.8468738,
+    "ast_hash": "4bee16b98f5547711238a7cb473c72a3",
     "semantic_hash": ""
   },
   "app/source/wxlens/util/unit_format.hpp": {
-    "mtime": 1787948901.1898363,
-    "seen": 1788140712.1399193,
-    "ast_hash": "4fd45ab7399dafeb80e6860377d2ab7e",
+    "mtime": 1788491647.4527771,
+    "seen": 1788492265.846875,
+    "ast_hash": "68b449e55cf0cc029e4fe4558181d8eb",
     "semantic_hash": ""
   },
   "conanfile.py": {
@@ -420,9 +420,9 @@
     "semantic_hash": ""
   },
   "test/source/wxlens/palettes/palette_manager.test.cpp": {
-    "mtime": 1788453727.9797697,
-    "seen": 1788455878.5508265,
-    "ast_hash": "17fb611442d5d47ed68f6e1cca9f590d",
+    "mtime": 1788477406.1855776,
+    "seen": 1788479042.815805,
+    "ast_hash": "9a8be5673b9ca720531bf8ca61212b6a",
     "semantic_hash": ""
   },
   "test/source/wxlens/palettes/palette_model.test.cpp": {
@@ -540,15 +540,15 @@
     "semantic_hash": ""
   },
   "app/CMakeLists.txt": {
-    "mtime": 1788354993.6381333,
-    "seen": 1788355963.4083679,
-    "ast_hash": "c21c86ecbab9fbb595d1ca221d37daf0",
+    "mtime": 1788492386.0852056,
+    "seen": 1788493183.9552348,
+    "ast_hash": "dd156b4f2bf6fcddbb10803b16443e3a",
     "semantic_hash": ""
   },
   "docs/ROADMAP.md": {
-    "mtime": 1788453967.1894538,
-    "seen": 1788455878.55086,
-    "ast_hash": "3db1773807f83e29beb6d15529cd506e",
+    "mtime": 1788492230.8292158,
+    "seen": 1788492265.8469303,
+    "ast_hash": "017ff33b0fcf2f905e8014b30feee79a",
     "semantic_hash": ""
   },
   "docs/adr/0001-qt-quick-over-web-shell.md": {
@@ -642,9 +642,9 @@
     "semantic_hash": ""
   },
   "docs/phase1-ux-feedback-2026-08-31.md": {
-    "mtime": 1788467471.365698,
-    "seen": 1788468420.2111087,
-    "ast_hash": "4f12126c3ebe3f1a0f312981b5f9dc5c",
+    "mtime": 1788525492.007002,
+    "seen": 1788525514.3034112,
+    "ast_hash": "f1d66b3ede97a5035aec6441216d345b",
     "semantic_hash": ""
   },
   "app/source/wxlens/palettes/palette_defaults.hpp": {
@@ -5571,6 +5571,12 @@
     "mtime": 1788453928.222099,
     "seen": 1788455878.5508692,
     "ast_hash": "85ecdc479b9a5cd8209fd23bf3d9387f",
+    "semantic_hash": ""
+  },
+  "test/source/wxlens/util/unit_format.test.cpp": {
+    "mtime": 1788491905.357217,
+    "seen": 1788492265.8469083,
+    "ast_hash": "8ae44f4978468603717c668fa762a534",
     "semantic_hash": ""
   }
 }

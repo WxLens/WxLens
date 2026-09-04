@@ -15836,7 +15836,7 @@
       "node_kind": "heading",
       "norm_label": "definition of ready for the next user test",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L396"
+      "source_location": "L451"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_direct_pane_targeting_and_radar_site_selection",
@@ -15848,7 +15848,7 @@
       "node_kind": "heading",
       "norm_label": "direct pane targeting and radar-site selection",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L301"
+      "source_location": "L344"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_measurement_tool_preferences_and_radar_value_reader",
@@ -15860,7 +15860,7 @@
       "node_kind": "heading",
       "norm_label": "measurement tool preferences and radar-value reader",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L375"
+      "source_location": "L430"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_minimal_and_customizable_persistent_chrome",
@@ -15872,7 +15872,7 @@
       "node_kind": "heading",
       "norm_label": "minimal and customizable persistent chrome",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L353"
+      "source_location": "L408"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_p0_correctness_and_interaction_defects",
@@ -15908,7 +15908,7 @@
       "node_kind": "heading",
       "norm_label": "p1 \u2014 accessible names and roles are absent almost everywhere",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L211"
+      "source_location": "L227"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_p1_bottom_control_bar_is_unreachable_at_increased_text_scaling",
@@ -15920,7 +15920,7 @@
       "node_kind": "heading",
       "norm_label": "p1 \u2014 bottom control bar is unreachable at increased text scaling",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L166"
+      "source_location": "L182"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_p1_clipped_status_text_at_1280x800",
@@ -15932,7 +15932,7 @@
       "node_kind": "heading",
       "norm_label": "p1 \u2014 clipped status text at 1280x800",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L197"
+      "source_location": "L213"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_p1_imported_palettes_were_matched_by_unit_spelling_not_by_quantity_found_2026_09_03",
@@ -15944,7 +15944,7 @@
       "node_kind": "heading",
       "norm_label": "p1 \u2014 imported palettes were matched by unit spelling, not by quantity (found 2026-09-03)",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L240"
+      "source_location": "L283"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_p1_palette_tests_ran_against_palettes_the_application_does_not_ship_found_2026_09_03",
@@ -15956,7 +15956,7 @@
       "node_kind": "heading",
       "norm_label": "p1 \u2014 palette tests ran against palettes the application does not ship (found 2026-09-03)",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L226"
+      "source_location": "L269"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_p1_usability_and_accessibility_blockers",
@@ -15968,7 +15968,7 @@
       "node_kind": "heading",
       "norm_label": "p1 \u2014 usability and accessibility blockers",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L268"
+      "source_location": "L311"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_p2_progressive_disclosure_and_expert_efficiency",
@@ -15980,7 +15980,7 @@
       "node_kind": "heading",
       "norm_label": "p2 \u2014 progressive disclosure and expert efficiency",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L335"
+      "source_location": "L390"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_pane_and_top_bar_information_density",
@@ -15992,7 +15992,7 @@
       "node_kind": "heading",
       "norm_label": "pane and top-bar information density",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L323"
+      "source_location": "L378"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_phase_1_packaged_ux_feedback_2026_08_31",
@@ -16052,7 +16052,7 @@
       "node_kind": "heading",
       "norm_label": "retest results \u2014 what passed",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L255"
+      "source_location": "L298"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_retest_session_2026_09_03_second_pass_new_defects_found",
@@ -16076,7 +16076,7 @@
       "node_kind": "heading",
       "norm_label": "searchable, grouped product browser",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L337"
+      "source_location": "L392"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_top_bar_secondary_action_row_disappears_after_maximizing_found_2026_09_02",
@@ -16100,7 +16100,7 @@
       "node_kind": "heading",
       "norm_label": "weather overlays contrast and control styling",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L270"
+      "source_location": "L313"
     },
     {
       "id": "app_source_wxlens_products_level3_raster_product_cartesianpackets_family",
@@ -54326,7 +54326,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L270",
+      "source_location": "L313",
       "weight": 1.0
     },
     {
@@ -54337,7 +54337,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L301",
+      "source_location": "L344",
       "weight": 1.0
     },
     {
@@ -54348,7 +54348,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L323",
+      "source_location": "L378",
       "weight": 1.0
     },
     {
@@ -54359,7 +54359,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L337",
+      "source_location": "L392",
       "weight": 1.0
     },
     {
@@ -54370,7 +54370,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L353",
+      "source_location": "L408",
       "weight": 1.0
     },
     {
@@ -54381,7 +54381,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L375",
+      "source_location": "L430",
       "weight": 1.0
     },
     {
@@ -54414,7 +54414,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L268",
+      "source_location": "L311",
       "weight": 1.0
     },
     {
@@ -54425,7 +54425,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L335",
+      "source_location": "L390",
       "weight": 1.0
     },
     {
@@ -54436,7 +54436,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L396",
+      "source_location": "L451",
       "weight": 1.0
     },
     {
@@ -54469,7 +54469,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L166",
+      "source_location": "L182",
       "weight": 1.0
     },
     {
@@ -54480,7 +54480,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L197",
+      "source_location": "L213",
       "weight": 1.0
     },
     {
@@ -54491,7 +54491,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L211",
+      "source_location": "L227",
       "weight": 1.0
     },
     {
@@ -54502,7 +54502,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L226",
+      "source_location": "L269",
       "weight": 1.0
     },
     {
@@ -54513,7 +54513,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L240",
+      "source_location": "L283",
       "weight": 1.0
     },
     {
@@ -54524,7 +54524,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L255",
+      "source_location": "L298",
       "weight": 1.0
     },
     {
@@ -59486,5 +59486,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "462f36391f38f4e1c3dec1a13898f5fe26c70ea3"
+  "built_at_commit": "b909252a4400fe0d1cb0105f62ba8a7040561dc8"
 }
