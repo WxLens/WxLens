@@ -117,6 +117,7 @@ constexpr int kMeasurementGestureMax = static_cast<int>(AppSettings::Measurement
 constexpr int kPreferredMeasurementToolMax = 2;
 constexpr int kSnapStrengthMax = static_cast<int>(AppSettings::SnapStrength::Strong);
 constexpr int kDistanceUnitsMax      = static_cast<int>(AppSettings::DistanceUnits::Imperial);
+constexpr int kVelocityUnitsMax = static_cast<int>(AppSettings::VelocityUnits::MetersPerSecond);
 constexpr int kMapThemeMax           = static_cast<int>(AppSettings::MapTheme::Light);
 constexpr int kMapDetailsPresetMax = static_cast<int>(AppSettings::MapDetailsPreset::Custom);
 constexpr int kScopeKindMax = static_cast<int>(objects::MapObjectScopeKind::AllPanes);
@@ -133,6 +134,12 @@ public:
    /// Keeps util::unit_format in step with the stored preference. unit_format deliberately does
    /// not depend on settings (it is a Qt-only formatting util used by tests without a config
    /// store), so the dependency runs this way round: settings pushes into it.
+   void ApplyVelocityUnits() const
+   {
+      util::SetVelocityUnitPreference(
+         static_cast<util::VelocityUnitPreference>(velocityUnits_));
+   }
+
    void ApplyDistanceUnits() const
    {
       util::SetDistanceUnitPreference(
@@ -146,6 +153,7 @@ public:
    int snapStrength_ {static_cast<int>(SnapStrength::Subtle)};
    int defaultObjectScope_ {static_cast<int>(objects::MapObjectScopeKind::CurrentPaneOnly)};
    int distanceUnits_ {static_cast<int>(DistanceUnits::Both)};
+   int velocityUnits_ {static_cast<int>(VelocityUnits::MilesPerHour)};
    int mapTheme_ {static_cast<int>(MapTheme::FollowChrome)};
    bool controlBarDocked_ {false};
    bool centerMapOnSiteChange_ {true};
@@ -178,6 +186,11 @@ void AppSettings::Impl::Load()
                     0,
                     kScopeKindMax);
 
+   velocityUnits_ = store_.GetInt(kUnitsCategory,
+                                  QStringLiteral("velocity"),
+                                  static_cast<int>(VelocityUnits::MilesPerHour),
+                                  0,
+                                  kVelocityUnitsMax);
    distanceUnits_ = store_.GetInt(kUnitsCategory,
                                   QStringLiteral("distance"),
                                   static_cast<int>(DistanceUnits::Both),
@@ -223,6 +236,7 @@ void AppSettings::Impl::Load()
    }
 
    ApplyDistanceUnits();
+   ApplyVelocityUnits();
 }
 
 AppSettings::AppSettings(SettingsStore& store, QObject* parent) :
@@ -261,6 +275,25 @@ int AppSettings::defaultObjectScope() const
 int AppSettings::distanceUnits() const
 {
    return p->distanceUnits_;
+}
+
+int AppSettings::velocityUnits() const
+{
+   return p->velocityUnits_;
+}
+
+void AppSettings::setVelocityUnits(int units)
+{
+   if (units < 0 || units > kVelocityUnitsMax || units == p->velocityUnits_)
+   {
+      return;
+   }
+
+   p->velocityUnits_ = units;
+   p->ApplyVelocityUnits();
+   p->store_.SetInt(kUnitsCategory, QStringLiteral("velocity"), units);
+   p->store_.Save();
+   Q_EMIT velocityUnitsChanged();
 }
 
 int AppSettings::mapTheme() const
@@ -339,6 +372,7 @@ void AppSettings::setDistanceUnits(int units)
    p->store_.Save();
 
    Q_EMIT distanceUnitsChanged();
+   Q_EMIT velocityUnitsChanged();
 }
 
 void AppSettings::setMapTheme(int theme)
@@ -591,6 +625,8 @@ void AppSettings::resetToDefaults()
                         kOperationalMapDetails[i]);
    }
    p->store_.SetInt(kUnitsCategory, QStringLiteral("distance"), static_cast<int>(DistanceUnits::Both));
+   p->store_.SetInt(
+      kUnitsCategory, QStringLiteral("velocity"), static_cast<int>(VelocityUnits::MilesPerHour));
 
    for (const GeometryRow& row : kGeometryRows)
    {
@@ -606,6 +642,7 @@ void AppSettings::resetToDefaults()
    Q_EMIT snapStrengthChanged();
    Q_EMIT defaultObjectScopeChanged();
    Q_EMIT distanceUnitsChanged();
+   Q_EMIT velocityUnitsChanged();
    Q_EMIT mapThemeChanged();
    Q_EMIT controlBarDockedChanged();
    Q_EMIT centerMapOnSiteChangeChanged();

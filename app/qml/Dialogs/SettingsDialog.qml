@@ -398,6 +398,21 @@ Item {
                     onSelected: (index) => appSettings.distanceUnits = index
                 }
 
+                SettingsChoice {
+                    visible: root.currentSection === "units"
+                    width: contentColumn.width
+                    label: "Velocity"
+                    explanation: "Applies to velocity readouts. One unit at a time, not two: a " +
+                                 "readout sits beside a colour calibrated in a single unit, and " +
+                                 "two numbers there invites reading the wrong one. The bundled " +
+                                 "velocity palette is in mph; knots is the NWS convention. " +
+                                 "Palettes keep their own declared units either way."
+                    options: ["Miles per hour", "Knots", "Kilometres per hour", "Metres per second"]
+                    currentIndex: (typeof appSettings !== "undefined" && appSettings !== null)
+                        ? appSettings.velocityUnits : 0
+                    onSelected: (index) => appSettings.velocityUnits = index
+                }
+
                 // -- Radar geometry -----------------------------------------------------------
                 Column {
                     visible: root.currentSection === "radar-geometry"

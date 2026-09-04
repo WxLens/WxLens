@@ -2449,11 +2449,11 @@ acceptance rerun.
   Integrated graphics are implied by that CPU class, so the renderer's baselines must hold without
   a discrete GPU. Baselines gathered on the development machine are *reference numbers only* and
   do not close this gate.
-- [ ] **Packaging, release, and update readiness.** Exercise clean-machine installation and
-  uninstall/repair behavior; verify runtime dependency and license/attribution packaging; expand
-  CI across supported configurations; define artifact signing/versioning and release-channel
-  mechanics; and make an explicit, documented decision about installation and update behavior.
-  A developer-tree executable or deploy-folder smoke test alone is not release readiness.
+- **Packaging, release, and update readiness — moved out of Phase 1** (2026-09-03). Now the
+  Release-prep milestone below. It gated Phase 1 on calendar-bound external things (certificate
+  issuance, a clean machine, CI runners) rather than on the quality of the code Phase 2 builds on,
+  so it stalled architecture work for reasons unrelated to the software. Nothing is dropped; the
+  work is sequenced separately and its decisions are already recorded there.
 
   **Update behavior decided 2026-09-03:** ask the end user, defaulting to automatic updates. The
   first-run path offers the choice, the preference is persisted like any other setting, and
@@ -2480,6 +2480,36 @@ acceptance rerun.
 **Completion rule:** Phase 1 closes only when the Level 3 completion rule and every gate above
 has evidence in the repository (tests, CI/release configuration, or a dated validation record),
 with any consciously deferred limitation named and accepted rather than silently omitted.
+
+#### Release prep (runs alongside Phase 1+; does not gate it)
+
+Split out of the Phase 1 gates on 2026-09-03. This work is paced by things outside the codebase,
+and none of it constrains the architecture later phases build on, so it proceeds on its own
+schedule. It **does** gate publishing a build to anyone who is not the developer.
+
+Decisions taken 2026-09-03 (owner: project owner; WxLens is to be a free product, which is why
+cost is weighted heavily here):
+
+- **Code signing — ship unsigned for now.** Windows SmartScreen will show an "unknown publisher"
+  prompt that users must click through, which is accepted. Revisit if the audience grows beyond
+  people who were told where the download came from; the cheapest legitimate path at that point is
+  a managed signing service rather than an EV certificate, whose only real advantage is immediate
+  SmartScreen reputation that matters at a download volume this project does not have.
+- **Installer — Inno Setup, with a portable ZIP alongside.** Gives the uninstall behaviour the
+  gate requires, scripts easily in CI, and is well-trodden for Qt + `windeployqt`. MSIX was
+  rejected because its sandbox fights an OpenGL application that reads and writes user config and
+  `.pal` files from arbitrary paths; MSI/WiX is enterprise complexity with no audience here.
+- **Updates — automatic check, manual apply.** The app checks for a newer version on its own and
+  tells the user; the user chooses when to install. This delivers the intent ("the user should not
+  have to remember to check") without privilege elevation, rollback and delta-update machinery
+  that only pay off with an installed base. Full background auto-update stays a later option, and
+  the preference that controls it ships with the mechanism, not before it.
+
+- [ ] Clean-machine installation, uninstall and repair behaviour.
+- [ ] Runtime dependency and license/attribution packaging (ACKNOWLEDGEMENTS.md ships with the app).
+- [ ] CI across supported configurations.
+- [ ] Artifact versioning and release-channel mechanics.
+- [ ] Implement the update check and its preference together.
 
 ### Phase 2 — Multi-site mesh/mosaic radar
 **Goal:** see whole storm systems across individual radar site coverage boundaries.

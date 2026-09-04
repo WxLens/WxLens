@@ -848,15 +848,20 @@ Rectangle {
             anchors.left: parent.left; anchors.right: parent.right
             anchors.top: parent.top; anchors.margins: 6
             Repeater {
+                // "Palette only" is deliberately absent. The Palette sync channel works and is
+                // covered by PaneSyncTest/PanePaletteTest, but nothing in the UI can give a pane a
+                // palette of its own yet - the only palette change a user can make is the family
+                // default, which already reaches every pane of that field whether linked or not.
+                // Offering the preset would put a control in the menu that provably does nothing
+                // (verified in the packaged app, 2026-09-03). Restore it together with the
+                // per-pane palette override; `setSyncPreset` already accepts "palette".
                 model: [
                     {label:"Independent", preset:"independent", group:0},
                     {label:"Map view only · A", preset:"map", group:1},
                     {label:"Map view + radar site · A", preset:"map-site", group:1},
-                    {label:"Palette only · A", preset:"palette", group:1},
                     {label:"Everything · A", preset:"all", group:1},
                     {label:"Map view only · B", preset:"map", group:2},
                     {label:"Map view + radar site · B", preset:"map-site", group:2},
-                    {label:"Palette only · B", preset:"palette", group:2},
                     {label:"Everything · B", preset:"all", group:2}
                 ]
                 delegate: Rectangle {

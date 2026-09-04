@@ -52,6 +52,8 @@ class AppSettings : public QObject
    /// Distance/altitude unit display (§4.4's deferred unit preference).
    Q_PROPERTY(
       int distanceUnits READ distanceUnits WRITE setDistanceUnits NOTIFY distanceUnitsChanged)
+   Q_PROPERTY(
+      int velocityUnits READ velocityUnits WRITE setVelocityUnits NOTIFY velocityUnitsChanged)
 
    /// Basemap appearance: follow the chrome by default, or force dark/light independently.
    Q_PROPERTY(int mapTheme READ mapTheme WRITE setMapTheme NOTIFY mapThemeChanged)
@@ -96,6 +98,20 @@ public:
    };
    Q_ENUM(DistanceUnits)
 
+   /**
+    * How velocities are spelled out in readouts. Mirrors util::VelocityUnitPreference; the
+    * bundled DV ramp is in mph, which is the default, but knots is the meteorological convention
+    * and several bundled ramps use it, so the choice is the user's.
+    */
+   enum class VelocityUnits
+   {
+      MilesPerHour = 0,
+      Knots,
+      KilometersPerHour,
+      MetersPerSecond
+   };
+   Q_ENUM(VelocityUnits)
+
    enum class SnapStrength
    {
       Off = 0,
@@ -135,6 +151,7 @@ public:
    [[nodiscard]] double snapTolerancePixels() const;
    [[nodiscard]] int defaultObjectScope() const;
    [[nodiscard]] int distanceUnits() const;
+   [[nodiscard]] int velocityUnits() const;
    [[nodiscard]] int mapTheme() const;
    [[nodiscard]] bool controlBarDocked() const;
    [[nodiscard]] bool centerMapOnSiteChange() const;
@@ -145,6 +162,7 @@ public:
    void setSnapStrength(int strength);
    void setDefaultObjectScope(int scopeKind);
    void setDistanceUnits(int units);
+   void setVelocityUnits(int units);
    void setMapTheme(int theme);
    void setControlBarDocked(bool docked);
    void setCenterMapOnSiteChange(bool enabled);
@@ -190,6 +208,7 @@ signals:
    void snapStrengthChanged();
    void defaultObjectScopeChanged();
    void distanceUnitsChanged();
+   void velocityUnitsChanged();
    void mapThemeChanged();
    void controlBarDockedChanged();
    void centerMapOnSiteChangeChanged();

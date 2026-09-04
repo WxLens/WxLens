@@ -125,6 +125,7 @@ add_executable(wxlens-app-test
     source/wxlens/settings/app_settings.test.cpp
     source/wxlens/theme/theme_manager.test.cpp
     source/wxlens/util/radar_geometry.test.cpp
+    source/wxlens/util/unit_format.test.cpp
 
     ${WXLENS_APP_SRC}/data/radar_site_data_service.cpp
     ${WXLENS_APP_SRC}/data/radar_site_database.cpp
