@@ -1420,14 +1420,15 @@ sequence, and none of them is a tail-end nice-to-have:
     producing identical pane state; then a packaged visual pass at 1×1 and 2×2 with the retest
     driver, including the armed-tool case.
 
-    **Sequencing — decide before starting.** This touches three things that are about to be
-    validated: the settings coverage gate (a new persisted preference), §4.8 acceptance (a new
-    pointer gesture and map surface), and the accessibility migration. Landing it *after* those
-    gates close means reopening them, so the recommendation is to run it **before** the acceptance
-    rerun, accepting that it adds scope to a phase we are trying to close. The alternative —
-    deferring it to Phase 2 — keeps Phase 1's boundary clean at the cost of a second acceptance
-    pass later. This is a scope decision for the project owner, recorded here rather than made
-    silently.
+    **Sequencing — decided 2026-09-04 (project owner): runs before the Phase 1 acceptance
+    rerun.** This touches three things that are about to be validated: the settings coverage gate
+    (a new persisted preference), §4.8 acceptance (a new pointer gesture and map surface), and the
+    accessibility migration. Landing it after those gates close would reopen all three, so it is
+    deliberately accepted as added scope in a phase being closed, in exchange for a single
+    acceptance pass. The rejected alternative — deferring to Phase 2 — kept Phase 1's boundary
+    clean but bought a second full acceptance pass. Consequence to honour: the marker layer's
+    accessible summary belongs in the accessibility migration's file list, and its two preferences
+    in the settings gate's audit, before either is signed off.
 
 
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
