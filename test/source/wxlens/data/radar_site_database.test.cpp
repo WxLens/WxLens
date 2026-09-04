@@ -28,6 +28,15 @@ TEST(RadarSiteDatabaseTest, KnownSiteResolves)
    EXPECT_NEAR(site->latitude, 35.3334, 0.001);
    EXPECT_NEAR(site->longitude, -97.2778, 0.001);
    EXPECT_EQ(site->timeZoneId, "America/Chicago");
+   EXPECT_EQ(site->type, RadarSiteType::Wsr88d);
+}
+
+TEST(RadarSiteDatabaseTest, TdwrTypeIsPreserved)
+{
+   const auto site = FindRadarSite("TATL");
+   ASSERT_TRUE(site.has_value());
+   EXPECT_EQ(site->type, RadarSiteType::Tdwr);
+   EXPECT_STREQ(RadarSiteTypeName(site->type), "tdwr");
 }
 
 TEST(RadarSiteDatabaseTest, UnknownSiteResolvesToNothing)

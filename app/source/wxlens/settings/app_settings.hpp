@@ -61,6 +61,12 @@ class AppSettings : public QObject
                  controlBarDockedChanged)
    Q_PROPERTY(bool centerMapOnSiteChange READ centerMapOnSiteChange WRITE setCenterMapOnSiteChange
                  NOTIFY centerMapOnSiteChangeChanged)
+   Q_PROPERTY(int radarSiteScope READ radarSiteScope WRITE setRadarSiteScope NOTIFY
+                 radarSiteScopeChanged)
+   Q_PROPERTY(bool radarSitesVisible READ radarSitesVisible WRITE setRadarSitesVisible NOTIFY
+                 radarSitesVisibleChanged)
+   Q_PROPERTY(bool tdwrSitesVisible READ tdwrSitesVisible WRITE setTdwrSitesVisible NOTIFY
+                 tdwrSitesVisibleChanged)
 
    Q_PROPERTY(int mapDetailsPreset READ mapDetailsPreset WRITE setMapDetailsPreset NOTIFY
                  mapDetailsChanged)
@@ -137,6 +143,9 @@ public:
    };
    Q_ENUM(MapDetailsPreset)
 
+   enum class RadarSiteScope { AllPanes = 0, ActivePaneOnly };
+   Q_ENUM(RadarSiteScope)
+
    explicit AppSettings(SettingsStore& store, QObject* parent = nullptr);
    ~AppSettings() override;
 
@@ -155,6 +164,9 @@ public:
    [[nodiscard]] int mapTheme() const;
    [[nodiscard]] bool controlBarDocked() const;
    [[nodiscard]] bool centerMapOnSiteChange() const;
+   [[nodiscard]] int radarSiteScope() const;
+   [[nodiscard]] bool radarSitesVisible() const;
+   [[nodiscard]] bool tdwrSitesVisible() const;
    [[nodiscard]] int mapDetailsPreset() const;
 
    void setMeasurementGesture(int gesture);
@@ -166,6 +178,9 @@ public:
    void setMapTheme(int theme);
    void setControlBarDocked(bool docked);
    void setCenterMapOnSiteChange(bool enabled);
+   void setRadarSiteScope(int scope);
+   void setRadarSitesVisible(bool visible);
+   void setTdwrSitesVisible(bool visible);
    void setMapDetailsPreset(int preset);
 
    [[nodiscard]] QVariantList mapDetailGroups() const;
@@ -212,6 +227,9 @@ signals:
    void mapThemeChanged();
    void controlBarDockedChanged();
    void centerMapOnSiteChangeChanged();
+   void radarSiteScopeChanged();
+   void radarSitesVisibleChanged();
+   void tdwrSitesVisibleChanged();
    void mapDetailsChanged();
    void toolbarActionsChanged();
    void geometryRowsChanged();

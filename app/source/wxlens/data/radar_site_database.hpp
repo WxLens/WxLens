@@ -9,12 +9,22 @@ namespace wxlens
 namespace data
 {
 
+enum class RadarSiteType
+{
+   Unknown = 0,
+   Wsr88d,
+   Tdwr
+};
+
+[[nodiscard]] const char* RadarSiteTypeName(RadarSiteType type);
+
 struct RadarSiteInfo
 {
    std::string id;
    std::string place;
    std::string state;
    std::string country;
+   RadarSiteType type {RadarSiteType::Unknown};
    double      latitude;
    double      longitude;
 

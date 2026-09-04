@@ -119,6 +119,7 @@ public:
    QMetaObject::Connection catalogReadyConnection_ {};
    QMetaObject::Connection catalogLoadingConnection_ {};
    QMetaObject::Connection catalogFailedConnection_ {};
+   QMetaObject::Connection mapChangedConnection_ {};
 
    // Borrowed, not owned: MapQuickItem's unique_ptr owns this. Cleared when the map goes away so
    // the projection helpers cannot outlive it.
@@ -129,6 +130,7 @@ public:
    double zoom_ {kDefaultZoom};
    double bearing_ {0.0};
    double pitch_ {0.0};
+   bool projectionRefreshPending_ {false};
 };
 
 void PaneController::Impl::RebindProduct()
@@ -694,6 +696,7 @@ void PaneController::centerOn(double latitude, double longitude, double zoom)
    p->centerLatitude_  = latitude;
    p->centerLongitude_ = longitude;
    p->zoom_            = zoom;
+   p->projectionRefreshPending_ = true;
    Q_EMIT cameraChanged();
    Q_EMIT cameraSynced();
    if (locationChanged)
@@ -1073,6 +1076,7 @@ void PaneController::applyChannelValue(SyncChannel     channel,
    if (channel == SyncChannel::Location || channel == SyncChannel::Zoom ||
        channel == SyncChannel::Bearing || channel == SyncChannel::Pitch)
    {
+      p->projectionRefreshPending_ = true;
       Q_EMIT cameraChanged();
 
       // Separate from cameraChanged so the view can distinguish "your own gesture moved this"
@@ -1103,7 +1107,24 @@ void PaneController::attachLayers(QMapLibre::Map* map)
    QQmlEngine::setObjectOwnership(map, QQmlEngine::CppOwnership);
 
    // Kept for the projection helpers, which the QML object overlay needs on every frame.
+   QObject::disconnect(p->mapChangedConnection_);
    p->map_ = map;
+   p->mapChangedConnection_ = QObject::connect(
+      map, &QMapLibre::Map::mapChanged, this,
+      [this](QMapLibre::Map::MapChange change)
+      {
+         // Programmatic QML camera writes are deferred until MapQuickItem's render sync. Its
+         // coordinateChanged/zoomLevelChanged signals therefore cause one projection against the
+         // old camera. RegionDidChange is emitted after setCoordinateZoom reaches the core map,
+         // giving every geographic overlay a final tick against the camera actually on screen.
+         if (p->projectionRefreshPending_ &&
+             (change == QMapLibre::Map::MapChangeRegionDidChange ||
+              change == QMapLibre::Map::MapChangeRegionDidChangeAnimated))
+         {
+            p->projectionRefreshPending_ = false;
+            Q_EMIT projectionChanged();
+         }
+      });
    p->ConnectProductSignals(this);
 
    logger_->info("Pane {} registering replaceable radar sweep layer", p->paneId_);

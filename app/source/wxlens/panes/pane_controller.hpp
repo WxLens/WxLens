@@ -259,6 +259,12 @@ signals:
    void productCatalogChanged();
    void paletteChanged();
    void cameraChanged();
+   /**
+    * The attached map has applied a camera change to its projection. MapQuickItem's QML camera
+    * properties change before the underlying QMapLibre::Map is synchronized on the render pass,
+    * so geographic overlays must use this signal for their final re-projection.
+    */
+   void projectionChanged();
    void syncGroupsChanged();
 
    /**

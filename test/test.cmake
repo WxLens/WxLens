@@ -107,6 +107,7 @@ set(WXLENS_APP_SRC ${WXLENS_DIR}/app/source/wxlens)
 add_executable(wxlens-app-test
     source/wxlens/app_test_main.cpp
     source/wxlens/data/radar_site_database.test.cpp
+    source/wxlens/data/radar_site_marker_source.test.cpp
     source/wxlens/objects/map_object_scope.test.cpp
     source/wxlens/objects/measurement.test.cpp
     source/wxlens/objects/saved_place_manager.test.cpp
@@ -129,6 +130,7 @@ add_executable(wxlens-app-test
 
     ${WXLENS_APP_SRC}/data/radar_site_data_service.cpp
     ${WXLENS_APP_SRC}/data/radar_site_database.cpp
+    ${WXLENS_APP_SRC}/data/radar_site_marker_source.cpp
     ${WXLENS_APP_SRC}/log/logger.cpp
     ${WXLENS_APP_SRC}/objects/map_object.hpp
     ${WXLENS_APP_SRC}/objects/map_object_store.cpp

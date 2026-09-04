@@ -161,6 +161,14 @@ Rectangle {
                 }
                 root.applyingSync = false
             }
+
+            // MapLibre applies imperative QML camera assignments during its next render sync,
+            // after the property-change handlers above have already fired. Re-project once the
+            // core map confirms that camera so overlays cannot remain at stale pixel positions.
+            function onProjectionChanged() {
+                objectsLayer.cameraTick++
+                level3Layer.cameraTick++
+            }
         }
 
         // Registers this pane's Visualization Layer(s). Must wait for styleLoaded, not just
@@ -210,12 +218,23 @@ Rectangle {
         manager: typeof overlayManager !== "undefined" ? overlayManager : null
         cameraTick: objectsLayer.cameraTick
         visible: root.hasController
+        z: 1
     }
 
     Level3ProductLayer {
         id: level3Layer
         anchors.fill: parent
         paneController: root.paneController
+        z: 2
+    }
+
+    RadarSiteLayer {
+        id: radarSiteLayer
+        anchors.fill: parent
+        paneController: root.paneController
+        cameraTick: objectsLayer.cameraTick
+        toolsArmed: root.placementActive || root.measuringActive
+        visible: root.hasController && appSettings.radarSitesVisible
         z: 3
     }
 
@@ -227,6 +246,7 @@ Rectangle {
         paneController: root.paneController
         objectStore: typeof mapObjectStore !== "undefined" ? mapObjectStore : null
         visible: root.hasController
+        z: 4
     }
 
     // The in-progress measurement (docs/ROADMAP.md §4.4). Drawn separately from MapObjectsLayer
@@ -239,6 +259,7 @@ Rectangle {
         controller: typeof measurementTool !== "undefined" ? measurementTool : null
         cameraTick: objectsLayer.cameraTick
         visible: root.hasController
+        z: 5
     }
 
     // Tier-1 drawing preview. Geographic vertices live in ObjectToolController; this item only
@@ -246,6 +267,7 @@ Rectangle {
     Shape {
         anchors.fill: parent
         visible: objectTools.activeTool === 3 && objectTools.drawingActive
+        z: 5
         preferredRendererType: Shape.CurveRenderer
         ShapePath {
             strokeColor: themeManager.warning

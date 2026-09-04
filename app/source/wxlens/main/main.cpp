@@ -1,3 +1,4 @@
+#include <wxlens/data/radar_site_marker_source.hpp>
 #include <wxlens/log/logger.hpp>
 #include <wxlens/objects/map_object_store.hpp>
 #include <wxlens/objects/measurement_controller.hpp>
@@ -201,6 +202,16 @@ int main(int argc, char* argv[])
    // slice 17). Constructed before the controllers that read defaults from it.
    wxlens::settings::AppSettings appSettings {wxlens::settings::SettingsStore::Instance()};
    engine.rootContext()->setContextProperty("appSettings", &appSettings);
+   paneGridModel.setCenterMapOnSiteChange(appSettings.centerMapOnSiteChange());
+   paneGridModel.setRadarSiteScope(appSettings.radarSiteScope());
+   QObject::connect(&appSettings, &wxlens::settings::AppSettings::centerMapOnSiteChangeChanged,
+                    &paneGridModel, [&]() { paneGridModel.setCenterMapOnSiteChange(
+                                             appSettings.centerMapOnSiteChange()); });
+   QObject::connect(&appSettings, &wxlens::settings::AppSettings::radarSiteScopeChanged,
+                    &paneGridModel, [&]() { paneGridModel.setRadarSiteScope(
+                                             appSettings.radarSiteScope()); });
+   wxlens::data::RadarSiteMarkerSource radarSiteMarkers;
+   engine.rootContext()->setContextProperty("radarSiteMarkers", &radarSiteMarkers);
    wxlens::theme::ThemeManager themeManager {wxlens::settings::SettingsStore::Instance()};
    engine.rootContext()->setContextProperty("themeManager", &themeManager);
 

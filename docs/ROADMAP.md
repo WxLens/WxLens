@@ -1463,6 +1463,20 @@ sequence, and none of them is a tail-end nice-to-have:
     accessible summary belongs in the accessibility migration's file list, and its two preferences
     in the settings gate's audit, before either is signed off.
 
+    **IMPLEMENTED (2026-09-04):** the bundled loader now preserves a typed WSR-88D/TDWR identity
+    and exposes its stable lowercase form to QML. `RadarSiteMarkerSource` performs viewport-plus-
+    margin culling and deterministic nearest-marker hit testing in C++; `RadarSiteLayer.qml`
+    renders the bounded result per pane with zoom-disclosed labels, active-site emphasis, one
+    accessible layer summary, and armed-tool click precedence. Picker and marker selection both
+    call the validating `PaneGridModel::selectRadarSite` path, including the persisted all-panes
+    versus active-pane scope and centre-on-change behavior. Weather Overlays now persists marker
+    visibility and its independent TDWR filter, and the full pane layer stack has explicit z
+    values. Release app/QML-cache compilation and all 163 WxLens C++ model tests pass; an
+    eight-second packaged launch smoke test loaded the 205-site database and real KEAX sweep
+    without QML warnings. A packaged 1x1/2x2 visual gesture pass, including click fall-through
+    and the armed-tool case, remains part of the next acceptance rerun rather than being claimed
+    from compilation.
+
 
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
 structure, not a rigid contract — but keep the principle: each slice buildable and testable on

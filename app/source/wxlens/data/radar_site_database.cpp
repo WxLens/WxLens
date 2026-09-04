@@ -22,7 +22,26 @@ namespace
 /// The bundled site list records altitude in feet - see RadarSiteInfo::altitudeMslMeters and the
 /// FindRadarSite comment for how that was established and why it matters.
 constexpr double kMetersPerFoot = 0.3048;
+
+RadarSiteType ParseSiteType(const QString& value)
+{
+   if (value.compare(QStringLiteral("wsr88d"), Qt::CaseInsensitive) == 0)
+      return RadarSiteType::Wsr88d;
+   if (value.compare(QStringLiteral("tdwr"), Qt::CaseInsensitive) == 0)
+      return RadarSiteType::Tdwr;
+   return RadarSiteType::Unknown;
+}
 } // namespace
+
+const char* RadarSiteTypeName(RadarSiteType type)
+{
+   switch (type)
+   {
+   case RadarSiteType::Wsr88d: return "wsr88d";
+   case RadarSiteType::Tdwr: return "tdwr";
+   default: return "unknown";
+   }
+}
 
 static const std::map<std::string, RadarSiteInfo>& Sites()
 {
@@ -53,6 +72,7 @@ static const std::map<std::string, RadarSiteInfo>& Sites()
          site.place             = obj.value("place").toString().toStdString();
          site.state             = obj.value("state").toString().toStdString();
          site.country           = obj.value("country").toString().toStdString();
+         site.type              = ParseSiteType(obj.value("type").toString());
          site.latitude          = obj.value("lat").toDouble();
          site.longitude         = obj.value("lon").toDouble();
          site.altitudeMslMeters = obj.value("elevation").toDouble() * kMetersPerFoot;

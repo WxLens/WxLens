@@ -123,6 +123,11 @@ Popup {
             OverlayButton { text: overlayManager.refreshingWarnings ? "Refreshing…" : "Refresh live"; enabled: !overlayManager.refreshingWarnings; onClicked: overlayManager.refreshWarnings() }
             OverlayButton { text: "Import file"; onClicked: warningPicker.open() }
         }
+        Row {
+            spacing: 10
+            OverlayCheckBox { text: "Radar sites"; checked: appSettings.radarSitesVisible; onToggled: appSettings.radarSitesVisible = checked }
+            OverlayCheckBox { text: "Include TDWR"; enabled: appSettings.radarSitesVisible; checked: appSettings.tdwrSitesVisible; onToggled: appSettings.tdwrSitesVisible = checked }
+        }
         Rectangle { width: parent.width; height: 1; color: themeManager.border }
         Row {
             spacing: 10

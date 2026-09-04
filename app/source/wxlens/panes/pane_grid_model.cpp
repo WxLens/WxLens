@@ -84,6 +84,8 @@ public:
    int     nextPaneId_ {0};
    int     syncRevision_ {0};
    int     activePaneIndex_ {0};
+   bool    centerMapOnSiteChange_ {true};
+   int     radarSiteScope_ {0}; // AppSettings::RadarSiteScope::AllPanes
 
    std::vector<std::unique_ptr<PaneController>> panes_;
 };
@@ -133,6 +135,7 @@ QVariantList PaneGridModel::radarSites() const
       item[QStringLiteral("name")] = QString::fromStdString(site.place);
       item[QStringLiteral("region")] = QString::fromStdString(site.state);
       item[QStringLiteral("country")] = QString::fromStdString(site.country);
+      item[QStringLiteral("type")] = QString::fromLatin1(data::RadarSiteTypeName(site.type));
       const QString regionName = RegionName(site.country, site.state);
       item[QStringLiteral("regionName")] = regionName;
       item[QStringLiteral("searchText")] =
@@ -143,6 +146,7 @@ QVariantList PaneGridModel::radarSites() const
                  regionName,
                  QString::fromStdString(site.country),
                  CountryName(site.country))
+            .append(QStringLiteral(" %1").arg(QString::fromLatin1(data::RadarSiteTypeName(site.type))))
             .toLower();
       item[QStringLiteral("latitude")] = site.latitude;
       item[QStringLiteral("longitude")] = site.longitude;
@@ -150,6 +154,27 @@ QVariantList PaneGridModel::radarSites() const
    }
    return result;
 }
+
+bool PaneGridModel::selectRadarSite(QObject* object, const QString& siteId)
+{
+   auto* selectedPane = qobject_cast<PaneController*>(object);
+   const auto site = data::FindRadarSite(siteId.toUpper().toStdString());
+   if (!selectedPane || !site) return false;
+
+   const int visibleCount = p->gridWidth_ * p->gridHeight_;
+   for (int i = 0; i < visibleCount; ++i)
+   {
+      PaneController* pane = p->panes_[static_cast<std::size_t>(i)].get();
+      if (p->radarSiteScope_ != 0 && pane != selectedPane) continue;
+      pane->setSourceKey(QString::fromStdString(site->id));
+      if (p->centerMapOnSiteChange_)
+         pane->centerOn(site->latitude, site->longitude, 7.0);
+   }
+   return true;
+}
+
+void PaneGridModel::setCenterMapOnSiteChange(bool enabled) { p->centerMapOnSiteChange_ = enabled; }
+void PaneGridModel::setRadarSiteScope(int scope) { p->radarSiteScope_ = scope == 1 ? 1 : 0; }
 
 void PaneGridModel::setActivePaneIndex(int index)
 {

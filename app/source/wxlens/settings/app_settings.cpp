@@ -121,6 +121,7 @@ constexpr int kVelocityUnitsMax = static_cast<int>(AppSettings::VelocityUnits::M
 constexpr int kMapThemeMax           = static_cast<int>(AppSettings::MapTheme::Light);
 constexpr int kMapDetailsPresetMax = static_cast<int>(AppSettings::MapDetailsPreset::Custom);
 constexpr int kScopeKindMax = static_cast<int>(objects::MapObjectScopeKind::AllPanes);
+constexpr int kRadarSiteScopeMax = static_cast<int>(AppSettings::RadarSiteScope::ActivePaneOnly);
 
 } // namespace
 
@@ -157,6 +158,9 @@ public:
    int mapTheme_ {static_cast<int>(MapTheme::FollowChrome)};
    bool controlBarDocked_ {false};
    bool centerMapOnSiteChange_ {true};
+   int radarSiteScope_ {static_cast<int>(RadarSiteScope::AllPanes)};
+   bool radarSitesVisible_ {true};
+   bool tdwrSitesVisible_ {true};
    int mapDetailsPreset_ {static_cast<int>(MapDetailsPreset::Operational)};
    std::map<QString, bool> mapDetailVisible_ {};
 
@@ -206,6 +210,11 @@ void AppSettings::Impl::Load()
       kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
    centerMapOnSiteChange_ =
       store_.GetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), true);
+   radarSiteScope_ = store_.GetInt(kRadarCategory, QStringLiteral("site_scope"),
+                                   static_cast<int>(RadarSiteScope::AllPanes), 0,
+                                   kRadarSiteScopeMax);
+   radarSitesVisible_ = store_.GetBool(kRadarCategory, QStringLiteral("show_sites"), true);
+   tdwrSitesVisible_ = store_.GetBool(kRadarCategory, QStringLiteral("show_tdwr"), true);
    toolbarActionVisible_.clear();
    for (const ToolbarAction& action : kToolbarActions)
    {
@@ -303,6 +312,9 @@ int AppSettings::mapTheme() const
 
 bool AppSettings::controlBarDocked() const { return p->controlBarDocked_; }
 bool AppSettings::centerMapOnSiteChange() const { return p->centerMapOnSiteChange_; }
+int AppSettings::radarSiteScope() const { return p->radarSiteScope_; }
+bool AppSettings::radarSitesVisible() const { return p->radarSitesVisible_; }
+bool AppSettings::tdwrSitesVisible() const { return p->tdwrSitesVisible_; }
 
 int AppSettings::mapDetailsPreset() const
 {
@@ -406,6 +418,33 @@ void AppSettings::setCenterMapOnSiteChange(bool enabled)
    p->store_.SetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), enabled);
    p->store_.Save();
    Q_EMIT centerMapOnSiteChangeChanged();
+}
+
+void AppSettings::setRadarSiteScope(int scope)
+{
+   if (scope < 0 || scope > kRadarSiteScopeMax || scope == p->radarSiteScope_) return;
+   p->radarSiteScope_ = scope;
+   p->store_.SetInt(kRadarCategory, QStringLiteral("site_scope"), scope);
+   p->store_.Save();
+   Q_EMIT radarSiteScopeChanged();
+}
+
+void AppSettings::setRadarSitesVisible(bool visible)
+{
+   if (visible == p->radarSitesVisible_) return;
+   p->radarSitesVisible_ = visible;
+   p->store_.SetBool(kRadarCategory, QStringLiteral("show_sites"), visible);
+   p->store_.Save();
+   Q_EMIT radarSitesVisibleChanged();
+}
+
+void AppSettings::setTdwrSitesVisible(bool visible)
+{
+   if (visible == p->tdwrSitesVisible_) return;
+   p->tdwrSitesVisible_ = visible;
+   p->store_.SetBool(kRadarCategory, QStringLiteral("show_tdwr"), visible);
+   p->store_.Save();
+   Q_EMIT tdwrSitesVisibleChanged();
 }
 
 void AppSettings::setMapDetailsPreset(int preset)
@@ -599,6 +638,10 @@ void AppSettings::resetToDefaults()
 {
    p->store_.SetInt(
       kMeasurementCategory, QStringLiteral("gesture"), static_cast<int>(MeasurementGesture::Both));
+   p->store_.SetInt(kRadarCategory, QStringLiteral("site_scope"),
+                    static_cast<int>(RadarSiteScope::AllPanes));
+   p->store_.SetBool(kRadarCategory, QStringLiteral("show_sites"), true);
+   p->store_.SetBool(kRadarCategory, QStringLiteral("show_tdwr"), true);
    p->store_.SetInt(kMeasurementCategory, QStringLiteral("preferred_tool"), 1);
    p->store_.SetInt(kMeasurementCategory,
                     QStringLiteral("snap_strength"),
@@ -646,6 +689,9 @@ void AppSettings::resetToDefaults()
    Q_EMIT mapThemeChanged();
    Q_EMIT controlBarDockedChanged();
    Q_EMIT centerMapOnSiteChangeChanged();
+   Q_EMIT radarSiteScopeChanged();
+   Q_EMIT radarSitesVisibleChanged();
+   Q_EMIT tdwrSitesVisibleChanged();
    Q_EMIT mapDetailsChanged();
    Q_EMIT toolbarActionsChanged();
    Q_EMIT geometryRowsChanged();

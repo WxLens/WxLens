@@ -70,6 +70,7 @@ public:
 
    Q_INVOKABLE void setGridSize(int width, int height);
    Q_INVOKABLE void setActivePaneIndex(int index);
+   Q_INVOKABLE bool selectRadarSite(QObject* pane, const QString& siteId);
 
    /**
     * One-shot: copies one channel's current value from one pane to another, without creating any
@@ -100,6 +101,8 @@ public:
 
    /** The default radar site new panes are created with, until pane chrome can set it (§4.5). */
    void setDefaultSourceKey(const QString& sourceKey);
+   void setCenterMapOnSiteChange(bool enabled);
+   void setRadarSiteScope(int scope);
 
 signals:
    void gridSizeChanged();

@@ -70,6 +70,10 @@ TEST_F(AppSettingsTest, ShippedDefaults)
    EXPECT_EQ(settings_->distanceUnits(), static_cast<int>(Units::Both));
    EXPECT_EQ(settings_->mapTheme(), static_cast<int>(AppSettings::MapTheme::FollowChrome));
    EXPECT_FALSE(settings_->controlBarDocked());
+   EXPECT_EQ(settings_->radarSiteScope(),
+             static_cast<int>(AppSettings::RadarSiteScope::AllPanes));
+   EXPECT_TRUE(settings_->radarSitesVisible());
+   EXPECT_TRUE(settings_->tdwrSitesVisible());
    EXPECT_EQ(settings_->mapDetailsPreset(),
              static_cast<int>(AppSettings::MapDetailsPreset::Operational));
    EXPECT_TRUE(settings_->mapDetailVisible(QStringLiteral("roads")));
@@ -113,6 +117,9 @@ TEST_F(AppSettingsTest, ChangesPersistAcrossAReload)
    settings_->setDistanceUnits(static_cast<int>(Units::Imperial));
    settings_->setMapTheme(static_cast<int>(AppSettings::MapTheme::Dark));
    settings_->setControlBarDocked(true);
+   settings_->setRadarSiteScope(static_cast<int>(AppSettings::RadarSiteScope::ActivePaneOnly));
+   settings_->setRadarSitesVisible(false);
+   settings_->setTdwrSitesVisible(false);
    settings_->setMapDetailsPreset(static_cast<int>(AppSettings::MapDetailsPreset::Detailed));
    settings_->setMapDetailVisible(QStringLiteral("roads"), false);
    settings_->setGeometryRowVisible(QStringLiteral("terrain"), false);
@@ -131,6 +138,10 @@ TEST_F(AppSettingsTest, ChangesPersistAcrossAReload)
    EXPECT_EQ(reloaded.distanceUnits(), static_cast<int>(Units::Imperial));
    EXPECT_EQ(reloaded.mapTheme(), static_cast<int>(AppSettings::MapTheme::Dark));
    EXPECT_TRUE(reloaded.controlBarDocked());
+   EXPECT_EQ(reloaded.radarSiteScope(),
+             static_cast<int>(AppSettings::RadarSiteScope::ActivePaneOnly));
+   EXPECT_FALSE(reloaded.radarSitesVisible());
+   EXPECT_FALSE(reloaded.tdwrSitesVisible());
    EXPECT_EQ(reloaded.mapDetailsPreset(), static_cast<int>(AppSettings::MapDetailsPreset::Custom));
    EXPECT_FALSE(reloaded.mapDetailVisible(QStringLiteral("roads")));
    EXPECT_TRUE(reloaded.mapDetailVisible(QStringLiteral("buildings")));

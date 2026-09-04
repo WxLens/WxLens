@@ -23,6 +23,8 @@ qt_add_executable(wxlens-app
     source/wxlens/data/radar_site_data_service.hpp
     source/wxlens/data/radar_site_database.cpp
     source/wxlens/data/radar_site_database.hpp
+    source/wxlens/data/radar_site_marker_source.cpp
+    source/wxlens/data/radar_site_marker_source.hpp
     source/wxlens/objects/map_object.hpp
     source/wxlens/objects/map_object_store.cpp
     source/wxlens/objects/map_object_store.hpp
@@ -108,6 +110,7 @@ qt_add_qml_module(wxlens-app
         qml/Panes/SitePicker.qml
         qml/Panes/Level3ProductLayer.qml
         qml/Panes/WeatherOverlaysLayer.qml
+        qml/Panes/RadarSiteLayer.qml
     RESOURCES
         res/branding/wxlens-icon.png
         res/config/radar_sites.json

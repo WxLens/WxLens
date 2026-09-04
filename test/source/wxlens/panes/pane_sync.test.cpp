@@ -137,6 +137,13 @@ TEST_F(PaneSyncTest, RadarSitesCarryFullStateAndCountrySearchAliases)
       QStringLiteral("oklahoma")));
    EXPECT_TRUE(site.value(QStringLiteral("searchText")).toString().contains(
       QStringLiteral("united states")));
+   EXPECT_EQ(site.value(QStringLiteral("type")), QStringLiteral("wsr88d"));
+}
+
+TEST_F(PaneSyncTest, RadarSiteSelectionRejectsUnknownWithoutChangingState)
+{
+   EXPECT_FALSE(model_.selectRadarSite(Pane(0), QStringLiteral("ZZZZ")));
+   EXPECT_TRUE(Pane(0)->sourceKey().isEmpty());
 }
 
 TEST_F(PaneSyncTest, ChannelsAreIndependent)

@@ -228,6 +228,16 @@ Item {
                     onSelected: (index) => appSettings.centerMapOnSiteChange = index === 1
                 }
 
+                SettingsChoice {
+                    visible: root.currentSection === "radar-sites"
+                    width: contentColumn.width
+                    label: "Radar-site selection scope"
+                    explanation: "Choose whether the picker and map markers change every visible pane or only the selected pane."
+                    options: ["All panes", "Active pane only"]
+                    currentIndex: appSettings.radarSiteScope
+                    onSelected: (index) => appSettings.radarSiteScope = index
+                }
+
                 Column {
                     visible: root.currentSection === "toolbar"
                     width: contentColumn.width

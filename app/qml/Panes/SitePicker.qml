@@ -44,10 +44,7 @@ Rectangle {
     }
 
     function choose(site) {
-        paneController.sourceKey = site.id
-        if (appSettings.centerMapOnSiteChange) {
-            paneController.centerOn(site.latitude, site.longitude, 7.0)
-        }
+        paneGridModel.selectRadarSite(paneController, site.id)
         closeRequested()
     }
 
@@ -87,7 +84,7 @@ Rectangle {
         TextField {
             id: search
             width: parent.width
-            placeholderText: "Search ID, station, city, state, or country"
+            placeholderText: "Search ID, station, city, state, country, or type"
             color: themeManager.textPrimary
             placeholderTextColor: themeManager.textMuted
             selectByMouse: true
@@ -133,7 +130,8 @@ Rectangle {
                     anchors.left: parent.left; anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter; anchors.margins: 8
                     Text {
-                        text: modelData.id + "  ·  " + modelData.name
+                        text: modelData.id + "  ·  " + modelData.name +
+                              (modelData.type === "tdwr" ? "   TDWR" : "")
                         color: themeManager.textPrimary; font.pixelSize: 12
                         width: parent.width; elide: Text.ElideRight
                     }
