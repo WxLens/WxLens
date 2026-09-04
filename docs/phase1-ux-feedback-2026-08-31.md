@@ -381,8 +381,11 @@ checking the acceptance boxes above.
   and exceptional loading/error state. Put full station name, archive/live details, elevation,
   exact product code, synchronization metadata and other diagnostics in an expandable details
   surface.
-- [ ] Remove the obsolete process-wide radar status line once equivalent per-pane information is
+- [x] Remove the obsolete process-wide radar status line once equivalent per-pane information is
   available. It currently becomes especially misleading in multi-site layouts.
+  *Done in `8f8666a`, confirmed 2026-09-04:* `RadarProductStatus` is no longer constructed or
+  exposed as a context property, and `radarStatus` appears nowhere in `app/source` or `app/qml`.
+  Per-pane headers carry the station and product instead.
 
 Retest: inspect 1x1 through 3x3 at 1280x800 and the native development display; verify essentials
 remain legible without covering meaningful radar data.
@@ -391,19 +394,26 @@ remain legible without covering meaningful radar data.
 
 ### Searchable, grouped product browser
 
-- [ ] Group AWIPS variants beneath friendly product families such as Super-Resolution
+- [x] Group AWIPS variants beneath friendly product families such as Super-Resolution
   Reflectivity. Ordinary selection uses a recommended/default variant without requiring knowledge
   of AWIPS codes.
-- [ ] Allow a family to expand so an expert can choose variants such as `N0B`, `N1B` or `N2B`.
-- [ ] Add fast search across friendly description, category and AWIPS ID; keep short codes visible.
+- [x] Allow a family to expand so an expert can choose variants such as `N0B`, `N1B` or `N2B`.
+- [x] Add fast search across friendly description, category and AWIPS ID; keep short codes visible.
 
 Retest: select a common product without knowing its code, then locate a specific variant by typing
 its AWIPS ID. Verify selection remains per pane unless Product synchronization is enabled.
 
-Implemented in part 2026-09-01: fast filtering now covers description, category, identity and
-AWIPS ID, with results ordered and visibly labelled by category and codes retained. Collapsible
-friendly families with recommended variants remain open, so the checklist above is intentionally
-unchecked.
+Implemented 2026-09-01, completed and verified in the packaged app 2026-09-04. Filtering covers
+description, category, identity and AWIPS ID, with codes retained. Products group under friendly
+family rows ("Reflectivity", "Velocity", "Storm Relative Velocity"…) that show the recommended
+variant and its code ("Super-Resolution Reflectivity · N0B"); clicking the row selects that variant
+without the user ever meeting an AWIPS code, and the chevron expands the family to the rest.
+Verified by expanding a family and selecting a variant, which switched that pane only.
+
+Still unverified: that selection stays per pane while **Product synchronization is enabled** -
+there is no way to test it, for the same reason Palette-only was removed from the sync menu, since
+`setSyncPreset` exposes no Product-only preset. Covered at the model level by
+`PaneSyncTest.UserFacingSyncPresetsKeepChannelsIndependent`.
 
 ### Minimal and customizable persistent chrome
 
