@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
+
+import WxLens.App
 import QtQuick.Controls
 
 // Presentation-only browser. Product identity, availability and selection validation all live
@@ -80,9 +82,13 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
             }
             Item { width: Math.max(0, parent.width - 150); height: 1 }
-            Text {
-                text: "×"; color: themeManager.textSecondary; font.pixelSize: 18
-                MouseArea { anchors.fill: parent; anchors.margins: -7; onClicked: root.closeRequested() }
+            WxButton {
+                width: 26; height: 26
+                flat: true
+                text: "×"
+                font.pixelSize: 18
+                name: "Close product browser"
+                onClicked: root.closeRequested()
             }
         }
 
@@ -169,32 +175,46 @@ Rectangle {
                         color: themeManager.textMuted; font.pixelSize: 10
                         elide: Text.ElideRight
                     }
-                    Rectangle {
+                    WxButton {
                         id: expandButton
                         visible: parent.parent.modelData.products.length > 1
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         anchors.rightMargin: 7
-                        width: 30; height: 30; radius: themeManager.cornerRadius
-                        color: expandArea.containsMouse ? themeManager.controlHover : themeManager.elevatedSurface
-                        Text {
-                            anchors.centerIn: parent
-                            text: familyRow.parent.expanded ? "⌃" : "⌄"
-                            color: themeManager.textSecondary; font.pixelSize: 14
-                        }
-                        MouseArea {
-                            id: expandArea; anchors.fill: parent; hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.toggleCategory(familyRow.parent.modelData.category)
-                        }
+                        width: 30; height: 30
+                        text: familyRow.parent.expanded ? "⌃" : "⌄"
+                        font.pixelSize: 14
+                        // The direction matters more than the glyph when this is read aloud.
+                        name: (familyRow.parent.expanded ? "Hide " : "Show ") +
+                              familyRow.parent.modelData.category + " variants"
+                        onClicked: root.toggleCategory(familyRow.parent.modelData.category)
                     }
+                    // Annotated in place rather than swapped for WxMenuItem: this row carries a
+                    // two-line layout and an expander of its own, so the shared component would
+                    // have to grow options for a single call site.
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: familyRow.parent.modelData.category + ", " +
+                                     familyRow.parent.selectedProduct.description +
+                                     (familyRow.parent.selectedProduct.available
+                                          ? "" : ", unavailable")
+                    Accessible.selected:
+                        root.paneController.productIdentity === familyRow.parent.selectedProduct.identity
+                    Accessible.onPressAction: familyArea.select()
+                    activeFocusOnTab: familyRow.parent.selectedProduct.available
+                    Keys.onSpacePressed: familyArea.select()
+                    Keys.onReturnPressed: familyArea.select()
+
                     MouseArea {
                         id: familyArea
+                        function select() {
+                            if (familyRow.parent.selectedProduct.available)
+                                root.selectProduct(familyRow.parent.selectedProduct)
+                        }
                         anchors.left: parent.left; anchors.right: expandButton.left
                         anchors.top: parent.top; anchors.bottom: parent.bottom
                         hoverEnabled: true
                         enabled: familyRow.parent.selectedProduct.available
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.selectProduct(familyRow.parent.selectedProduct)
+                        onClicked: familyArea.select()
                     }
                 }
 
@@ -216,10 +236,23 @@ Rectangle {
                                 text: modelData.description + (modelData.awipsId ? "  ·  " + modelData.awipsId : "")
                                 color: themeManager.textSecondary; font.pixelSize: 11; elide: Text.ElideRight
                             }
+                            Accessible.role: Accessible.ListItem
+                            Accessible.name: modelData.description +
+                                             (modelData.awipsId ? ", " + modelData.awipsId : "") +
+                                             (modelData.available ? "" : ", unavailable")
+                            Accessible.onPressAction: variantArea.select()
+                            activeFocusOnTab: modelData.available
+                            Keys.onSpacePressed: variantArea.select()
+                            Keys.onReturnPressed: variantArea.select()
+
                             MouseArea {
-                                id: variantArea; anchors.fill: parent; hoverEnabled: true
+                                id: variantArea
+                                function select() {
+                                    if (parent.modelData.available) root.selectProduct(parent.modelData)
+                                }
+                                anchors.fill: parent; hoverEnabled: true
                                 enabled: parent.modelData.available; cursorShape: Qt.PointingHandCursor
-                                onClicked: root.selectProduct(parent.modelData)
+                                onClicked: variantArea.select()
                             }
                         }
                     }

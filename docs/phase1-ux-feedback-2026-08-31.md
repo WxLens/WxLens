@@ -220,6 +220,33 @@ and does not overlap the attribution or the control bar.
   reader pass is pointless until roles and names exist, so the *audit* below replaces the reader
   pass as the immediate next step.
 
+**Approach chosen 2026-09-03: shared components, not per-control annotation.** A bare `MouseArea`
+needs a role, a name, tab focus *and* Space/Return handling - four things every hand-rolled control
+has to remember, which is why none of them had any. `app/qml/Controls/` (which the repo map always
+intended as the shared control layer) now holds `WxButton` and `WxMenuItem`, which carry all four,
+so a control is accessible because of what it is rather than because someone remembered. Migration
+is incremental and the app works throughout. Where a control has a bespoke two-line layout - a
+product row, a list item - it is annotated in place instead, since a shared component would have to
+grow options for a single call site.
+
+Progress:
+
+- [x] `app/qml/Controls/WxButton.qml`, `app/qml/Controls/WxMenuItem.qml`
+- [x] `Chrome/TopBar.qml` (5 controls) - the entry point to every dialog; verified in the packaged
+      app, including Tools -> Palette manager
+- [x] `Panes/ProductBrowser.qml` (4 controls) - selection and the variant expander verified
+- [x] `Chrome/BottomControlBar.qml` - partially, from `8f8666a`
+- [ ] ~76 controls across ~13 files remain: `PaletteDialog` (27), `SavedPlacesDialog` (14),
+      `SettingsDialog` (10), `PaneHost` (8), `HelpDialog` (4), `SitePicker` (2),
+      `RadarGeometryPanel` (2), `TimeControls` (2), `SettingsChoice`, `ColorPicker`,
+      `Level3ProductLayer`
+- [ ] Screen-reader pass with Narrator or NVDA, once the migration is complete
+
+**`Chrome/SideRail.qml` is dead code** (found 2026-09-03): it is referenced by no QML file and is
+not even listed in `app/CMakeLists.txt`'s `QML_FILES`, so it never loads. Its capabilities moved to
+`BottomControlBar` and `PaneHost` long ago. Its 4 controls are therefore excluded from the counts
+above. Delete it rather than migrating it - pending confirmation that nothing planned needs it.
+
 Retest: add roles/names to the interactive controls, then drive the app with Narrator or NVDA and
 confirm every action is reachable and announced.
 

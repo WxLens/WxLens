@@ -97,6 +97,8 @@ qt_add_qml_module(wxlens-app
         qml/Dialogs/OverlaysDialog.qml
         qml/Dialogs/HelpDialog.qml
         qml/Controls/ColorPicker.qml
+        qml/Controls/WxButton.qml
+        qml/Controls/WxMenuItem.qml
         qml/Panes/MapObjectsLayer.qml
         qml/Panes/MeasurementLayer.qml
         qml/Panes/RadarGeometryPanel.qml
