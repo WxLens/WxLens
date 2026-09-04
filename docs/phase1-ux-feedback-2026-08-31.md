@@ -142,6 +142,22 @@ group A or B. Presets remain thin UI sugar over per-channel membership; joining 
 existing group's current values, including an immediate palette LUT rebuild. Automated preset
 coverage passes. The box remains open until the packaged Palette-only retest below passes.
 
+Revised 2026-09-03/04 after the packaged retest:
+
+- **Palette-only was removed from the menu.** Applying a family default already reaches every pane
+  of that field whether linked or not, and no UI can give a pane a palette of its own, so the
+  preset was provably a no-op. Verified in the packaged app: with two velocity panes linked on
+  Palette, switching the velocity default from DV to SRV recoloured *both* and left both
+  reflectivity panes untouched - the same result an unlinked pair gives. `setSyncPreset` still
+  accepts `"palette"`; restore the menu entry with the per-pane override.
+- **The group letter was stale.** The button read "Palette @" because the new `group` binding
+  dropped the `paneGridModel.syncRevision` reference the original code carried, so QML never
+  re-evaluated it (`String.fromCharCode(64 + 0)` is `@`). Fixed and verified 2026-09-04: the
+  button now reads "Map A ▾".
+- Remaining: the mixed-group case (palette in A, camera in B) still labels itself by whichever
+  channel `syncGroupForPreset` finds first. It reports "Custom", which is honest, but the letter
+  beside it may not describe every channel.
+
 Retested 2026-09-03 (packaged Release, 2x2 KEAX, two velocity panes both set to **Palette only ·
 A**): the menu and presets work, and changing the velocity family default to `SRV` repainted both
 velocity panes while leaving both reflectivity panes untouched. Two findings, neither a regression:
@@ -327,15 +343,27 @@ Everything legible in both themes. Remaining for the next manual session: text s
 
 ### Direct pane targeting and radar-site selection
 
-- [ ] Clicking a pane or its header makes it the active pane with a clear but unobtrusive visual
+- [x] Clicking a pane or its header makes it the active pane with a clear but unobtrusive visual
   indication. Shared controls then target it directly; cycling through `P1`/`P2`/… must not be the
   primary targeting workflow.
-- [ ] Make the pane's station indicator clickable and open a searchable per-pane radar-site picker.
+  *Verified 2026-09-03/04, packaged 2×2:* clicking a non-first pane moves the active border to it
+  and the bottom bar follows (`P3`, then `P4`).
+- [x] Make the pane's station indicator clickable and open a searchable per-pane radar-site picker.
   Search must support radar ID, station name, city and state/region where the site database supplies
   those fields.
-- [ ] Add a **Center map when radar site changes** preference, enabled by default. A site change
+  *Verified 2026-09-04, packaged 2×2, pane 4:* the station button opens "Radar site" listing 205
+  sites. `KTLX` → 1 site (Oklahoma City); `wichita` → 2 (KICT, TICH); `oklahoma` → 6 (KTLX, TOKC,
+  KFDR, KINX, …). ID, city and state/region all match.
+- [x] Add a **Center map when radar site changes** preference, enabled by default. A site change
   centers that pane at a sensible radar-view zoom; linked Location/Zoom channels follow their
   established synchronization rules. Users retaining a fixed geographic view can disable it.
+  *Verified 2026-09-04:* selecting KTLX moved pane 4 to Oklahoma City at radar-view zoom, its
+  header and the bottom bar both switched to `KTLX`, and the three KEAX panes were unaffected -
+  including pane 1, which was linked on Map view only, confirming a site change does not leak
+  through a camera-only link.
+
+Remaining in this section: the 3×3 layout case, and the `Center map when radar site changes`
+preference in its **disabled** state, are both still unexercised.
 
 Retest: use 1x1, 2x2 and 3x3 layouts; target non-first panes directly; find sites through each
 supported search field; verify centering on/off and linked/unlinked camera behavior.
