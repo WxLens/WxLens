@@ -252,10 +252,14 @@ Progress:
       app, including Tools -> Palette manager
 - [x] `Panes/ProductBrowser.qml` (4 controls) - selection and the variant expander verified
 - [x] `Chrome/BottomControlBar.qml` - partially, from `8f8666a`
-- [ ] ~76 controls across ~13 files remain: `PaletteDialog` (27), `SavedPlacesDialog` (14),
-      `SettingsDialog` (10), `PaneHost` (8), `HelpDialog` (4), `SitePicker` (2),
-      `RadarGeometryPanel` (2), `TimeControls` (2), `SettingsChoice`, `ColorPicker`,
-      `Level3ProductLayer`
+- [x] `HelpDialog`, `SitePicker`, `RadarGeometryPanel`, `TimeControls`, `SettingsChoice`, and
+      `ColorPicker` migrated 2026-09-04. Besides roles and names, the bespoke picker rows,
+      geometry actions, and RGB sliders now accept keyboard input; the native text fields have
+      explicit task-oriented names. Release QML compilation verifies every binding.
+- [ ] The larger surfaces remain: `PaletteDialog` (27), `SavedPlacesDialog` (14),
+      `SettingsDialog` (10), `PaneHost` (8), the unfinished portion of `BottomControlBar`, and
+      the canvas-backed storm selection in `Level3ProductLayer` (which needs accessible virtual
+      children rather than a misleading single button over the whole canvas).
 - [ ] Screen-reader pass with Narrator or NVDA, once the migration is complete
 
 **`Chrome/SideRail.qml` is dead code** (found 2026-09-03): it is referenced by no QML file and is

@@ -75,9 +75,10 @@ Rectangle {
             width: parent.width
             Text { text: "Radar site"; color: themeManager.textPrimary; font.pixelSize: 16 }
             Item { width: Math.max(0, parent.width - 105); height: 1 }
-            Text {
-                text: "×"; color: themeManager.textSecondary; font.pixelSize: 18
-                MouseArea { anchors.fill: parent; anchors.margins: -7; onClicked: root.closeRequested() }
+            WxButton {
+                width: 28; height: 28; flat: true
+                text: "×"; name: "Close radar site picker"
+                onClicked: root.closeRequested()
             }
         }
 
@@ -96,6 +97,7 @@ Rectangle {
             onTextChanged: root.query = text
             Component.onCompleted: forceActiveFocus()
             Keys.onEscapePressed: root.closeRequested()
+            Accessible.name: "Search radar sites"
         }
 
         Text {
@@ -120,6 +122,11 @@ Rectangle {
                       : area.containsMouse ? themeManager.controlHover : themeManager.control
                 border.color: modelData.id === root.paneController.sourceKey
                               ? themeManager.primary : themeManager.border
+                Accessible.role: Accessible.ListItem
+                Accessible.name: modelData.id + ", " + modelData.name + ", " +
+                                 modelData.regionName + ", " + modelData.country
+                Accessible.onPressAction: root.choose(modelData)
+                activeFocusOnTab: true
                 Column {
                     anchors.left: parent.left; anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter; anchors.margins: 8
@@ -141,6 +148,9 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.choose(parent.modelData)
                 }
+                Keys.onSpacePressed: root.choose(modelData)
+                Keys.onReturnPressed: root.choose(modelData)
+                Keys.onEnterPressed: root.choose(modelData)
             }
         }
     }

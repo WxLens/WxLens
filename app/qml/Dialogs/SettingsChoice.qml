@@ -32,34 +32,18 @@ Column {
         Repeater {
             model: root.options
 
-            delegate: Rectangle {
+            delegate: WxButton {
                 required property var modelData
                 required property int index
 
                 readonly property bool active: root.currentIndex === index
 
-                width: optionText.implicitWidth + 20
+                text: modelData
+                name: root.label + ", " + modelData
+                highlighted: active
+                width: implicitWidth
                 height: 26
-                radius: themeManager.cornerRadius
-                color: active ? themeManager.controlActive : (optionArea.containsMouse ? themeManager.controlHover : themeManager.control)
-                border.color: active ? themeManager.primary : themeManager.border
-                border.width: 1
-
-                Text {
-                    id: optionText
-                    anchors.centerIn: parent
-                    text: parent.modelData
-                    color: parent.active ? themeManager.textPrimary : themeManager.textMuted
-                    font.pixelSize: 11
-                }
-
-                MouseArea {
-                    id: optionArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.selected(parent.index)
-                }
+                onClicked: root.selected(index)
             }
         }
     }

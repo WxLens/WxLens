@@ -17,11 +17,12 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 6
 
-        Rectangle {
+        WxButton {
             width: 52; height: 28; radius: themeManager.cornerRadius
-            color: root.paneController.liveMode ? themeManager.controlActive : themeManager.control
-            Text { anchors.centerIn: parent; text: "LIVE"; color: themeManager.textPrimary; font.pixelSize: 11 }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.paneController.selectLive() }
+            text: "LIVE"
+            name: "Use live radar data"
+            highlighted: root.paneController.liveMode
+            onClicked: root.paneController.selectLive()
         }
         Rectangle {
             width: 142; height: 28; radius: themeManager.cornerRadius
@@ -35,13 +36,17 @@ Rectangle {
                     ? Qt.formatDateTime(new Date(), "yyyy-MM-dd HH:mm")
                     : root.paneController.selectedTimeText.replace(" UTC", "")
                 onAccepted: root.paneController.selectArchiveTime(text)
+                Accessible.role: Accessible.EditableText
+                Accessible.name: "Archive date and time in UTC"
             }
         }
-        Rectangle {
+        WxButton {
             width: 62; height: 28; radius: themeManager.cornerRadius
-            color: root.paneController.liveMode ? themeManager.control : themeManager.controlActive
-            Text { anchors.centerIn: parent; text: root.paneController.timeLoading ? "Loading…" : "Archive"; color: themeManager.textPrimary; font.pixelSize: 10 }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.paneController.selectArchiveTime(archiveInput.text) }
+            text: root.paneController.timeLoading ? "Loading…" : "Archive"
+            name: "Load archive radar data"
+            highlighted: !root.paneController.liveMode
+            enabled: !root.paneController.timeLoading
+            onClicked: root.paneController.selectArchiveTime(archiveInput.text)
         }
         Rectangle {
             width: 62; height: 28; radius: themeManager.cornerRadius
@@ -52,6 +57,8 @@ Rectangle {
                 color: themeManager.textPrimary; selectionColor: themeManager.primary
                 font.pixelSize: 11; maximumLength: 4; horizontalAlignment: TextInput.AlignHCenter
                 onAccepted: root.paneController.sourceKey = text.toUpperCase()
+                Accessible.role: Accessible.EditableText
+                Accessible.name: "Radar site identifier"
             }
         }
     }

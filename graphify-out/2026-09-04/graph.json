@@ -15836,7 +15836,7 @@
       "node_kind": "heading",
       "norm_label": "definition of ready for the next user test",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L451"
+      "source_location": "L461"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_direct_pane_targeting_and_radar_site_selection",
@@ -15860,7 +15860,7 @@
       "node_kind": "heading",
       "norm_label": "measurement tool preferences and radar-value reader",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L430"
+      "source_location": "L440"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_minimal_and_customizable_persistent_chrome",
@@ -15872,7 +15872,7 @@
       "node_kind": "heading",
       "norm_label": "minimal and customizable persistent chrome",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L408"
+      "source_location": "L418"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_p0_correctness_and_interaction_defects",
@@ -15980,7 +15980,7 @@
       "node_kind": "heading",
       "norm_label": "p2 \u2014 progressive disclosure and expert efficiency",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L390"
+      "source_location": "L393"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_pane_and_top_bar_information_density",
@@ -16076,7 +16076,7 @@
       "node_kind": "heading",
       "norm_label": "searchable, grouped product browser",
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L392"
+      "source_location": "L395"
     },
     {
       "id": "docs_phase1_ux_feedback_2026_08_31_top_bar_secondary_action_row_disappears_after_maximizing_found_2026_09_02",
@@ -54359,7 +54359,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L392",
+      "source_location": "L395",
       "weight": 1.0
     },
     {
@@ -54370,7 +54370,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L408",
+      "source_location": "L418",
       "weight": 1.0
     },
     {
@@ -54381,7 +54381,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L430",
+      "source_location": "L440",
       "weight": 1.0
     },
     {
@@ -54425,7 +54425,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L390",
+      "source_location": "L393",
       "weight": 1.0
     },
     {
@@ -54436,7 +54436,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/phase1-ux-feedback-2026-08-31.md",
-      "source_location": "L451",
+      "source_location": "L461",
       "weight": 1.0
     },
     {
@@ -59486,5 +59486,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "b909252a4400fe0d1cb0105f62ba8a7040561dc8"
+  "built_at_commit": "06360bb41b9c727940ce8f1e0324117cd7b9d91e"
 }

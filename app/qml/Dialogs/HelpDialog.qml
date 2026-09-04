@@ -57,16 +57,10 @@ Rectangle {
                     font.bold: true
                 }
                 Item { width: Math.max(0, parent.width - 245); height: 1 }
-                Text {
-                    text: "×"
-                    color: themeManager.textSecondary
-                    font.pixelSize: 18
-                    MouseArea {
-                        anchors.fill: parent
-                        anchors.margins: -7
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.close()
-                    }
+                WxButton {
+                    width: 28; height: 28; flat: true
+                    text: "×"; name: "Close help"
+                    onClicked: root.close()
                 }
             }
 
@@ -74,14 +68,14 @@ Rectangle {
                 spacing: 6
                 Repeater {
                     model: ["Getting started", "Shortcuts", "Products and palettes"]
-                    Rectangle {
+                    WxButton {
                         required property string modelData
                         required property int index
-                        width: tabText.implicitWidth + 18; height: 28
-                        radius: themeManager.cornerRadius
-                        color: root.page === index ? themeManager.controlActive : themeManager.control
-                        Text { id: tabText; anchors.centerIn: parent; text: parent.modelData; color: themeManager.textPrimary; font.pixelSize: 10 }
-                        MouseArea { anchors.fill: parent; onClicked: root.page = parent.index }
+                        text: modelData
+                        name: modelData + " help page"
+                        highlighted: root.page === index
+                        height: 28
+                        onClicked: root.page = index
                     }
                 }
             }

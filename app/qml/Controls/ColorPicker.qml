@@ -37,6 +37,17 @@ Rectangle {
                 Text { width: 38; text: parent.modelData; color: themeManager.textSecondary; font.pixelSize: 10 }
                 Rectangle {
                     width: 140; height: 14; radius: 7; color: themeManager.control
+                    readonly property int channelValue: Math.round(
+                        (index === 0 ? root.colorValue.r
+                                     : index === 1 ? root.colorValue.g : root.colorValue.b) * 255)
+                    Accessible.role: Accessible.Slider
+                    Accessible.name: modelData + " color channel, " + channelValue
+                    activeFocusOnTab: true
+
+                    function setChannel(value) {
+                        root.colorValue = root.channelColor(index, Math.max(0, Math.min(255, value)))
+                        root.colorEdited(root.colorValue)
+                    }
                     Rectangle {
                         width: 12; height: 18; radius: 6; y: -2
                         x: (index === 0 ? root.colorValue.r : index === 1 ? root.colorValue.g : root.colorValue.b) * (parent.width - width)
@@ -51,10 +62,15 @@ Rectangle {
                         onPositionChanged: (mouse) => { if (pressed) update(mouse.x) }
                         function update(x) {
                             var value = Math.round(Math.max(0, Math.min(1, x / width)) * 255)
-                            root.colorValue = root.channelColor(index, value)
-                            root.colorEdited(root.colorValue)
+                            parent.setChannel(value)
                         }
                     }
+                    Keys.onLeftPressed: setChannel(channelValue - 1)
+                    Keys.onDownPressed: setChannel(channelValue - 1)
+                    Keys.onRightPressed: setChannel(channelValue + 1)
+                    Keys.onUpPressed: setChannel(channelValue + 1)
+                    Keys.onHomePressed: setChannel(0)
+                    Keys.onEndPressed: setChannel(255)
                 }
             }
         }

@@ -92,6 +92,10 @@ Column {
         Item {
             width: headerText.implicitWidth
             height: headerText.implicitHeight + 4
+            Accessible.role: Accessible.Button
+            Accessible.name: (root.expanded ? "Collapse" : "Expand") + " radar geometry"
+            Accessible.onPressAction: root.expanded = !root.expanded
+            activeFocusOnTab: true
 
             Text {
                 id: headerText
@@ -106,6 +110,9 @@ Column {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.expanded = !root.expanded
             }
+            Keys.onSpacePressed: root.expanded = !root.expanded
+            Keys.onReturnPressed: root.expanded = !root.expanded
+            Keys.onEnterPressed: root.expanded = !root.expanded
         }
 
         // §4.5's other direction: the moment a user finds themselves wanting different rows, the
@@ -115,6 +122,10 @@ Column {
             visible: root.expanded
             width: configText.implicitWidth + 6
             height: headerText.implicitHeight + 4
+            Accessible.role: Accessible.Button
+            Accessible.name: "Configure radar geometry rows"
+            Accessible.onPressAction: root.configureRequested("radar-geometry")
+            activeFocusOnTab: visible
 
             Text {
                 id: configText
@@ -131,6 +142,9 @@ Column {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.configureRequested("radar-geometry")
             }
+            Keys.onSpacePressed: root.configureRequested("radar-geometry")
+            Keys.onReturnPressed: root.configureRequested("radar-geometry")
+            Keys.onEnterPressed: root.configureRequested("radar-geometry")
         }
     }
 
