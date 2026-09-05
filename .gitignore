@@ -1,5 +1,10 @@
 build*/
 
+# graphify (removed 2026-09-05 - was causing more friction than value): ignore rather than
+# re-track if it gets regenerated locally.
+graphify-out/
+.graphifyignore
+
 # Installer output (tools/installer/windows/wxlens.iss), rebuilt per release, not source
 dist/
 
