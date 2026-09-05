@@ -77,7 +77,9 @@ jobs:
           # dependencies" section: these trees are "sometimes multiply-nested" and every level
           # needs initializing, not just the top one.
           git -C external/aws-sdk-cpp submodule update --init --recursive --depth 1
-          git -C external/maplibre-native-qt submodule update --init --depth 1 -- vendor/maplibre-native
+          # maplibre-native itself vendors further submodules (e.g. maplibre-native-base/deps/
+          # cheap-ruler-cpp) - same multiply-nested situation as aws-sdk-cpp above.
+          git -C external/maplibre-native-qt submodule update --init --recursive --depth 1 -- vendor/maplibre-native
           git -C external/legacy-supercell-wx submodule update --init --depth 1 -- test/data
 
       - name: Install Linux compiler
