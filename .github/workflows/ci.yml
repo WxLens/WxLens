@@ -13,13 +13,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
-# NOTE (Phase 0, 2026-08-21): this workflow has not been run on GitHub Actions yet - it was
-# written by mirroring external/legacy-supercell-wx/.github/workflows/ci.yml's proven pattern, but
-# has only been sanity-checked locally (conan/cmake steps match tools/setup-*.bat), not executed
-# in CI. Treat the first real run as the actual verification, and expect to iterate.
+# Originally written by mirroring external/legacy-supercell-wx/.github/workflows/ci.yml's proven
+# pattern; green on GitHub Actions since 2026-09-05.
 #
-# macOS builds and disk-image packaging run through the reusable macos.yml workflow.
-# Successful Mac runner execution and clean-machine launch remain required verification.
+# This job now covers Windows only. Linux and macOS build, test and package through the reusable
+# linux.yml and macos.yml workflows called at the bottom of this file, so each platform's CI steps
+# and its release-packaging steps are the same steps.
 jobs:
   build:
     strategy:
@@ -29,8 +28,8 @@ jobs:
           - name: windows_vs2026_x64
             os: windows-2025-vs2026
             build_type: Release
-            # TEMPORARY: pinned one minor version behind local dev (6.11.1, matching the Linux
-            # job below) because Qt's own windows_x86/desktop package index for the entire 6.11.x
+            # TEMPORARY: pinned one minor version behind local dev (6.11.1, which linux.yml
+            # still uses) because Qt's own windows_x86/desktop package index for the entire 6.11.x
             # line (.0/.1/.2 all checked) currently fails aqtinstall's checksum fetch - confirmed
             # from an unrelated machine/network, so it's an upstream Qt outage, not this repo, CI,
             # or the retry logic above. linux_gcc_64/6.11.1 is unaffected. Verified 6.10.0 resolves
@@ -40,17 +39,6 @@ jobs:
             qt_arch_dir: msvc2022_64
             conan_profile: wxlens-windows_vs2026_x64
             artifact_suffix: windows-vs2026-x64
-          - name: linux_gcc-14_x64
-            os: ubuntu-24.04
-            build_type: Release
-            env_cc: gcc-14
-            env_cxx: g++-14
-            qt_version: 6.11.1
-            qt_arch_aqt: linux_gcc_64
-            qt_arch_dir: gcc_64
-            conan_profile: wxlens-linux_gcc-14
-            artifact_suffix: linux-gcc-14-x64
-            compiler_packages: g++-14
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.name }}
@@ -105,12 +93,6 @@ jobs:
           # cheap-ruler-cpp) - same multiply-nested situation as aws-sdk-cpp above.
           git -C external/maplibre-native-qt submodule update --init --recursive --depth 1 -- vendor/maplibre-native
           git -C external/legacy-supercell-wx submodule update --init --depth 1 -- test/data
-
-      - name: Install Linux compiler
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ${{ matrix.compiler_packages }} ninja-build
 
       # aqtinstall's checksum fetch for Updates.xml against download.qt.io is observed to fail
       # intermittently and independently of this repo or GitHub Actions (reproduced the identical
@@ -195,6 +177,9 @@ jobs:
       - name: Test (wxdata suite)
         working-directory: build
         run: ctest --output-on-failure -R wxlens-wxdata-test
+
+  linux:
+    uses: ./.github/workflows/linux.yml
 
   macos:
     uses: ./.github/workflows/macos.yml

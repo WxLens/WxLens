@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=WxLens
+GenericName=Weather Radar Viewer
+Comment=A free, open source, modern weather radar viewer
+# Bare command name, not a path: inside the AppImage this resolves through the generated AppRun,
+# and a distro package installing to /usr/bin resolves it the same way.
+Exec=wxlens-app
+# Must match the basename of the icon passed to linuxdeploy -i (tools/installer/linux/package.sh
+# stages app/res/branding/wxlens-icon.png under exactly this name). linuxdeploy fails the build
+# if the two disagree, so keep them in sync.
+Icon=org.wxlens.WxLens
+Terminal=false
+Categories=Science;Geoscience;Education;
+Keywords=weather;radar;nexrad;storm;forecast;
+# Lets desktop shells match the running window back to this entry. Qt reports the executable
+# basename as the WM class, not the Name field above.
+StartupWMClass=wxlens-app

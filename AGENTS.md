@@ -68,8 +68,23 @@ cmake --build . --target wxlens-app
 ```
 
 CMake Presets are in `CMakePresets.json` (`windows-vs2026-x64-release`/`-debug`,
-`linux-gcc14-release`/`-debug` — the Linux preset is a documented template, not yet verified on a
-real Linux box from this repo).
+`linux-gcc14-release`/`-debug`, `macos-clang18-arm64-release`/`-x64-release`). The Linux and macOS
+presets assume Qt at `/opt/Qt/6.11.1/gcc_64` and `~/Qt/6.11.1/macos` respectively; override
+`CMAKE_PREFIX_PATH` if yours lives elsewhere.
+
+### Platform coverage
+All three desktop platforms build, test and package in CI, each through one reusable workflow that
+release builds reuse verbatim so CI and release packaging cannot drift apart:
+
+| Platform | Workflow | Package | Notes |
+| --- | --- | --- | --- |
+| Windows x64 | `ci.yml` (build/test) + `release.yml` | Inno Setup `.exe` | `tools/installer/windows/` |
+| macOS 15+ arm64/x64 | `macos.yml` | `.dmg` | `tools/installer/macos/` |
+| Linux x86_64 | `linux.yml` | `.AppImage` | `tools/installer/linux/`; needs glibc 2.39+ |
+
+The Linux and macOS workflows package and then verify: macOS rejects any Mach-O still linked to
+the builder's Qt/Conan/Homebrew tree, and Linux launches the finished AppImage under `xvfb` and
+fails on an early exit or an unresolved Qt platform plugin or QML module.
 
 ### Qt 6.11.1 requirement
 Qt is installed separately (not via Conan), at `C:/Qt/6.11.1/msvc2022_64` on this dev machine.

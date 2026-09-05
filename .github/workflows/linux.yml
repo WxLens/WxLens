@@ -1,0 +1,169 @@
+name: Linux package
+
+# Builds, tests and packages the Linux AppImage. Called by ci.yml (on every push/PR, so packaging
+# breakage surfaces with the change that caused it rather than at release time) and by
+# release.yml. This replaced ci.yml's own linux_gcc-14_x64 matrix entry - the build and test steps
+# below are that entry, moved here unchanged, so Linux is still built and tested exactly once.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ''
+      version:
+        type: string
+        default: ''
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (defaults to the version in CMakeLists.txt)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-14
+      CXX: g++-14
+      PROFILE: wxlens-linux_gcc-14
+      # AppImage's own arch spelling, not the x64 used for the Windows/macOS asset names - see
+      # tools/installer/linux/package.sh.
+      PACKAGE_ARCH: x86_64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          submodules: false
+
+      # Only the submodules WxLens actually builds - see docs/adr/0002-wxdata-reuse-strategy.md
+      # and docs/adr/0004-maplibre-qml-integration.md. Keep in sync with ci.yml/macos.yml.
+      - name: Initialize required submodules
+        run: |
+          git submodule update --init --depth 1 -- \
+            external/legacy-supercell-wx external/aws-sdk-cpp external/date \
+            external/units external/hsluv-c external/maplibre-native-qt external/cmake-conan
+          git -C external/aws-sdk-cpp submodule update --init --recursive --depth 1
+          git -C external/maplibre-native-qt submodule update --init --recursive --depth 1 -- vendor/maplibre-native
+          git -C external/legacy-supercell-wx submodule update --init --depth 1 -- test/data
+
+      - name: Install compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-14 ninja-build
+
+      # Same upstream aqtinstall/download.qt.io flakiness ci.yml documents at length; retry rather
+      # than treat one CDN hiccup as a build failure.
+      - name: Install Qt (attempt 1)
+        id: qt1
+        continue-on-error: true
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.11.1
+          arch: linux_gcc_64
+          modules: 'qtshadertools'
+
+      - name: Wait before retrying Qt install
+        if: steps.qt1.outcome == 'failure'
+        run: sleep 30
+
+      - name: Install Qt (attempt 2)
+        if: steps.qt1.outcome == 'failure'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.11.1
+          arch: linux_gcc_64
+          modules: 'qtshadertools'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Conan
+        run: pip install conan
+
+      - name: Restore Conan packages
+        id: conan-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.conan2
+          key: linux-${{ env.PACKAGE_ARCH }}-conan-${{ hashFiles('conanfile.py', 'tools/conan/profiles/wxlens-linux*') }}
+
+      - name: Install dependencies
+        run: |
+          conan config install "./tools/conan/profiles/$PROFILE" -tf profiles
+          conan install . --remote conancenter --build missing \
+            --profile:all "$PROFILE" --settings:all build_type=Release \
+            --output-folder build/conan
+
+      - name: Save Conan packages
+        if: steps.conan-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.conan2
+          key: ${{ steps.conan-cache.outputs.cache-primary-key }}
+
+      - name: Configure
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$Qt6_DIR/../.." \
+            -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=external/cmake-conan/conan_provider.cmake \
+            -DCONAN_HOST_PROFILE="$PROFILE" -DCONAN_BUILD_PROFILE="$PROFILE"
+
+      - name: Build and test
+        run: |
+          cmake --build build --target wxlens-app wxlens-wxdata-test
+          ctest --test-dir build --output-on-failure -R wxlens-wxdata-test
+
+      - name: Package AppImage
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: |
+          # linuxdeploy-plugin-qt locates Qt by running qmake. It falls back to whatever is on
+          # PATH, which on a runner with more than one Qt is a coin flip - point it at the exact
+          # Qt this job built against. Qt6_DIR is <qt>/lib/cmake/Qt6.
+          QMAKE=$(cd "$Qt6_DIR/../../../bin" && pwd)/qmake
+          test -x "$QMAKE"
+          export QMAKE
+          if [[ -z "$PACKAGE_VERSION" ]]; then
+            PACKAGE_VERSION=$(sed -n 's/^set(WXLENS_VERSION "\([^"]*\)").*/\1/p' CMakeLists.txt)
+          fi
+          bash tools/installer/linux/package.sh build "$PACKAGE_VERSION" "$PACKAGE_ARCH"
+
+      # A build that links is not a build that runs: every packaging mistake that matters here
+      # (a Qt platform plugin left behind, an unbundled QML module, the MapLibre plugin not on an
+      # import path) is invisible until something actually starts the binary. Nothing else in this
+      # repo covers the Linux runtime path, so this is the only check that the AppImage works.
+      - name: Smoke test the AppImage
+        run: |
+          sudo apt-get install -y xvfb libgl1 libglx-mesa0 libgl1-mesa-dri libegl1 \
+            libxkbcommon-x11-0 libxcb-cursor0 fonts-dejavu-core
+          chmod +x dist/*.AppImage
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          # The runner has no GPU; llvmpipe is what MapLibre's OpenGL renderer gets here.
+          export LIBGL_ALWAYS_SOFTWARE=1
+          status=0
+          timeout 60 xvfb-run -a dist/*.AppImage >smoke.log 2>&1 || status=$?
+          cat smoke.log
+          # 124 means timeout fired with the app still alive, which for a GUI app with no window
+          # to close is the success condition. A real startup failure exits well before that.
+          if [[ "$status" -ne 124 ]]; then
+            echo "AppImage exited early with status $status" >&2
+            exit 1
+          fi
+          # Qt reports both of these on stderr and then either aborts or renders nothing, so they
+          # are failures even though the process may still be sitting in its event loop.
+          if grep -qE 'is not installed|[Cc]ould not (load|find) the Qt platform plugin' smoke.log; then
+            echo "AppImage started with unresolved Qt/QML modules" >&2
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-${{ env.PACKAGE_ARCH }}
+          path: dist/*.AppImage
+          if-no-files-found: error
