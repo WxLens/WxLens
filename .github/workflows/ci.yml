@@ -18,9 +18,8 @@ concurrency:
 # has only been sanity-checked locally (conan/cmake steps match tools/setup-*.bat), not executed
 # in CI. Treat the first real run as the actual verification, and expect to iterate.
 #
-# Only Windows VS2026 and one Linux GCC target are covered so far, matching what's been verified
-# locally (docs/ROADMAP.md Phase 0 status note) - the roadmap's "green on Windows/Linux/macOS"
-# goal is not fully met yet; macOS and additional Linux compiler variants are follow-up work.
+# macOS builds and disk-image packaging run through the reusable macos.yml workflow.
+# Successful Mac runner execution and clean-machine launch remain required verification.
 jobs:
   build:
     strategy:
@@ -196,3 +195,6 @@ jobs:
       - name: Test (wxdata suite)
         working-directory: build
         run: ctest --output-on-failure -R wxlens-wxdata-test
+
+  macos:
+    uses: ./.github/workflows/macos.yml

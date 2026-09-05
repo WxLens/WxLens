@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag matching v*.*.* (e.g. v0.1.1) to build the Windows installer and publish it as a
+# Push a tag matching v*.*.* (e.g. v0.1.1) to build Windows and macOS packages and publish them as a
 # GitHub Release automatically. Assumes the tagged commit already passed CI on push to main -
 # this workflow builds wxlens-app for packaging, it does not re-run the test suite.
 on:
@@ -137,13 +137,42 @@ jobs:
         run: |
           "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ steps.version.outputs.version }} /DBuildDir=..\..\..\build\Release tools\installer\windows\wxlens.iss
 
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-x64
+          path: dist/*.exe
+          if-no-files-found: error
+
+  macos:
+    uses: ./.github/workflows/macos.yml
+    with:
+      ref: ${{ github.event.inputs.tag || github.ref }}
+      version: ${{ github.event.inputs.tag || github.ref_name }}
+
+  publish:
+    needs: [windows-installer, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          files: dist/WxLens-${{ steps.version.outputs.version }}-windows-x64-setup.exe
+          files: |
+            dist/*.exe
+            dist/*.dmg
+          fail_on_unmatched_files: true
           generate_release_notes: true
           body: |
-            **Unsigned build** - Windows SmartScreen will show an "unknown publisher" prompt on first run (click "More info" -> "Run anyway").
+            **Windows:** download `windows-x64-setup.exe`. Installs per-user, no admin required. Unsigned: SmartScreen may require "More info" -> "Run anyway".
 
-            Installs per-user, no admin required. macOS/Linux are not packaged yet - build from source (see AGENTS.md).
+            **macOS 15 or newer:** download `macos-arm64.dmg` for Apple Silicon (M-series) or `macos-x64.dmg` for Intel. Open the disk image and drag WxLens into Applications.
+
+            Mac builds are not Developer ID signed or notarized. If macOS blocks a trusted download, use System Settings -> Privacy & Security -> Open Anyway after attempting to launch it.
+
+            Linux: build from source (see AGENTS.md).

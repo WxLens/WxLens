@@ -1,0 +1,89 @@
+name: macOS packages
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ''
+      version:
+        type: string
+        default: dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '15.0'
+      CMAKE_BUILD_PARALLEL_LEVEL: '3'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          submodules: false
+      - name: Initialize required submodules
+        run: |
+          git submodule update --init --depth 1 -- \
+            external/legacy-supercell-wx external/aws-sdk-cpp external/date \
+            external/units external/hsluv-c external/maplibre-native-qt external/cmake-conan
+          git -C external/aws-sdk-cpp submodule update --init --recursive --depth 1
+          git -C external/maplibre-native-qt submodule update --init --recursive --depth 1 -- vendor/maplibre-native
+          git -C external/legacy-supercell-wx submodule update --init --depth 1 -- test/data
+      - name: Install compiler
+        run: |
+          brew install llvm@18 ninja
+          echo "CC=$(brew --prefix llvm@18)/bin/clang" >> "$GITHUB_ENV"
+          echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install Conan
+        run: pip install conan
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.11.1
+          arch: clang_64
+          modules: qtshadertools
+      - name: Install dependencies
+        env:
+          PROFILE: wxlens-macos_clang-18_${{ matrix.arch }}
+        run: |
+          conan config install "./tools/conan/profiles/$PROFILE" -tf profiles
+          conan install . --remote conancenter --build missing \
+            --profile:all "$PROFILE" --output-folder build/conan
+      - name: Configure
+        env:
+          PROFILE: wxlens-macos_clang-18_${{ matrix.arch }}
+        run: |
+          cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+            -DCMAKE_PREFIX_PATH="$Qt6_DIR/../.." \
+            -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=external/cmake-conan/conan_provider.cmake \
+            -DCONAN_HOST_PROFILE="$PROFILE" -DCONAN_BUILD_PROFILE="$PROFILE"
+      - name: Build and test
+        run: |
+          cmake --build build --target wxlens-app wxlens-wxdata-test
+          ctest --test-dir build --output-on-failure -R wxlens-wxdata-test
+      - name: Package disk image
+        env:
+          PACKAGE_VERSION: ${{ inputs.version || 'dev' }}
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        run: bash tools/installer/macos/package.sh build "$PACKAGE_VERSION" "$PACKAGE_ARCH"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-${{ matrix.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error
