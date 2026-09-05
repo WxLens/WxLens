@@ -62,6 +62,19 @@ jobs:
         with:
           submodules: false
 
+      # Without this, cl.exe/link.exe are never on PATH for later steps and CMake silently falls
+      # back to whatever C++ compiler IS on PATH - which, once a step's shell is bash (needed
+      # below for the \-continuation syntax), is Git for Windows' own bundled MinGW64 at
+      # C:\mingw64\bin. That compiles the whole project without complaint (it's portable C++) but
+      # fails at the first link against Qt's MSVC-built import libraries ("undefined reference to
+      # __imp__ZN7QObject...") - confirmed as the actual cause of a Build-step failure after
+      # everything upstream (submodules, Qt, Conan, CMake configure) had already gone green.
+      - name: Set up MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       # Only the submodules WxLens actually builds are initialized - see
       # docs/adr/0002-wxdata-reuse-strategy.md and docs/adr/0004-maplibre-qml-integration.md for
       # why these are the ones needed (and why the rest of external/legacy-supercell-wx's own
