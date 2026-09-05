@@ -94,7 +94,42 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.compiler_packages }} ninja-build
 
-      - name: Install Qt
+      # aqtinstall's checksum fetch for Updates.xml against download.qt.io is observed to fail
+      # intermittently and independently of this repo or GitHub Actions (reproduced the identical
+      # "Failed to download checksum for the file 'Updates.xml'" error querying aqt directly from
+      # an unrelated machine/network for multiple Qt versions) - retry rather than treat one CDN
+      # hiccup as a build failure.
+      - name: Install Qt (attempt 1)
+        id: qt1
+        continue-on-error: true
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ matrix.qt_version }}
+          arch: ${{ matrix.qt_arch_aqt }}
+          modules: 'qtshadertools'
+
+      - name: Wait before retrying Qt install
+        if: steps.qt1.outcome == 'failure'
+        run: sleep 30
+        shell: bash
+
+      - name: Install Qt (attempt 2)
+        id: qt2
+        if: steps.qt1.outcome == 'failure'
+        continue-on-error: true
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ matrix.qt_version }}
+          arch: ${{ matrix.qt_arch_aqt }}
+          modules: 'qtshadertools'
+
+      - name: Wait before retrying Qt install again
+        if: steps.qt1.outcome == 'failure' && steps.qt2.outcome == 'failure'
+        run: sleep 60
+        shell: bash
+
+      - name: Install Qt (attempt 3)
+        if: steps.qt1.outcome == 'failure' && steps.qt2.outcome == 'failure'
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ matrix.qt_version }}
