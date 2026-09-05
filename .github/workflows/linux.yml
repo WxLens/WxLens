@@ -110,7 +110,7 @@ jobs:
         run: |
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="$Qt6_DIR/../.." \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
             -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=external/cmake-conan/conan_provider.cmake \
             -DCONAN_HOST_PROFILE="$PROFILE" -DCONAN_BUILD_PROFILE="$PROFILE"
 
@@ -125,8 +125,9 @@ jobs:
         run: |
           # linuxdeploy-plugin-qt locates Qt by running qmake. It falls back to whatever is on
           # PATH, which on a runner with more than one Qt is a coin flip - point it at the exact
-          # Qt this job built against. Qt6_DIR is <qt>/lib/cmake/Qt6.
-          QMAKE=$(cd "$Qt6_DIR/../../../bin" && pwd)/qmake
+          # Qt this job built against. QT_ROOT_DIR is the Qt prefix; install-qt-action@v4 exports
+          # it (and QT_PLUGIN_PATH/QML2_IMPORT_PATH), but never Qt6_DIR.
+          QMAKE="$QT_ROOT_DIR/bin/qmake"
           test -x "$QMAKE"
           export QMAKE
           if [[ -z "$PACKAGE_VERSION" ]]; then

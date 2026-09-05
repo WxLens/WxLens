@@ -33,6 +33,8 @@ jobs:
     env:
       MACOSX_DEPLOYMENT_TARGET: '15.0'
       CMAKE_BUILD_PARALLEL_LEVEL: '3'
+      CC: clang
+      CXX: clang++
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,11 +48,16 @@ jobs:
           git -C external/aws-sdk-cpp submodule update --init --recursive --depth 1
           git -C external/maplibre-native-qt submodule update --init --recursive --depth 1 -- vendor/maplibre-native
           git -C external/legacy-supercell-wx submodule update --init --depth 1 -- test/data
-      - name: Install compiler
-        run: |
-          brew install llvm@18 ninja
-          echo "CC=$(brew --prefix llvm@18)/bin/clang" >> "$GITHUB_ENV"
-          echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> "$GITHUB_ENV"
+      # Apple Clang, not Homebrew's llvm@18. wxdata compiles its parallel algorithms with
+      # -fexperimental-library and links -lc++experimental (external/.../wxdata.cmake's LIBCPP
+      # block), and those two have to come from the same libc++. Building with Homebrew LLVM 18's
+      # headers while the linker resolved -lc++experimental from the macOS SDK left every
+      # std::__par_backend::__libdispatch symbol undefined - a link failure with no compile error
+      # anywhere before it. The upstream Supercell Wx macOS jobs build with plain clang/clang++ for
+      # the same reason, and it keeps the shipped binary free of Homebrew paths, which
+      # tools/installer/macos/package.sh rejects outright.
+      - name: Install build tools
+        run: brew install ninja
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
@@ -87,7 +94,7 @@ jobs:
         run: |
           cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
-            -DCMAKE_PREFIX_PATH="$Qt6_DIR/../.." \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
             -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=external/cmake-conan/conan_provider.cmake \
             -DCONAN_HOST_PROFILE="$PROFILE" -DCONAN_BUILD_PROFILE="$PROFILE"
       - name: Build and test
