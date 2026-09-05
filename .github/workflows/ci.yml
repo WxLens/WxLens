@@ -30,7 +30,13 @@ jobs:
           - name: windows_vs2026_x64
             os: windows-2025-vs2026
             build_type: Release
-            qt_version: 6.11.1
+            # TEMPORARY: pinned one minor version behind local dev (6.11.1, matching the Linux
+            # job below) because Qt's own windows_x86/desktop package index for the entire 6.11.x
+            # line (.0/.1/.2 all checked) currently fails aqtinstall's checksum fetch - confirmed
+            # from an unrelated machine/network, so it's an upstream Qt outage, not this repo, CI,
+            # or the retry logic above. linux_gcc_64/6.11.1 is unaffected. Verified 6.10.0 resolves
+            # cleanly for win64_msvc2022_64. Revert to 6.11.1 once Qt's index is fixed.
+            qt_version: 6.10.0
             qt_arch_aqt: win64_msvc2022_64
             qt_arch_dir: msvc2022_64
             conan_profile: wxlens-windows_vs2026_x64
