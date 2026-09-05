@@ -222,6 +222,17 @@ if (MSVC)
     target_compile_options(wxlens-app PRIVATE -DNOMINMAX)
 endif()
 
+if (LINUX)
+    # GCC's libstdc++ <execution> parallel-algorithm backend pulls in oneTBB's profiling.h, which
+    # declares methods literally named emit() - Qt's emit macro (active once any Qt header has
+    # been included earlier in the same translation unit, which is every wxlens-app .cpp) expands
+    # that to nothing, breaking the declaration ("expected unqualified-id before ')' token").
+    # test/test.cmake already carries this exact fix for wxlens-wxdata-test; it just never got
+    # applied here or to wxlens-app-test. Safe unconditionally: wxlens-app has zero bare `emit`
+    # calls (Q_EMIT throughout), so disabling the macro changes nothing it relies on.
+    target_compile_definitions(wxlens-app PRIVATE QT_NO_EMIT)
+endif()
+
 if (WIN32)
     # Qt DLLs (including the QtQuick.Window/QtQml QML plugins Main.qml needs) aren't found next
     # to the exe otherwise, since C:/Qt/.../bin isn't normally on PATH - confirmed by an actual

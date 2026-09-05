@@ -219,6 +219,13 @@ if (MSVC)
     target_compile_options(wxlens-app-test PRIVATE "/MP")
 endif()
 
+if (LINUX)
+    # Same oneTBB/Qt `emit` macro collision as wxlens-wxdata-test above and wxlens-app
+    # (app/CMakeLists.txt) - this target compiles the same app/source/wxlens/*.cpp files that
+    # pull in wxdata's <execution>-using headers.
+    target_compile_definitions(wxlens-app-test PRIVATE QT_NO_EMIT)
+endif()
+
 target_link_libraries(wxlens-app-test GTest::gtest
                                       Qt6::Core
                                       Qt6::Qml

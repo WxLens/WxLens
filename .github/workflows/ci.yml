@@ -63,6 +63,12 @@ jobs:
       - name: Initialize required submodules
         shell: bash
         run: |
+          # maplibre-native's own vendored tree (below) includes wagyu's test fixtures, whose
+          # generated geojson filenames comfortably exceed Windows' 260-char MAX_PATH once
+          # combined with the runner's checkout path - "Filename too long" mid-clone. This dev
+          # machine has never hit it because core.longpaths is already true here; GitHub's
+          # Windows runners default it off. A no-op on Linux/macOS.
+          git config --global core.longpaths true
           git submodule update --init --depth 1 -- \
             external/legacy-supercell-wx \
             external/aws-sdk-cpp \
