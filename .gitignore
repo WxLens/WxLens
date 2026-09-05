@@ -1,5 +1,8 @@
 build*/
 
+# Installer output (tools/installer/windows/wxlens.iss), rebuilt per release, not source
+dist/
+
 # CMake.gitignore
 CMakeLists.txt.user
 CMakeCache.txt
