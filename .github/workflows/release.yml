@@ -12,19 +12,27 @@ on:
       tag:
         description: 'Existing tag to build and publish (e.g. v0.1.1)'
         required: true
+      build_ref:
+        description: 'Optional packaging commit/ref for backfilling an existing release'
+        required: false
+      macos_only:
+        description: 'Add only Mac packages, keeping the existing Windows installer'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
   windows-installer:
+    if: ${{ !inputs.macos_only }}
     runs-on: windows-2025-vs2026
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ inputs.build_ref || inputs.tag || github.ref }}
           submodules: false
 
       # Same reasoning as ci.yml's windows_vs2026_x64 job - keep these steps in sync with it.
@@ -147,11 +155,12 @@ jobs:
   macos:
     uses: ./.github/workflows/macos.yml
     with:
-      ref: ${{ github.event.inputs.tag || github.ref }}
+      ref: ${{ inputs.build_ref || inputs.tag || github.ref }}
       version: ${{ github.event.inputs.tag || github.ref_name }}
 
   publish:
     needs: [windows-installer, macos]
+    if: ${{ !cancelled() && needs.macos.result == 'success' && (needs.windows-installer.result == 'success' || needs.windows-installer.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -163,9 +172,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          files: |
-            dist/*.exe
-            dist/*.dmg
+          files: dist/*
           fail_on_unmatched_files: true
           generate_release_notes: true
           body: |
