@@ -42,6 +42,20 @@
       }
     },
     {
+      "name": "macos-base",
+      "inherits": "base",
+      "hidden": true,
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "$env{HOME}/Qt/6.11.1/macos",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0"
+      }
+    },
+    {
       "name": "windows-vs2026-x64-base",
       "inherits": "windows-base",
       "hidden": true,
@@ -109,6 +123,26 @@
         "CONAN_HOST_PROFILE": "wxlens-linux_gcc-14",
         "CONAN_BUILD_PROFILE": "wxlens-linux_gcc-14"
       }
+    },
+    {
+      "name": "macos-clang18-arm64-release",
+      "inherits": "macos-base",
+      "displayName": "macOS Clang 18 arm64 Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CONAN_HOST_PROFILE": "wxlens-macos_clang-18_arm64",
+        "CONAN_BUILD_PROFILE": "wxlens-macos_clang-18_arm64"
+      }
+    },
+    {
+      "name": "macos-clang18-x64-release",
+      "inherits": "macos-base",
+      "displayName": "macOS Clang 18 x64 Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CONAN_HOST_PROFILE": "wxlens-macos_clang-18_x64",
+        "CONAN_BUILD_PROFILE": "wxlens-macos_clang-18_x64"
+      }
     }
   ],
   "buildPresets": [
@@ -135,6 +169,18 @@
       "configurePreset": "linux-gcc14-release",
       "displayName": "Linux GCC 14 Release",
       "configuration": "Release"
+    },
+    {
+      "name": "macos-clang18-arm64-release",
+      "configurePreset": "macos-clang18-arm64-release",
+      "displayName": "macOS Clang 18 arm64 Release",
+      "configuration": "Release"
+    },
+    {
+      "name": "macos-clang18-x64-release",
+      "configurePreset": "macos-clang18-x64-release",
+      "displayName": "macOS Clang 18 x64 Release",
+      "configuration": "Release"
     }
   ],
   "testPresets": [
@@ -160,6 +206,18 @@
       "name": "linux-gcc14-release",
       "configurePreset": "linux-gcc14-release",
       "displayName": "Linux GCC 14 Release",
+      "configuration": "Release"
+    },
+    {
+      "name": "macos-clang18-arm64-release",
+      "configurePreset": "macos-clang18-arm64-release",
+      "displayName": "macOS Clang 18 arm64 Release",
+      "configuration": "Release"
+    },
+    {
+      "name": "macos-clang18-x64-release",
+      "configurePreset": "macos-clang18-x64-release",
+      "displayName": "macOS Clang 18 x64 Release",
       "configuration": "Release"
     }
   ]

@@ -42,6 +42,7 @@ edited palettes under `%LOCALAPPDATA%\WxLens` are left in place.
 
 - Unsigned (matches the roadmap's "ship unsigned for now" decision) - Windows SmartScreen will
   show an unknown-publisher prompt on first run.
-- Not yet wired into CI (`.github/workflows/ci.yml` builds and tests only; it does not run this
-  script or publish the resulting installer as a release artifact).
+- `ci.yml` builds and tests but does not run this script; only `.github/workflows/release.yml`
+  does, on a `v*.*.*` tag. Unlike the Linux and macOS packages, the installer therefore gets no
+  per-commit packaging coverage - a change that breaks it surfaces at release time.
 - No portable-ZIP-building script yet, only the installer.

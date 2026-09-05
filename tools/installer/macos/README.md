@@ -14,10 +14,10 @@ Windows installer only after all package jobs succeed.
 
 To add Mac downloads to an existing release whose tag predates this packaging setup,
 manually run `release.yml` with `tag` set to that release, `build_ref` set to the
-packaging commit, and `macos_only` set to `true`. Use this override only when the
+packaging commit, and `skip_windows` set to `true`. Use this override only when the
 application source matches the release and the differences are packaging fixes.
-The workflow uploads both DMGs automatically after successful builds, preserving
-the existing Windows asset. It does not move the release tag. Conan packages are
+The workflow uploads both DMGs, and the Linux AppImage, automatically after successful
+builds, preserving the existing Windows asset. It does not move the release tag. Conan packages are
 cached after dependency installation so retries can reuse them.
 
 To reproduce on a Mac, use LLVM 18, Qt 6.11.1 with ShaderTools, Conan 2, CMake and

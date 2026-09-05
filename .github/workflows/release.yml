@@ -1,7 +1,7 @@
 name: Release
 
-# Push a tag matching v*.*.* (e.g. v0.1.1) to build Windows and macOS packages and publish them as a
-# GitHub Release automatically. Assumes the tagged commit already passed CI on push to main -
+# Push a tag matching v*.*.* (e.g. v0.1.1) to build Windows, macOS and Linux packages and publish
+# them as a GitHub Release automatically. Assumes the tagged commit already passed CI on push to main -
 # this workflow builds wxlens-app for packaging, it does not re-run the test suite.
 on:
   push:
@@ -15,8 +15,8 @@ on:
       build_ref:
         description: 'Optional packaging commit/ref for backfilling an existing release'
         required: false
-      macos_only:
-        description: 'Add only Mac packages, keeping the existing Windows installer'
+      skip_windows:
+        description: 'Add only the Mac and Linux packages, keeping the existing Windows installer'
         type: boolean
         default: false
 
@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   windows-installer:
-    if: ${{ !inputs.macos_only }}
+    if: ${{ !inputs.skip_windows }}
     runs-on: windows-2025-vs2026
 
     steps:
@@ -158,9 +158,15 @@ jobs:
       ref: ${{ inputs.build_ref || inputs.tag || github.ref }}
       version: ${{ github.event.inputs.tag || github.ref_name }}
 
+  linux:
+    uses: ./.github/workflows/linux.yml
+    with:
+      ref: ${{ inputs.build_ref || inputs.tag || github.ref }}
+      version: ${{ github.event.inputs.tag || github.ref_name }}
+
   publish:
-    needs: [windows-installer, macos]
-    if: ${{ !cancelled() && needs.macos.result == 'success' && (needs.windows-installer.result == 'success' || needs.windows-installer.result == 'skipped') }}
+    needs: [windows-installer, macos, linux]
+    if: ${{ !cancelled() && needs.macos.result == 'success' && needs.linux.result == 'success' && (needs.windows-installer.result == 'success' || needs.windows-installer.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -182,4 +188,4 @@ jobs:
 
             Mac builds are not Developer ID signed or notarized. If macOS blocks a trusted download, use System Settings -> Privacy & Security -> Open Anyway after attempting to launch it.
 
-            Linux: build from source (see AGENTS.md).
+            **Linux (x86_64):** download `linux-x86_64.AppImage`, then `chmod +x` it and run it - no installation, no root, and it bundles its own Qt. Built against glibc 2.39, so it needs Ubuntu 24.04 or a distribution of similar vintage or newer. Unsigned, like the packages above.
