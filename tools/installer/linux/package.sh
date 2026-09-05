@@ -16,7 +16,37 @@ arch=${3:?architecture required}
 
 repo_root=$PWD
 stage=$(mktemp -d)
-trap 'rm -rf "$stage"' EXIT
+
+# Qt's deploy tools bundle every plugin in plugins/sqldrivers the moment anything links Qt6Sql -
+# and MapLibre's core does, for its offline tile database. Most of those drivers are for databases
+# WxLens never touches, and libqsqlmimer.so needs the proprietary Mimer client library, which is
+# installed nowhere: linuxdeploy-plugin-qt does not warn and move on, it hard-fails the whole run
+# with "Could not find dependency: libmimerapi.so". SQLite is the only driver MapLibre uses.
+# Neither linuxdeploy-plugin-qt nor macdeployqt can exclude an individual plugin, so move the rest
+# out of the Qt installation for the duration and put them back on the way out - including on
+# failure, which is why this is wired into the EXIT trap rather than run at the end.
+sqldrivers="$("${QMAKE:-qmake}" -query QT_INSTALL_PLUGINS)/sqldrivers"
+sqldrivers_stash="$stage/sqldrivers"
+
+cleanup()
+{
+   if [[ -d "$sqldrivers_stash" ]]; then
+      mv "$sqldrivers_stash"/* "$sqldrivers/" 2>/dev/null || true
+   fi
+   rm -rf "$stage"
+}
+trap cleanup EXIT
+
+if [[ -d "$sqldrivers" ]]; then
+   mkdir -p "$sqldrivers_stash"
+   for driver in "$sqldrivers"/*; do
+      case "${driver##*/}" in
+         *sqlite*) ;;
+         *) [[ -e "$driver" ]] && mv "$driver" "$sqldrivers_stash/" ;;
+      esac
+   done
+fi
+
 appdir="$stage/AppDir"
 
 # The MapLibre QML plugin is loaded by the QML engine at runtime, never linked, so nothing pulls
