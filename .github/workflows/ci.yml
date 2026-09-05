@@ -149,9 +149,6 @@ jobs:
 
       - name: Conan install
         shell: bash
-        env:
-          CC: ${{ matrix.env_cc }}
-          CXX: ${{ matrix.env_cxx }}
         run: |
           conan install . --remote conancenter --build missing \
             --profile:all ${{ matrix.conan_profile }} \
@@ -160,9 +157,6 @@ jobs:
 
       - name: CMake configure
         shell: bash
-        env:
-          CC: ${{ matrix.env_cc }}
-          CXX: ${{ matrix.env_cxx }}
         run: |
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
