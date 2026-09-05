@@ -195,6 +195,17 @@ set_target_properties(wxlens-app PROPERTIES
     QT_QML_IMPORT_PATH "${WXLENS_MLN_QT_QML_PLUGIN_DIR}/.."
 )
 
+set(WXLENS_QML_DEPLOY_DIR "$<TARGET_FILE_DIR:wxlens-app>/qml")
+if (APPLE)
+    set_target_properties(wxlens-app PROPERTIES
+        OUTPUT_NAME WxLens
+        MACOSX_BUNDLE_BUNDLE_NAME WxLens
+        MACOSX_BUNDLE_GUI_IDENTIFIER org.wxlens.WxLens
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${WXLENS_VERSION}"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${WXLENS_VERSION}")
+    set(WXLENS_QML_DEPLOY_DIR "$<TARGET_BUNDLE_DIR:wxlens-app>/Contents/Resources/qml")
+endif()
+
 # The plugin's qmldir/qmltypes (written by configure_file, unaffected by the output-dir bug
 # above) live in WXLENS_MLN_QT_QML_PLUGIN_DIR, but its actual .dll doesn't - that got redirected
 # by the same per-config-property bug to wherever CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE points
@@ -204,10 +215,10 @@ add_custom_command(TARGET wxlens-app
                    POST_BUILD
                    COMMAND "${CMAKE_COMMAND}" -E copy_directory
                        "${WXLENS_MLN_QT_QML_PLUGIN_DIR}"
-                       "$<TARGET_FILE_DIR:wxlens-app>/qml/MapLibre"
+                       "${WXLENS_QML_DEPLOY_DIR}/MapLibre"
                    COMMAND "${CMAKE_COMMAND}" -E copy
                        "$<TARGET_FILE:declarative_maplibre>"
-                       "$<TARGET_FILE_DIR:wxlens-app>/qml/MapLibre/"
+                       "${WXLENS_QML_DEPLOY_DIR}/MapLibre/"
                    COMMENT "Deploying MapLibre QML plugin next to wxlens-app...")
 
 if (MSVC)

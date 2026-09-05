@@ -2671,7 +2671,15 @@ cost is weighted heavily here):
   identical to running the build tree directly), and uninstall all behaved correctly. **Not yet
   verified on an actual clean machine** (no other Windows box available) and not yet wired into
   CI or attached to a GitHub Release - see `tools/installer/windows/README.md`'s "Known open
-  items". macOS and Linux have no installer/package yet at all (§7's Phase 1 packaging note).
+  items".
+  **macOS packaging added (2026-09-05, user-requested):** reusable
+  `.github/workflows/macos.yml` builds native Apple Silicon and Intel `.dmg` downloads
+  for macOS 15+, using LLVM 18 and Qt 6.11.1. CI exercises packaging; `release.yml`
+  publishes all three platform assets after Windows and both Mac jobs succeed.
+  Qt/QML/MapLibre runtime deployment, dependency-path validation, ad-hoc signatures,
+  and license/attribution files are included. Developer ID signing/notarization is not
+  configured. **Mac runner builds and clean-Mac launch/rendering remain unverified**;
+  see `tools/installer/macos/README.md`. Linux packaging remains pending.
 - [x] Runtime dependency and license/attribution packaging (ACKNOWLEDGEMENTS.md ships with the app).
   Confirmed: `app/CMakeLists.txt` copies `ACKNOWLEDGEMENTS.md` and `LICENSE.txt` into the Release
   output directory, and the installer above includes both.
