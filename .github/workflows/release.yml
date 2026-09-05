@@ -1,0 +1,149 @@
+name: Release
+
+# Push a tag matching v*.*.* (e.g. v0.1.1) to build the Windows installer and publish it as a
+# GitHub Release automatically. Assumes the tagged commit already passed CI on push to main -
+# this workflow builds wxlens-app for packaging, it does not re-run the test suite.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and publish (e.g. v0.1.1)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  windows-installer:
+    runs-on: windows-2025-vs2026
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          submodules: false
+
+      # Same reasoning as ci.yml's windows_vs2026_x64 job - keep these steps in sync with it.
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Initialize required submodules
+        shell: bash
+        run: |
+          git config --global core.longpaths true
+          git submodule update --init --depth 1 -- \
+            external/legacy-supercell-wx \
+            external/aws-sdk-cpp \
+            external/date \
+            external/units \
+            external/hsluv-c \
+            external/maplibre-native-qt \
+            external/cmake-conan
+          git -C external/aws-sdk-cpp submodule update --init --recursive --depth 1
+          git -C external/maplibre-native-qt submodule update --init --recursive --depth 1 -- vendor/maplibre-native
+          git -C external/legacy-supercell-wx submodule update --init --depth 1 -- test/data
+
+      # TEMPORARY pin - see ci.yml's windows_vs2026_x64 matrix entry for why (Qt 6.11.x's own
+      # windows_x86/desktop package index is currently broken upstream). Keep these in sync.
+      - name: Install Qt (attempt 1)
+        id: qt1
+        continue-on-error: true
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.10.0
+          arch: win64_msvc2022_64
+          modules: 'qtshadertools'
+
+      - name: Wait before retrying Qt install
+        if: steps.qt1.outcome == 'failure'
+        run: sleep 30
+        shell: bash
+
+      - name: Install Qt (attempt 2)
+        id: qt2
+        if: steps.qt1.outcome == 'failure'
+        continue-on-error: true
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.10.0
+          arch: win64_msvc2022_64
+          modules: 'qtshadertools'
+
+      - name: Wait before retrying Qt install again
+        if: steps.qt1.outcome == 'failure' && steps.qt2.outcome == 'failure'
+        run: sleep 60
+        shell: bash
+
+      - name: Install Qt (attempt 3)
+        if: steps.qt1.outcome == 'failure' && steps.qt2.outcome == 'failure'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.10.0
+          arch: win64_msvc2022_64
+          modules: 'qtshadertools'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Conan
+        run: pip install conan
+
+      - name: Install Conan profile
+        run: conan config install ./tools/conan/profiles/wxlens-windows_vs2026_x64 -tf profiles
+
+      - name: Conan install
+        shell: bash
+        run: |
+          conan install . --remote conancenter --build missing \
+            --profile:all wxlens-windows_vs2026_x64 \
+            --settings:all build_type=Release \
+            --output-folder build/conan
+
+      - name: CMake configure
+        shell: bash
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}/../.." \
+            -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=external/cmake-conan/conan_provider.cmake \
+            -DCONAN_HOST_PROFILE=wxlens-windows_vs2026_x64 \
+            -DCONAN_BUILD_PROFILE=wxlens-windows_vs2026_x64
+
+      # Also runs windeployqt (app/CMakeLists.txt's POST_BUILD step), populating build/Release/bin
+      # with everything the installer below packages.
+      - name: Build
+        run: cmake --build build --target wxlens-app --config Release
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ steps.version.outputs.version }} /DBuildDir=..\..\..\build\Release tools\installer\windows\wxlens.iss
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: dist/WxLens-${{ steps.version.outputs.version }}-windows-x64-setup.exe
+          generate_release_notes: true
+          body: |
+            **Unsigned build** - Windows SmartScreen will show an "unknown publisher" prompt on first run (click "More info" -> "Run anyway").
+
+            Installs per-user, no admin required. macOS/Linux are not packaged yet - build from source (see AGENTS.md).
