@@ -12,6 +12,14 @@ and rejects absolute dependencies outside Apple's system libraries. CI uploads t
 disk images as workflow artifacts; the release workflow publishes them alongside the
 Windows installer only after all package jobs succeed.
 
+To add Mac downloads to an existing release whose tag predates this packaging setup,
+manually run `release.yml` with `tag` set to that release, `build_ref` set to the
+packaging commit, and `macos_only` set to `true`. Use this override only when the
+application source matches the release and the differences are packaging fixes.
+The workflow uploads both DMGs automatically after successful builds, preserving
+the existing Windows asset. It does not move the release tag. Conan packages are
+cached after dependency installation so retries can reuse them.
+
 To reproduce on a Mac, use LLVM 18, Qt 6.11.1 with ShaderTools, Conan 2, CMake and
 Ninja. Follow the configure/build commands in `macos.yml`, using the Conan profile
 matching the machine architecture, then run from the repository root:
