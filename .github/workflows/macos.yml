@@ -58,6 +58,17 @@ jobs:
       # tools/installer/macos/package.sh rejects outright.
       - name: Install build tools
         run: brew install ninja
+
+      # Intel only. /usr/local is Homebrew's prefix on Intel Macs and is on Clang's default
+      # include path, so Homebrew's libzip headers shadow the Conan libzip this build passes with
+      # -isystem: wxdata's zip_stream_reader.cpp compiled against /usr/local/include/zip.h and
+      # died on -Werror,-Wnullability-extension. Apple Silicon never hits this because its
+      # Homebrew prefix, /opt/homebrew, is not searched by default - which is exactly why the
+      # arm64 job is green and this one was not. Removing the shadowing headers makes the Conan
+      # copy win, which is the one the rest of the build links against.
+      - name: Remove Homebrew headers that shadow Conan's
+        if: matrix.arch == 'x64'
+        run: sudo rm -f /usr/local/include/zip.h /usr/local/include/zipconf.h
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'

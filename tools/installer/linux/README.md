@@ -60,6 +60,15 @@ finds in `app/qml`. Two things need explicit handling on top of that:
   purely off Qt's `<exe-dir>/qml` default import path. Which one wins is a Qt-internal detail;
   a duplicate costs about a megabyte and the QML engine takes the first match.
 - **`LICENSE.txt` and `ACKNOWLEDGEMENTS.md`** are installed under `usr/share/doc/wxlens/`.
+- **The icon** is `app/res/branding/wxlens-icon-256.png`, a committed 256x256 derivative of the
+  880x880 branding master. linuxdeploy validates icon dimensions against the freedesktop
+  icon-theme sizes and rejects anything else, so the master cannot be used directly. Regenerate
+  it after a branding change with:
+
+  ```python
+  from PIL import Image
+  Image.open("app/res/branding/wxlens-icon.png").convert("RGBA")        .resize((256, 256), Image.LANCZOS)        .save("app/res/branding/wxlens-icon-256.png", "PNG", optimize=True)
+  ```
 
 Before packaging, the script fails the build if the AppDir is missing Qt Quick/Qml/Gui, the
 MapLibre core library, the `xcb` platform plugin, or the bundled `QtQuick` QML module — each of

@@ -70,7 +70,11 @@ install -Dm644 ACKNOWLEDGEMENTS.md "$appdir/usr/share/doc/wxlens/ACKNOWLEDGEMENT
 # linuxdeploy installs both of these into the AppDir itself and cross-checks that the desktop
 # file's Icon= key matches the icon's basename, so they are staged under matching names.
 cp app/res/linux/org.wxlens.WxLens.desktop "$stage/org.wxlens.WxLens.desktop"
-cp app/res/branding/wxlens-icon.png "$stage/org.wxlens.WxLens.png"
+# The 256x256 derivative, not the 880x880 master: linuxdeploy validates icon dimensions against
+# the freedesktop icon-theme sizes and refuses anything else outright ("Icon ... has invalid x
+# resolution: 880"). Regenerate it from the master with tools/installer/linux/README.md's snippet
+# if the branding changes.
+cp app/res/branding/wxlens-icon-256.png "$stage/org.wxlens.WxLens.png"
 
 tools_dir=${LINUXDEPLOY_CACHE_DIR:-$stage/tools}
 mkdir -p "$tools_dir"
