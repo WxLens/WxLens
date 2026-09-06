@@ -13,7 +13,11 @@ on:
         description: 'Existing tag to build and publish (e.g. v0.1.1)'
         required: true
       build_ref:
-        description: 'Optional packaging commit/ref for backfilling an existing release'
+        # Deliberately NOT defaulted to the default branch: for a legitimate re-run of a proper
+        # tag, silently building main instead would publish packages that do not match the tag -
+        # a worse failure than the one it would prevent, and a silent one. The guard in
+        # linux.yml/macos.yml catches the omission in seconds instead.
+        description: 'Commit/branch to BUILD packages from, e.g. main. Needed when backfilling a tag whose commit predates the packaging scripts - without it the tag itself is built.'
         required: false
       skip_windows:
         description: 'Add only the Mac and Linux packages, keeping the existing Windows installer'
