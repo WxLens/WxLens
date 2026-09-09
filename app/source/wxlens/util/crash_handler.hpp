@@ -8,24 +8,27 @@ namespace util
 {
 
 /**
- * Installs a process-wide handler that writes a symbolized backtrace to a crash log when the
- * application faults.
+ * Installs a process-wide handler that writes a symbolized backtrace to a crash
+ * log when the application faults.
  *
- * Motivation (docs/ROADMAP.md, Phase 1 slice 4): a crash reported only as "faulting module
- * Qt6Gui.dll, offset 0x...", with no debugger and no symbols on the machine, is not actionable -
- * the offset cannot be turned into a function name. This makes the process self-reporting instead.
+ * Motivation (docs/ROADMAP.md, Phase 1 slice 4): a crash reported only as
+ * "faulting module Qt6Gui.dll, offset 0x...", with no debugger and no symbols
+ * on the machine, is not actionable - the offset cannot be turned into a
+ * function name. This makes the process self-reporting instead.
  *
- * Deliberately does **not** use wxlens::log/spdlog: the fault this was built for happens during
- * application teardown, when the logger's sinks may already be destroyed. The handler writes with
- * plain Win32 file calls and touches no allocator or C++ runtime state that teardown could have
- * invalidated.
+ * Deliberately does **not** use wxlens::log/spdlog: the fault this was built
+ * for happens during application teardown, when the logger's sinks may already
+ * be destroyed. The handler writes with plain Win32 file calls and touches no
+ * allocator or C++ runtime state that teardown could have invalidated.
  *
- * Returns EXCEPTION_CONTINUE_SEARCH after writing, so Windows Error Reporting still produces its
- * usual minidump - this adds a readable stack, it doesn't replace the dump.
+ * Returns EXCEPTION_CONTINUE_SEARCH after writing, so Windows Error Reporting
+ * still produces its usual minidump - this adds a readable stack, it doesn't
+ * replace the dump.
  *
- * No-op on non-Windows platforms (the crash log is a DbgHelp/StackWalk64 facility). A POSIX
- * equivalent would use backtrace()/backtrace_symbols() and belongs here if/when WxLens actually
- * builds there.
+ * No-op on non-Windows platforms (the crash log is a DbgHelp/StackWalk64
+ * facility). CrashReportManager reads macOS's native .ips reports on the next
+ * launch, preserving the OS crash handler rather than installing an in-process
+ * unwinder in a signal handler. Linux capture is not implemented.
  */
 void InstallCrashHandler(const std::string& crashLogDirectory);
 

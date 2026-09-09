@@ -127,6 +127,7 @@ add_executable(wxlens-app-test
     source/wxlens/theme/theme_manager.test.cpp
     source/wxlens/util/radar_geometry.test.cpp
     source/wxlens/util/unit_format.test.cpp
+    source/wxlens/util/crash_report.test.cpp
 
     ${WXLENS_APP_SRC}/data/radar_site_data_service.cpp
     ${WXLENS_APP_SRC}/data/radar_site_database.cpp
@@ -157,6 +158,8 @@ add_executable(wxlens-app-test
     ${WXLENS_APP_SRC}/util/geodesic.cpp
     ${WXLENS_APP_SRC}/util/radar_geometry.cpp
     ${WXLENS_APP_SRC}/util/unit_format.cpp
+    ${WXLENS_APP_SRC}/util/crash_report.cpp
+    ${WXLENS_APP_SRC}/util/crash_report_manager.cpp
     ${CMAKE_FILES})
 
 # radar_sites.json reaches the app through qt_add_qml_module's resources, which wxlens-app-test

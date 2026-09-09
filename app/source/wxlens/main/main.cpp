@@ -12,6 +12,8 @@
 #include <wxlens/settings/settings_store.hpp>
 #include <wxlens/theme/theme_manager.hpp>
 #include <wxlens/util/crash_handler.hpp>
+#include <wxlens/util/crash_report_manager.hpp>
+#include <wxlens/util/crash_reporting_config.hpp>
 
 #include <scwx/util/threads.hpp>
 
@@ -28,6 +30,7 @@
 #include <QSurfaceFormat>
 
 #include <algorithm>
+#include <cstring>
 
 static const std::string logPrefix_ = "main";
 
@@ -83,37 +86,55 @@ void FitWindowToScreen(QWindow* window, const std::shared_ptr<spdlog::logger>& l
 
 int main(int argc, char* argv[])
 {
+   const bool reportOnly =
+      std::any_of(argv + 1,
+                  argv + argc,
+                  [](const char* value)
+                  { return std::strcmp(value, "--crash-report") == 0; });
+   if (reportOnly)
+   {
+      // This window contains no map and must remain usable when GL
+      // initialization crashes.
+      QQuickWindow::setSceneGraphBackend(QStringLiteral("software"));
+   }
    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 
-   // WxLens is a core-profile OpenGL application and always has been: every custom layer resolves
-   // its entry points through QOpenGLFunctions_3_3_Core and generates its own VAO, and the ported
-   // shaders are desktop `#version 330 core` - docs/ROADMAP.md §7 Phase 1 slice 3 records dropping
-   // the legacy shader's ES-only `precision mediump float;` line precisely because it is a hard
-   // syntax error there. Nothing had ever *asked* for that profile, though. Windows and Linux
-   // drivers answer an unqualified request with a 4.x compatibility context that happens to expose
-   // all of it, so the omission stayed invisible; macOS does not, and a request that does not name
-   // a >= 3.2 core profile gets the legacy 2.1 compatibility context instead. That is exactly what
-   // an Apple M4 Pro reported ("RENDERER: Apple M4 Pro, VERSION: 2.1 Metal - 90.5") immediately
-   // before startup died in std::bad_alloc: on a 2.1 context the GL 3.0+ entry points mbgl reaches
-   // through Qt's QOpenGLExtraFunctions are absent and its capability queries fail rather than
-   // returning real limits, and the sizes it derives from them are no longer meaningful. Forcing
-   // software rendering got further only because it sidesteps that context entirely.
+   // WxLens is a core-profile OpenGL application and always has been: every
+   // custom layer resolves its entry points through QOpenGLFunctions_3_3_Core
+   // and generates its own VAO, and the ported shaders are desktop `#version
+   // 330 core` - docs/ROADMAP.md §7 Phase 1 slice 3 records dropping the legacy
+   // shader's ES-only `precision mediump float;` line precisely because it is a
+   // hard syntax error there. Nothing had ever *asked* for that profile,
+   // though. Windows and Linux drivers answer an unqualified request with a 4.x
+   // compatibility context that happens to expose all of it, so the omission
+   // stayed invisible; macOS does not, and a request that does not name a
+   // >= 3.2 core profile gets the legacy 2.1 compatibility context instead.
+   // That is exactly what an Apple M4 Pro reported ("RENDERER: Apple M4 Pro,
+   // VERSION: 2.1 Metal - 90.5") immediately before startup died in
+   // std::bad_alloc: on a 2.1 context the GL 3.0+ entry points mbgl reaches
+   // through Qt's QOpenGLExtraFunctions are absent and its capability queries
+   // fail rather than returning real limits, and the sizes it derives from them
+   // are no longer meaningful. Forcing software rendering got further only
+   // because it sidesteps that context entirely.
    //
-   // macOS offers no middle ground - 4.1 Core or 2.1 Compatibility, nothing between - so name 4.1
-   // there. This mirrors the legacy app's InitializeOpenGL()
-   // (scwx-qt/source/scwx/qt/main/main.cpp), which carries the same #if defined(__APPLE__) version
-   // pin for the same reason; porting only map_widget.cpp's setSamples(4) below is how the profile
-   // request went missing here in the first place.
+   // macOS offers no middle ground - 4.1 Core or 2.1 Compatibility, nothing
+   // between - so name 4.1 there. This mirrors the legacy app's
+   // InitializeOpenGL() (scwx-qt/source/scwx/qt/main/main.cpp), which carries
+   // the same #if defined(__APPLE__) version pin for the same reason; porting
+   // only map_widget.cpp's setSamples(4) below is how the profile request went
+   // missing here in the first place.
    //
-   // Multisampling: without it, RadarSweepLayer's per-gate triangles (many of them sub-pixel-sized
-   // at typical zoom levels) get raw point-sampled by the rasterizer, producing a speckled/mottled
-   // look instead of solid filled wedges - confirmed by a real launch against live KEAX data
-   // (docs/ROADMAP.md §7 Phase 1 slice 3). Matches the legacy app's own fix for the same problem
-   // (scwx-qt/source/scwx/qt/map/map_widget.cpp: `surfaceFormat.setSamples(4)`).
+   // Multisampling: without it, RadarSweepLayer's per-gate triangles (many of
+   // them sub-pixel-sized at typical zoom levels) get raw point-sampled by the
+   // rasterizer, producing a speckled/mottled look instead of solid filled
+   // wedges - confirmed by a real launch against live KEAX data
+   // (docs/ROADMAP.md §7 Phase 1 slice 3). Matches the legacy app's own fix for
+   // the same problem (scwx-qt/source/scwx/qt/map/map_widget.cpp:
+   // `surfaceFormat.setSamples(4)`).
    //
-   // All of this must be set before QGuiApplication creates any window/GL context, so it has to run
-   // before the QGuiApplication constructor below, not later via QQuickWindow::setFormat() on the
-   // QML window.
+   // All of this must be set before QGuiApplication creates any window/GL
+   // context, so it has to run before the QGuiApplication constructor below,
+   // not later via QQuickWindow::setFormat() on the QML window.
    QSurfaceFormat surfaceFormat = QSurfaceFormat::defaultFormat();
    surfaceFormat.setProfile(QSurfaceFormat::OpenGLContextProfile::CoreProfile);
    surfaceFormat.setRenderableType(QSurfaceFormat::RenderableType::OpenGL);
@@ -133,6 +154,7 @@ int main(int argc, char* argv[])
 
    QGuiApplication app(argc, argv);
    QGuiApplication::setApplicationName("WxLens");
+   QGuiApplication::setApplicationVersion(WXLENS_REPORTER_VERSION);
    QGuiApplication::setOrganizationName("WxLens");
    // The base QtQuick.Window "Window" QML type has no `icon` property (that's an
    // ApplicationWindow/Controls thing) - setting it here covers every window the app creates,
@@ -143,15 +165,45 @@ int main(int argc, char* argv[])
    wxlens::log::Initialize();
    auto logger = wxlens::log::Create(logPrefix_);
 
-   // Installed immediately after logging so it covers the whole process lifetime - including
-   // static destruction after main() returns, which is where the known exit-path fault lives
-   // (docs/ROADMAP.md, Phase 1 slice 4). Writes its own crash log rather than going through
-   // spdlog, whose sinks may already be gone by then.
+   // Installed immediately after logging so it covers the whole process
+   // lifetime - including static destruction after main() returns, which is
+   // where the known exit-path fault lives (docs/ROADMAP.md, Phase 1 slice 4).
+   // Writes its own crash log rather than going through spdlog, whose sinks may
+   // already be gone by then.
    wxlens::util::InstallCrashHandler(wxlens::log::LogDirectory());
 
-   // A shutdown that never finishes produces no crash and no output at all, so it has to be
-   // caught deliberately: if the process is still alive well after it started quitting, dump
-   // every thread's stack so the deadlock is visible instead of just looking frozen.
+   wxlens::util::CrashReportManager crashReports {
+      wxlens::settings::SettingsStore::Instance(),
+      QString::fromStdString(wxlens::log::LogDirectory()),
+      WXLENS_SENTRY_DSN};
+
+   if (reportOnly)
+   {
+      wxlens::theme::ThemeManager theme {
+         wxlens::settings::SettingsStore::Instance()};
+      QQmlApplicationEngine reportEngine;
+      reportEngine.rootContext()->setContextProperty("themeManager", &theme);
+      reportEngine.rootContext()->setContextProperty("crashReports",
+                                                     &crashReports);
+      crashReports.open();
+      reportEngine.loadFromModule("WxLens.App", "CrashReporter");
+      if (reportEngine.rootObjects().isEmpty())
+         return -1;
+      QObject::connect(&crashReports,
+                       &wxlens::util::CrashReportManager::changed,
+                       &app,
+                       [&]()
+                       {
+                          if (!crashReports.visible())
+                             app.quit();
+                       });
+      return QGuiApplication::exec();
+   }
+
+   // A shutdown that never finishes produces no crash and no output at all, so
+   // it has to be caught deliberately: if the process is still alive well after
+   // it started quitting, dump every thread's stack so the deadlock is visible
+   // instead of just looking frozen.
    QObject::connect(&app,
                     &QGuiApplication::aboutToQuit,
                     &app,
@@ -212,6 +264,7 @@ int main(int argc, char* argv[])
    wxlens::panes::PaneGridModel paneGridModel;
    paneGridModel.setDefaultSourceKey(QString::fromStdString(kDefaultRadarSite));
    engine.rootContext()->setContextProperty("paneGridModel", &paneGridModel);
+   engine.rootContext()->setContextProperty("crashReports", &crashReports);
    // Family defaults (which palette velocity/reflectivity/... panes use) persist like any other
    // preference; the editor's own drafts deliberately do not (factory palettes are never
    // overwritten - users save a .pal copy instead).

@@ -4,6 +4,15 @@ project(wxlens-app CXX)
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 OpenGL Network)
 qt_standard_project_setup(REQUIRES 6.5)
 
+# Public ingestion address only; never embed a Sentry API/auth token in the app.
+set(WXLENS_SENTRY_DSN "https://8ccd3a6583abc6085ea5fa236535cd94@o4512056725602304.ingest.us.sentry.io/4512056733401088"
+    CACHE STRING "Public Sentry crash reporting DSN (empty disables uploads)")
+if (WXLENS_SENTRY_DSN AND NOT WXLENS_SENTRY_DSN MATCHES "^https://[0-9a-fA-F]+@[a-z0-9.-]+/[0-9]+$")
+    message(FATAL_ERROR "WXLENS_SENTRY_DSN must be a public HTTPS DSN, without a password, query or fragment")
+endif()
+configure_file(source/wxlens/util/crash_reporting_config.hpp.in
+    generated/wxlens/util/crash_reporting_config.hpp @ONLY)
+
 # Boost::timer/Boost::json are used by wxdata (boost::timer::cpu_timer in
 # aws_level2_chunks_data_provider.cpp, boost::json in util/json.hpp) but wxdata.cmake itself
 # (external/, read-only) doesn't declare them, and wxdata is an OBJECT library so this only
@@ -73,6 +82,10 @@ qt_add_executable(wxlens-app
     source/wxlens/theme/theme_manager.hpp
     source/wxlens/util/crash_handler.cpp
     source/wxlens/util/crash_handler.hpp
+    source/wxlens/util/crash_report.cpp
+    source/wxlens/util/crash_report.hpp
+    source/wxlens/util/crash_report_manager.cpp
+    source/wxlens/util/crash_report_manager.hpp
     source/wxlens/util/geodesic.cpp
     source/wxlens/util/geodesic.hpp
     source/wxlens/util/radar_geometry.cpp
@@ -82,13 +95,14 @@ qt_add_executable(wxlens-app
     $<$<PLATFORM_ID:Windows>:res/branding/app.rc>
 )
 
-target_include_directories(wxlens-app PRIVATE source)
+target_include_directories(wxlens-app PRIVATE source "${CMAKE_CURRENT_BINARY_DIR}/generated")
 
 qt_add_qml_module(wxlens-app
     URI WxLens.App
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/CrashReporter.qml
         qml/Chrome/TopBar.qml
         qml/Chrome/BottomControlBar.qml
         qml/Chrome/TimeControls.qml
@@ -98,6 +112,7 @@ qt_add_qml_module(wxlens-app
         qml/Dialogs/SavedPlacesDialog.qml
         qml/Dialogs/OverlaysDialog.qml
         qml/Dialogs/HelpDialog.qml
+        qml/Dialogs/CrashReportDialog.qml
         qml/Controls/ColorPicker.qml
         qml/Controls/DialogCloseButton.qml
         qml/Controls/WxButton.qml

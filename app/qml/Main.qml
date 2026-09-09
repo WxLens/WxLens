@@ -68,6 +68,7 @@ Window {
     SavedPlacesDialog { id: savedPlacesDialog }
     OverlaysDialog { id: overlaysDialog }
     HelpDialog { id: helpDialog }
+    CrashReportDialog {}
 
     Shortcut { sequence: "F1"; onActivated: helpDialog.open() }
     Shortcut { sequence: "Ctrl+/"; onActivated: helpDialog.open() }

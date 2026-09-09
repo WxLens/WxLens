@@ -206,6 +206,8 @@ Modify `conanfile.py`'s `requires` tuple for Conan packages; advance the relevan
 rule above before adding anything new.
 
 ## Resources
+- `docs/crash-reporting.md` — opt-in Sentry reports, privacy limits, free-plan setup,
+  and `--crash-report` recovery mode (software-rendered UI without map initialization).
 - `docs/ROADMAP.md` — full architecture, phase breakdown, open questions.
 - `docs/adr/` — one-way-door decisions (Qt Quick vs. web shell, wxdata reuse strategy, config
   format, MapLibre QML integration).

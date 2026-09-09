@@ -8,7 +8,12 @@ not Developer ID signed or notarized; macOS may require **System Settings > Priv
 
 The reusable `.github/workflows/macos.yml` builds and tests both architectures on
 native runners, packages Qt/QML/MapLibre and dependent libraries, verifies signatures
-and rejects absolute dependencies outside Apple's system libraries. CI uploads the
+and rejects absolute dependencies outside Apple's system libraries. It then mounts the
+finished DMG, copies the app out, and launches it for 30 seconds with development
+Qt/QML and dynamic-loader environment overrides removed. An early exit fails the job;
+startup output, application logs, and available crash reports are uploaded as
+`macos-startup-<arch>`. This checks startup survival, not correct map/radar rendering
+or Gatekeeper behavior on a quarantined download. CI uploads the
 disk images as workflow artifacts; the release workflow publishes them alongside the
 Windows installer only after all package jobs succeed.
 
@@ -20,7 +25,7 @@ The workflow uploads both DMGs, and the Linux AppImage, automatically after succ
 builds, preserving the existing Windows asset. It does not move the release tag. Conan packages are
 cached after dependency installation so retries can reuse them.
 
-To reproduce on a Mac, use LLVM 18, Qt 6.11.1 with ShaderTools, Conan 2, CMake and
+To reproduce on a Mac, use Apple Clang, Qt 6.11.1 with ShaderTools, Conan 2, CMake and
 Ninja. Follow the configure/build commands in `macos.yml`, using the Conan profile
 matching the machine architecture, then run from the repository root:
 

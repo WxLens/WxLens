@@ -124,8 +124,8 @@ jobs:
             -DCONAN_HOST_PROFILE="$PROFILE" -DCONAN_BUILD_PROFILE="$PROFILE"
       - name: Build and test
         run: |
-          cmake --build build --target wxlens-app wxlens-wxdata-test
-          ctest --test-dir build --output-on-failure -R wxlens-wxdata-test
+          cmake --build build --target wxlens-app wxlens-wxdata-test wxlens-app-test
+          ctest --test-dir build --output-on-failure -R 'wxlens-wxdata-test|^CrashReport\.'
       - name: Package disk image
         env:
           PACKAGE_VERSION: ${{ inputs.version }}
@@ -135,6 +135,17 @@ jobs:
             PACKAGE_VERSION=$(sed -n 's/^set(WXLENS_VERSION "\([^"]*\)").*/\1/p' CMakeLists.txt)
           fi
           bash tools/installer/macos/package.sh build "$PACKAGE_VERSION" "$PACKAGE_ARCH"
+      - name: Launch the packaged app
+        run: |
+          python tools/installer/macos/smoke-test.py dist/*.dmg \
+            --output build/macos-startup --seconds 30
+      - name: Upload macOS startup diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-startup-${{ matrix.arch }}
+          path: build/macos-startup/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: release-macos-${{ matrix.arch }}

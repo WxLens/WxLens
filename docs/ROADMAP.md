@@ -503,6 +503,22 @@ Replicate this repo's proven two-file pattern:
 
 ### 3.4 Audit-friendly logging (Phase 0 deliverable)
 
+**Crash reporting added (2026-09-09, user-requested):**
+`util::CrashReportManager` reads native macOS `.ips` reports or the existing Windows
+exception log on restart. It selects diagnostic fields, presents the exact event
+for review/save, and sends only on an explicit user action to the maintainer's
+Sentry project (free Developer plan). No SDK dependency or background telemetry.
+`--crash-report` opens a software-rendered report window without initializing the
+map/data pipeline, for repeated map startup crashes. Dismissal and successful-send
+hashes use `SettingsStore`'s `crash_reporting.toml`. See
+[`crash-reporting.md`](crash-reporting.md) for privacy, service configuration,
+limits and recovery commands. Linux capture and automatic native symbolication
+remain unimplemented. Native macOS crash/relaunch and notification receipt still
+need verification; a synthetic event was accepted by the configured Sentry endpoint.
+Verified locally: Windows Release app/model-test builds, all eight `CrashReport.*`
+tests, clang-format checks on the new C++ files, and an eight-second offscreen
+`--crash-report` launch. The earlier macOS startup crash itself remains unresolved.
+
 Reuse `wxdata`'s `util::Logger` (`Initialize()`, `AddFileSink(baseFilename)`,
 `Create(name)` → named `spdlog::logger` per subsystem) as-is. Concrete additions for the new
 app, to satisfy the user's stated wish for other AI agents to easily audit work:
@@ -2602,6 +2618,26 @@ on compatibility behaviour.
   compile-checks it. Still needs a real M4 startup to confirm the fix, and a Windows launch to
   confirm no regression: Windows now gets a genuine core context instead of the compatibility one
   it had been getting by accident.
+
+**macOS startup investigation follow-up (2026-09-09):** Actions run `34351147658`
+built commit `376c8d5`, which already includes the core-profile request above. Both
+architectures built, tested wxdata, and packaged successfully, but neither job launched
+the app. A continued startup crash therefore remains unresolved; the earlier heading's
+"fixed" describes the attempted context correction, not verified runtime recovery.
+`macdeployqt` reported intermediate signing errors involving `QMapLibreQuickPrivate`,
+but the packaging script's subsequent explicit signing and strict verification passed.
+Those messages alone do not establish a signature failure in the shipped app.
+
+- **Implemented:** native macOS CI now mounts the finished DMG, copies and verifies the
+  bundle, and checks 30-second startup survival without development Qt/QML or loader
+  overrides. Early exits fail packaging; diagnostics are uploaded even on failure.
+- **Tested locally:** Python syntax and simulated process checks for early successful
+  exit, failure, SIGABRT, environment isolation, and terminate/kill timeout cleanup;
+  `git diff --check` passed. These do not substitute for a native Mac launch.
+- **Not verified:** native execution from this Windows workspace, correct rendering,
+  downloaded-app Gatekeeper behavior, and the cause of the affected Mac's crash.
+- **Next:** run the updated workflow and compare its startup diagnostics with the
+  affected Mac's crash report before choosing another runtime fix.
 
 #### User feedback follow-up — rendering, playback, caching, and Canadian radar (2026-09-09)
 
