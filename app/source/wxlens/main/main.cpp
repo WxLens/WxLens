@@ -85,14 +85,41 @@ int main(int argc, char* argv[])
 {
    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 
-   // Without multisampling, RadarSweepLayer's per-gate triangles (many of them sub-pixel-sized at
-   // typical zoom levels) get raw point-sampled by the rasterizer, producing a speckled/mottled
+   // WxLens is a core-profile OpenGL application and always has been: every custom layer resolves
+   // its entry points through QOpenGLFunctions_3_3_Core and generates its own VAO, and the ported
+   // shaders are desktop `#version 330 core` - docs/ROADMAP.md §7 Phase 1 slice 3 records dropping
+   // the legacy shader's ES-only `precision mediump float;` line precisely because it is a hard
+   // syntax error there. Nothing had ever *asked* for that profile, though. Windows and Linux
+   // drivers answer an unqualified request with a 4.x compatibility context that happens to expose
+   // all of it, so the omission stayed invisible; macOS does not, and a request that does not name
+   // a >= 3.2 core profile gets the legacy 2.1 compatibility context instead. That is exactly what
+   // an Apple M4 Pro reported ("RENDERER: Apple M4 Pro, VERSION: 2.1 Metal - 90.5") immediately
+   // before startup died in std::bad_alloc: on a 2.1 context the GL 3.0+ entry points mbgl reaches
+   // through Qt's QOpenGLExtraFunctions are absent and its capability queries fail rather than
+   // returning real limits, and the sizes it derives from them are no longer meaningful. Forcing
+   // software rendering got further only because it sidesteps that context entirely.
+   //
+   // macOS offers no middle ground - 4.1 Core or 2.1 Compatibility, nothing between - so name 4.1
+   // there. This mirrors the legacy app's InitializeOpenGL()
+   // (scwx-qt/source/scwx/qt/main/main.cpp), which carries the same #if defined(__APPLE__) version
+   // pin for the same reason; porting only map_widget.cpp's setSamples(4) below is how the profile
+   // request went missing here in the first place.
+   //
+   // Multisampling: without it, RadarSweepLayer's per-gate triangles (many of them sub-pixel-sized
+   // at typical zoom levels) get raw point-sampled by the rasterizer, producing a speckled/mottled
    // look instead of solid filled wedges - confirmed by a real launch against live KEAX data
    // (docs/ROADMAP.md §7 Phase 1 slice 3). Matches the legacy app's own fix for the same problem
-   // (scwx-qt/source/scwx/qt/map/map_widget.cpp: `surfaceFormat.setSamples(4)`). Must be set
-   // before QGuiApplication creates any window/GL context, so this has to run before the
-   // QGuiApplication constructor below, not later via QQuickWindow::setFormat() on the QML window.
+   // (scwx-qt/source/scwx/qt/map/map_widget.cpp: `surfaceFormat.setSamples(4)`).
+   //
+   // All of this must be set before QGuiApplication creates any window/GL context, so it has to run
+   // before the QGuiApplication constructor below, not later via QQuickWindow::setFormat() on the
+   // QML window.
    QSurfaceFormat surfaceFormat = QSurfaceFormat::defaultFormat();
+   surfaceFormat.setProfile(QSurfaceFormat::OpenGLContextProfile::CoreProfile);
+   surfaceFormat.setRenderableType(QSurfaceFormat::RenderableType::OpenGL);
+#if defined(__APPLE__)
+   surfaceFormat.setVersion(4, 1);
+#endif
    surfaceFormat.setSamples(4);
    QSurfaceFormat::setDefaultFormat(surfaceFormat);
 

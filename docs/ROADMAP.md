@@ -2559,6 +2559,36 @@ live/archive product from every applicable renderer family (radial, raster, grap
 graphic/tabular text) passes its automated tests and the packaged application's visual acceptance
 path. A populated product picker or successful parser call alone is not coverage.
 
+**macOS startup crash fixed - the app never requested a core-profile GL context (2026-09-09):**
+WxLens died in `std::bad_alloc` during startup on an Apple M4 Pro, while forcing software rendering
+got partway in. Qt reported `RENDERER: Apple M4 Pro, VERSION: 2.1 Metal - 90.5` - a legacy 2.1
+compatibility context. Root cause: `main()` built its `QSurfaceFormat` from
+`QSurfaceFormat::defaultFormat()` and set only `setSamples(4)`, never naming a profile or version.
+Windows and Linux drivers answer an unqualified request with a 4.x *compatibility* context that
+happens to expose everything the app uses, so the omission stayed invisible there; macOS returns
+2.1 Compatibility unless a >= 3.2 core profile is explicitly requested, and offers nothing between
+that and 4.1 Core. The whole GL path assumes 3.3 core - both custom layers resolve entry points
+through `QOpenGLFunctions_3_3_Core`, the ported shaders are desktop `#version 330 core` (this
+section already records dropping the legacy `precision mediump float;` line for that reason), and
+mbgl's Qt backend dispatches through `QOpenGLExtraFunctions`
+(`platform/qt/src/mbgl/gl_functions.cpp`), whose GL 3.0+ entry points are absent on a 2.1 context,
+so its capability queries fail instead of returning real limits and the sizes it derives from them
+stop being meaningful - hence `bad_alloc` rather than a clean unsupported-GL error.
+
+Fix: `main.cpp` now sets `CoreProfile` + `RenderableType::OpenGL`, with `setVersion(4, 1)` under
+`#if defined(__APPLE__)`, keeping `setSamples(4)`. That is the legacy app's `InitializeOpenGL()`
+(`scwx-qt/source/scwx/qt/main/main.cpp`) almost verbatim, including its Apple version pin and its
+comment naming the same 4.1-Core-or-2.1-Compatibility choice; porting only `map_widget.cpp`'s
+`setSamples(4)` is how the profile request went missing here. Core profile has no default VAO 0,
+but `RadarSweepLayer` and `PolylineLayer` already generate and bind their own, so nothing depended
+on compatibility behaviour.
+
+- **Not verified:** not compiled or run locally - there is no configured build tree, and the macOS
+  path is not reproducible from this Windows session. CI's `macos-clang18-arm64-release` preset
+  compile-checks it. Still needs a real M4 startup to confirm the fix, and a Windows launch to
+  confirm no regression: Windows now gets a genuine core context instead of the compatibility one
+  it had been getting by accident.
+
 #### Phase 1 completion and release-readiness gates
 
 The feature slices above are not, by themselves, permission to call Phase 1 complete or publish a
