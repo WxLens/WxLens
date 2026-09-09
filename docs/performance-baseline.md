@@ -49,3 +49,78 @@ but it does not include frame-time, GPU, network/cache, repeated-update, 2x2 or 
 The required 2x2/3x3 product-family matrix, frame-time capture, GPU counters, decode latency,
 request/cache instrumentation and repeated live update remain open. See
 `docs/phase1-acceptance-2026-08-30.md` for the matching validation record.
+
+## 2026-09-09 capture tooling and background-work constraint
+
+The app now supports opt-in `WXLENS_FRAME_TIMINGS=<new CSV path>`. It records
+Qt `beforeRendering`/`afterRendering` wall time and `frameSwapped` intervals using
+a monotonic clock. Samples are buffered (20,000 maximum between flushes); the
+GUI thread writes them once a second. Existing output files are never overwritten.
+The application log records the UTC origin; preserve that log alongside the CSV.
+No capture callbacks or timer are installed when the variable is unset.
+
+These are **render-thread wall times, not GPU execution or actual display
+presentation times**. Swap intervals include idle gaps and must only be compared
+inside a verified active-gesture window. GUI-side projection/Canvas work can
+increase swap gaps without increasing the render callback duration. Capture itself
+adds some overhead, so use identical instrumentation for before/after comparisons.
+
+The data service also logs listing time, combined download/decode duration, object
+key and decoded-cache hit status. Level 2 geometry preparation and sweep-buffer
+upload submission have separate durations. `wxdata::LoadObjectByKey` combines the
+network read and parser call internally: the combined metric must not be described
+as either network-only or decode-only timing. Upload submission does not insert a
+GPU fence and is not GPU completion time. These logs count provider load calls,
+not HTTP requests/retries or transferred bytes.
+
+Reproducible helpers:
+
+- `tools/retest/capture-performance.ps1`: a named 5–60 second idle or
+  press-drag-release scenario with normalized process CPU and memory samples.
+  Requires a visible, unobstructed app; aborts on lost focus or displaced cursor.
+- `tools/retest/summarize-performance.py`: selects complete swap intervals inside
+  the scenario's time bounds. Rejects invalid runs, dropped samples and write
+  errors; `--verified-gesture` requires the operator to first verify actual map
+  movement with no dialog open. Uses nearest-rank p95.
+- `tools/retest/make-overlay-stress-fixture.py`: produces 200 synthetic closed
+  placefile polygons / 6,600 coordinates near KEAX. These are stress-test shapes,
+  **not weather alerts or a measured typical warning workload**. Import the file,
+  compare visibility on/off with the same camera and data, and remove it afterward.
+
+The initial attempted interactive capture is **invalid**: its post-run screenshot
+showed an open overlays dialog. Subsequent attempts aborted on displaced cursor.
+No numbers from those attempts qualify as a camera-performance baseline. Live
+warning retrieval also failed and the overlay panel showed zero warning polygons.
+
+The project owner then requested background execution. Desktop input automation
+was stopped and the agent's test window closed. Builds, native CI and nonvisual
+checks may continue; the visible 1x1/2x2/3x3 comparisons remain pending. No overlay
+optimization, cache change or playback implementation is claimed by this slice.
+
+### Background data-path observations
+
+Release build based on `4fa1eab` plus this instrumentation, Windows 11 on the
+Core Ultra 9 185H / 32 GB development machine. The app's window was hidden;
+these numbers say nothing about rendering responsiveness or the modest-laptop
+acceptance target. Site KEAX, Level 2 reflectivity, actual elevation 0.483395°,
+2,438,664 generated vertices. The same object was selected on both requests:
+`2026/09/09/KEAX/KEAX20260909_171919_V06`.
+
+| Local log time (2026-09-09) | Listing ms | Download + decode ms | Geometry ms |
+| --- | ---: | ---: | ---: |
+| 13:26:24, initial load | 1,295.014 | 6,586.325 | 378.586 |
+| 13:27:20, periodic repeat of the same key | 567.063 | 3,577.887 | 354.570 |
+
+The first request overlapped the local model-test run; the repeat occurred after
+those tests completed. Both report `decoded_cache_hit=false`. The geometry log
+ran on the same thread as application initialization (GUI thread 14756); it
+followed the background data-service completion (thread 41660). This demonstrates
+repeated loading/geometry work for an unchanged volume and substantial synchronous
+GUI-thread geometry work. It does not isolate network transfer from decoding or
+establish how much of a particular user's camera lag either accounts for.
+
+Verification: Release app/model-test builds passed; 104 relevant radar/Level 3/
+crash-report tests passed and four network-dependent cases were skipped. The CSV
+recorder produced real frame rows, refused to overwrite an existing capture, and
+the summary tool passed known-value/time-bound/invalid-run checks. Primary camera
+gesture performance remains unverified.

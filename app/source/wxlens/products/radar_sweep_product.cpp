@@ -23,6 +23,7 @@
 #include <units/angle.h>
 #include <units/length.h>
 #include <QFile>
+#include <QElapsedTimer>
 
 namespace wxlens
 {
@@ -582,6 +583,8 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
       return;
    }
 
+   QElapsedTimer geometryTimer;
+   geometryTimer.start();
    std::shared_ptr<SweepData> sweepData =
       ComputeSweep(*elevationScan, dataBlockType_, siteLatitude_, siteLongitude_);
 
@@ -590,7 +593,14 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
       return;
    }
 
-   logger_->info("Computed sweep for {}: {} vertices", radarSite_, sweepData->vertices.size() / 2);
+   logger_->info(
+      "Computed sweep for {}: {} vertices, product={}, elevation={}, "
+      "geometry_ms={:.3f}",
+      radarSite_,
+      sweepData->vertices.size() / 2,
+      productName_,
+      elevationCut,
+      geometryTimer.nsecsElapsed() / 1.0e6);
 
    {
       std::scoped_lock lock {dataMutex_};

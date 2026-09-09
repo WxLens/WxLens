@@ -2655,6 +2655,12 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   rendering time; record request counts, cache hits, memory, and frame-time stalls. Record the
   tested build and graphics driver/backend. Do not attribute every delay to NWS/AWS without
   measuring it.
+  **2026-09-09 continuation:** added opt-in frame/swap CSV capture, listing and combined
+  download/decode logs, geometry/upload timing, and reproducible scenario/summary/synthetic
+  placefile helpers. The initial visible capture was invalid (dialog still open), and later
+  attempts aborted on displaced cursor. At the owner's request, desktop automation is now
+  paused while background builds/CI/nonvisual verification continue. No valid camera comparison
+  or performance-gate closure is claimed; see `docs/performance-baseline.md`.
 - [ ] **Fix camera-movement cost in warning/placefile overlays.**
   `app/qml/Panes/WeatherOverlaysLayer.qml` currently requests Canvas painting on camera changes
   and reprojects/redraws warning polygons. This confirms repeated work, not its measured share of

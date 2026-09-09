@@ -11,6 +11,7 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <QTimer>
+#include <QElapsedTimer>
 
 namespace wxlens
 {
@@ -116,6 +117,8 @@ void RadarSiteDataService::LoadLatestLevel2Data()
       {
          try
          {
+            QElapsedTimer stageTimer;
+            stageTimer.start();
             p->level2Provider_->Refresh();
 
             const std::string key = p->level2Provider_->FindLatestKey();
@@ -131,7 +134,17 @@ void RadarSiteDataService::LoadLatestLevel2Data()
                return;
             }
 
+            const auto listingMs = stageTimer.nsecsElapsed() / 1.0e6;
+            stageTimer.restart();
             auto nexradFile = p->level2Provider_->LoadObjectByKey(key);
+            logger_->info(
+               "Level 2 load metrics: site={} key={} listing_ms={:.3f} "
+               "download_decode_ms={:.3f} decoded_cache_hit=false success={}",
+               p->radarSite_,
+               key,
+               listingMs,
+               stageTimer.nsecsElapsed() / 1.0e6,
+               nexradFile != nullptr);
             auto ar2vFile =
                std::dynamic_pointer_cast<scwx::wsr88d::Ar2vFile>(nexradFile);
 
@@ -186,6 +199,8 @@ std::uint64_t RadarSiteDataService::LoadLevel2DataAt(
       {
          try
          {
+            QElapsedTimer stageTimer;
+            stageTimer.start();
             const auto [success, newObjects, totalObjects] =
                p->level2Provider_->ListObjects(time);
             if (!success)
@@ -216,8 +231,20 @@ std::uint64_t RadarSiteDataService::LoadLevel2DataAt(
                return;
             }
 
+            const auto listingMs = stageTimer.nsecsElapsed() / 1.0e6;
+            stageTimer.restart();
             auto file = std::dynamic_pointer_cast<scwx::wsr88d::Ar2vFile>(
                p->level2Provider_->LoadObjectByKey(key));
+            logger_->info(
+               "Level 2 archive metrics: site={} request={} key={} "
+               "listing_ms={:.3f} download_decode_ms={:.3f} "
+               "decoded_cache_hit=false success={}",
+               p->radarSite_,
+               requestId,
+               key,
+               listingMs,
+               stageTimer.nsecsElapsed() / 1.0e6,
+               file != nullptr);
             if (file == nullptr)
             {
                QMetaObject::invokeMethod(
@@ -340,6 +367,8 @@ std::uint64_t RadarSiteDataService::LoadLevel3DataAt(
          const QString qAwipsId = QString::fromStdString(awipsId);
          try
          {
+            QElapsedTimer stageTimer;
+            stageTimer.start();
             auto provider = p->GetLevel3Provider(awipsId);
             if (latest)
             {
@@ -382,6 +411,8 @@ std::uint64_t RadarSiteDataService::LoadLevel3DataAt(
                return;
             }
 
+            const auto listingMs = stageTimer.nsecsElapsed() / 1.0e6;
+            stageTimer.restart();
             const std::string cacheKey = awipsId + '\n' + key;
             std::shared_ptr<scwx::wsr88d::Level3File> file;
             {
@@ -390,6 +421,7 @@ std::uint64_t RadarSiteDataService::LoadLevel3DataAt(
                if (it != p->level3Cache_.end())
                   file = it->second;
             }
+            const bool cacheHit = file != nullptr;
             if (file == nullptr)
             {
                file = std::dynamic_pointer_cast<scwx::wsr88d::Level3File>(
@@ -400,6 +432,18 @@ std::uint64_t RadarSiteDataService::LoadLevel3DataAt(
                   p->level3Cache_.insert_or_assign(cacheKey, file);
                }
             }
+            logger_->info(
+               "Level 3 load metrics: site={} awips={} request={} key={} "
+               "listing_ms={:.3f} cache_or_download_decode_ms={:.3f} "
+               "decoded_cache_hit={} success={}",
+               p->radarSite_,
+               awipsId,
+               requestId,
+               key,
+               listingMs,
+               stageTimer.nsecsElapsed() / 1.0e6,
+               cacheHit,
+               file != nullptr);
             if (file == nullptr)
             {
                QMetaObject::invokeMethod(

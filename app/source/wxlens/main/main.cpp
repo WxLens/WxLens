@@ -14,6 +14,7 @@
 #include <wxlens/util/crash_handler.hpp>
 #include <wxlens/util/crash_report_manager.hpp>
 #include <wxlens/util/crash_reporting_config.hpp>
+#include <wxlens/log/frame_timing.hpp>
 
 #include <scwx/util/threads.hpp>
 
@@ -356,6 +357,7 @@ int main(int argc, char* argv[])
    if (auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst()))
    {
       FitWindowToScreen(window, logger);
+      wxlens::log::AttachFrameTiming(window);
       // A window dragged to a smaller screen has the same problem, so re-fit on every move.
       QObject::connect(window, &QWindow::screenChanged, window,
                        [window, logger](QScreen*) { FitWindowToScreen(window, logger); });
