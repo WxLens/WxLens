@@ -130,7 +130,6 @@ public:
    double zoom_ {kDefaultZoom};
    double bearing_ {0.0};
    double pitch_ {0.0};
-   bool projectionRefreshPending_ {false};
 };
 
 void PaneController::Impl::RebindProduct()
@@ -696,7 +695,6 @@ void PaneController::centerOn(double latitude, double longitude, double zoom)
    p->centerLatitude_  = latitude;
    p->centerLongitude_ = longitude;
    p->zoom_            = zoom;
-   p->projectionRefreshPending_ = true;
    Q_EMIT cameraChanged();
    Q_EMIT cameraSynced();
    if (locationChanged)
@@ -1076,7 +1074,6 @@ void PaneController::applyChannelValue(SyncChannel     channel,
    if (channel == SyncChannel::Location || channel == SyncChannel::Zoom ||
        channel == SyncChannel::Bearing || channel == SyncChannel::Pitch)
    {
-      p->projectionRefreshPending_ = true;
       Q_EMIT cameraChanged();
 
       // Separate from cameraChanged so the view can distinguish "your own gesture moved this"
@@ -1113,15 +1110,25 @@ void PaneController::attachLayers(QMapLibre::Map* map)
       map, &QMapLibre::Map::mapChanged, this,
       [this](QMapLibre::Map::MapChange change)
       {
-         // Programmatic QML camera writes are deferred until MapQuickItem's render sync. Its
-         // coordinateChanged/zoomLevelChanged signals therefore cause one projection against the
-         // old camera. RegionDidChange is emitted after setCoordinateZoom reaches the core map,
-         // giving every geographic overlay a final tick against the camera actually on screen.
-         if (p->projectionRefreshPending_ &&
-             (change == QMapLibre::Map::MapChangeRegionDidChange ||
-              change == QMapLibre::Map::MapChangeRegionDidChangeAnimated))
+         // Every geo-anchored overlay (§4.3's User Analysis Layer, weather overlays, radar site
+         // markers, Level 3 graphics) re-projects off this signal, not off QML's own
+         // coordinateChanged/zoomLevelChanged alone. Those fire the instant a camera *request* is
+         // made: for a programmatic write (site selection, pane sync) that is before
+         // MapQuickItem's render sync has actually applied it, and even for a direct interactive
+         // gesture (pan()/scale() call moveBy/scaleBy synchronously) it says nothing about
+         // whether the *native* map renderer's GPU frame using that camera has caught up.
+         // RegionIsChanging is the core map confirming a camera update mid-gesture;
+         // RegionDidChange/Animated confirms the final settled one - ticking on every one of
+         // these, for every cause, closes a real gap: an interactive drag/pinch/wheel gesture
+         // previously had no path back into this signal at all (it only fired after a
+         // programmatic camera write), so those gestures relied entirely on the QML-side
+         // pan()/scale() emissions with no correction against the camera actually on screen
+         // mid-gesture - visible as an object drifting from its true position while panning and
+         // snapping into place only once the gesture settled.
+         if (change == QMapLibre::Map::MapChangeRegionIsChanging ||
+             change == QMapLibre::Map::MapChangeRegionDidChange ||
+             change == QMapLibre::Map::MapChangeRegionDidChangeAnimated)
          {
-            p->projectionRefreshPending_ = false;
             Q_EMIT projectionChanged();
          }
       });
