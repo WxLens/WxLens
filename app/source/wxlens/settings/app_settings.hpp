@@ -57,6 +57,7 @@ class AppSettings : public QObject
 
    /// Basemap appearance: follow the chrome by default, or force dark/light independently.
    Q_PROPERTY(int mapTheme READ mapTheme WRITE setMapTheme NOTIFY mapThemeChanged)
+   Q_PROPERTY(bool advancedPaneLinking READ advancedPaneLinking WRITE setAdvancedPaneLinking NOTIFY advancedPaneLinkingChanged)
    Q_PROPERTY(bool controlBarDocked READ controlBarDocked WRITE setControlBarDocked NOTIFY
                  controlBarDockedChanged)
    Q_PROPERTY(bool centerMapOnSiteChange READ centerMapOnSiteChange WRITE setCenterMapOnSiteChange
@@ -162,6 +163,7 @@ public:
    [[nodiscard]] int distanceUnits() const;
    [[nodiscard]] int velocityUnits() const;
    [[nodiscard]] int mapTheme() const;
+   [[nodiscard]] bool advancedPaneLinking() const;
    [[nodiscard]] bool controlBarDocked() const;
    [[nodiscard]] bool centerMapOnSiteChange() const;
    [[nodiscard]] int radarSiteScope() const;
@@ -176,6 +178,7 @@ public:
    void setDistanceUnits(int units);
    void setVelocityUnits(int units);
    void setMapTheme(int theme);
+   void setAdvancedPaneLinking(bool enabled);
    void setControlBarDocked(bool docked);
    void setCenterMapOnSiteChange(bool enabled);
    void setRadarSiteScope(int scope);
@@ -225,6 +228,7 @@ signals:
    void distanceUnitsChanged();
    void velocityUnitsChanged();
    void mapThemeChanged();
+   void advancedPaneLinkingChanged();
    void controlBarDockedChanged();
    void centerMapOnSiteChangeChanged();
    void radarSiteScopeChanged();

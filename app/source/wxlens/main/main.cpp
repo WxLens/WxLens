@@ -229,6 +229,9 @@ int main(int argc, char* argv[])
    // slice 17). Constructed before the controllers that read defaults from it.
    wxlens::settings::AppSettings appSettings {wxlens::settings::SettingsStore::Instance()};
    engine.rootContext()->setContextProperty("appSettings", &appSettings);
+   paneGridModel.setAdvancedPaneLinking(appSettings.advancedPaneLinking());
+   QObject::connect(&appSettings, &wxlens::settings::AppSettings::advancedPaneLinkingChanged,
+                    &paneGridModel, [&]() { paneGridModel.setAdvancedPaneLinking(appSettings.advancedPaneLinking()); });
    paneGridModel.setCenterMapOnSiteChange(appSettings.centerMapOnSiteChange());
    paneGridModel.setRadarSiteScope(appSettings.radarSiteScope());
    QObject::connect(&appSettings, &wxlens::settings::AppSettings::centerMapOnSiteChangeChanged,

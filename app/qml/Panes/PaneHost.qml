@@ -720,6 +720,11 @@ Rectangle {
         function onSourceDataChanged() { root.sourceTick++ }
     }
 
+    Connections {
+        target: appSettings
+        function onAdvancedPaneLinkingChanged() { root.syncMenuOpen = false }
+    }
+
     // The far end of the in-progress measurement - what §4.7's geometry readout interrogates.
     // Reading `measurementTool.points` (a notifying property) is what makes this live as the
     // endpoint is dragged, without the geometry panel having to know about measurement at all.
@@ -800,7 +805,7 @@ Rectangle {
         anchors.top: parent.top
         anchors.margins: 6
         spacing: 4
-        visible: root.showLabel
+        visible: root.showLabel && appSettings.advancedPaneLinking
         z: 12
 
         Rectangle {
@@ -853,7 +858,7 @@ Rectangle {
     }
 
     Rectangle {
-        visible: root.syncMenuOpen
+        visible: root.syncMenuOpen && appSettings.advancedPaneLinking
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.topMargin: 34

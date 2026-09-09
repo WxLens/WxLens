@@ -62,6 +62,22 @@ protected:
 
 } // namespace
 
+TEST_F(AppSettingsTest, AdvancedPaneLinkingPersistsAndResets)
+{
+   EXPECT_FALSE(settings_->advancedPaneLinking());
+   settings_->setAdvancedPaneLinking(true);
+   SettingsStore reloaded;
+   reloaded.SetConfigDirectory(tempDir_.path());
+   AppSettings reopened {reloaded};
+   EXPECT_TRUE(reopened.advancedPaneLinking());
+   reopened.resetToDefaults();
+   EXPECT_FALSE(reopened.advancedPaneLinking());
+   SettingsStore resetStore;
+   resetStore.SetConfigDirectory(tempDir_.path());
+   AppSettings resetSettings {resetStore};
+   EXPECT_FALSE(resetSettings.advancedPaneLinking());
+}
+
 TEST_F(AppSettingsTest, ShippedDefaults)
 {
    EXPECT_EQ(settings_->measurementGesture(), static_cast<int>(Gesture::Both));

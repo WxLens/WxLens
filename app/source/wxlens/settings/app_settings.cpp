@@ -156,6 +156,7 @@ public:
    int distanceUnits_ {static_cast<int>(DistanceUnits::Both)};
    int velocityUnits_ {static_cast<int>(VelocityUnits::MilesPerHour)};
    int mapTheme_ {static_cast<int>(MapTheme::FollowChrome)};
+   bool advancedPaneLinking_ {false};
    bool controlBarDocked_ {false};
    bool centerMapOnSiteChange_ {true};
    int radarSiteScope_ {static_cast<int>(RadarSiteScope::AllPanes)};
@@ -206,6 +207,7 @@ void AppSettings::Impl::Load()
                              static_cast<int>(MapTheme::FollowChrome),
                              0,
                              kMapThemeMax);
+   advancedPaneLinking_ = store_.GetBool(kAppearanceCategory, QStringLiteral("advanced_pane_linking"), false);
    controlBarDocked_ = store_.GetBool(
       kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
    centerMapOnSiteChange_ =
@@ -313,6 +315,18 @@ int AppSettings::mapTheme() const
 bool AppSettings::controlBarDocked() const { return p->controlBarDocked_; }
 bool AppSettings::centerMapOnSiteChange() const { return p->centerMapOnSiteChange_; }
 int AppSettings::radarSiteScope() const { return p->radarSiteScope_; }
+bool AppSettings::advancedPaneLinking() const { return p->advancedPaneLinking_; }
+
+void AppSettings::setAdvancedPaneLinking(bool enabled)
+{
+   if (enabled == p->advancedPaneLinking_) return;
+   p->advancedPaneLinking_ = enabled;
+   p->store_.SetBool(kAppearanceCategory, QStringLiteral("advanced_pane_linking"), enabled);
+   p->store_.Save();
+   logger_->info("Advanced pane linking set to {}", enabled);
+   Q_EMIT advancedPaneLinkingChanged();
+}
+
 bool AppSettings::radarSitesVisible() const { return p->radarSitesVisible_; }
 bool AppSettings::tdwrSitesVisible() const { return p->tdwrSitesVisible_; }
 
@@ -652,6 +666,7 @@ void AppSettings::resetToDefaults()
    p->store_.SetInt(kAppearanceCategory,
                     QStringLiteral("map_theme"),
                     static_cast<int>(MapTheme::FollowChrome));
+   p->store_.SetBool(kAppearanceCategory, QStringLiteral("advanced_pane_linking"), false);
    p->store_.SetBool(kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
    p->store_.SetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), true);
    for (const ToolbarAction& action : kToolbarActions)
@@ -695,6 +710,7 @@ void AppSettings::resetToDefaults()
    Q_EMIT mapDetailsChanged();
    Q_EMIT toolbarActionsChanged();
    Q_EMIT geometryRowsChanged();
+   Q_EMIT advancedPaneLinkingChanged();
    Q_EMIT defaultsReset();
 }
 

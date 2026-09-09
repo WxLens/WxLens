@@ -2559,6 +2559,20 @@ live/archive product from every applicable renderer family (radial, raster, grap
 graphic/tabular text) passes its automated tests and the packaged application's visual acceptance
 path. A populated product picker or successful parser call alone is not coverage.
 
+**Pane movement default revised (2026-09-05, owner decision):** split panes share camera
+channels (Location, Zoom, Bearing, Pitch) by default. The top-right link menu is hidden unless
+Settings > Appearance > Advanced pane linking is enabled (persisted, default off). Enabling
+reveals the existing per-channel presets; disabling matches every retained pane to the active
+map and restores camera-only group A membership. Product/palette/time remain independently
+selectable. New panes inherit the active camera in simple mode. This is a presentation/default
+policy over per-channel synchronization, not a replacement global linked flag.
+Validation: Release app/QML and test builds pass; all 167 WxLens model tests pass, including
+shared camera defaults, active-view restoration, grid growth/retention, independent advanced
+views, and preference persistence/reset. Packaged 2x2 press-drag-release and wheel zoom moved
+all four maps together. Appearance's Off/On control revealed and hid the pane menus immediately;
+Off was restored and confirmed in appearance.toml. Captures and build/test logs are under
+`tools/retest/captures/pane-link-*.png` and `build-release-vs2026/pane-link-*.log` locally.
+
 **macOS startup crash fixed - the app never requested a core-profile GL context (2026-09-09):**
 WxLens died in `std::bad_alloc` during startup on an Apple M4 Pro, while forcing software rendering
 got partway in. Qt reported `RENDERER: Apple M4 Pro, VERSION: 2.1 Metal - 90.5` - a legacy 2.1
