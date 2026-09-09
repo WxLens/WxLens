@@ -2603,6 +2603,82 @@ on compatibility behaviour.
   confirm no regression: Windows now gets a genuine core context instead of the compatibility one
   it had been getting by accident.
 
+#### User feedback follow-up — rendering, playback, caching, and Canadian radar (2026-09-09)
+
+Captured at the user's request after reviewing external feedback against the current source.
+These are **unchecked implementation/investigation items**, not completed work. The review was
+static source inspection; no runtime timings were measured. Work in small vertical slices (§0.2).
+Priority order: establish measurements, fix alert-overlay rendering, deliver cached timeline
+playback, scope Canadian access, then evaluate an optional caching backend. Canadian coverage and
+the optional backend remain separately scoped follow-ups, not new Phase 1 completion gates.
+
+- [ ] **Reproduce and measure the reported slowness.** Use `docs/performance-baseline.md` and
+  the modest-laptop target below. Compare camera movement with alerts enabled/disabled, cold
+  frame loads, revisiting a loaded frame, product/tilt changes, and independent/synchronized
+  multi-pane views. Separate listing/download, decode, geometry preparation, GPU upload, and
+  rendering time; record request counts, cache hits, memory, and frame-time stalls. Record the
+  tested build and graphics driver/backend. Do not attribute every delay to NWS/AWS without
+  measuring it.
+- [ ] **Fix camera-movement cost in warning/placefile overlays.**
+  `app/qml/Panes/WeatherOverlaysLayer.qml` currently requests Canvas painting on camera changes
+  and reprojects/redraws warning polygons. This confirms repeated work, not its measured share of
+  the reported lag. Move dense geographic geometry to retained GPU-backed rendering, rebuilding
+  geometry when data changes and applying camera transforms during movement. Check §4.3's unified
+  overlay ownership before choosing the renderer; `render/polyline_layer.*` is an unwired,
+  unverified starting point, not a complete polygon/fill solution. Preserve fills, outlines,
+  visibility, labels and geographic alignment through pan/zoom/rotation; trigger repaints on
+  data changes. Verify representative dense alerts/placefiles and compare against the baseline.
+- [ ] **Optimize the existing accelerated radar path where measurements justify it.**
+  `render/radar_sweep_layer.cpp` already uses OpenGL shaders, GPU buffers and draw calls;
+  supported Level 3 rasters feed that same sweep renderer. Unchanged sweep/LUT pointers avoid
+  repeated uploads during camera movement. Do not plan a generic "add hardware acceleration"
+  rewrite. Profile CPU decode/geometry preparation, uploads and GPU drawing independently, and
+  verify the actual graphics implementation on the affected machine before diagnosing fallback.
+- [ ] **Add bounded shared frame caching and request deduplication.**
+  `data/radar_site_data_service.cpp` shares services per site and caches decoded Level 3 files,
+  but Level 2 loads call the provider's downloading `LoadObjectByKey` path again. Add retained
+  Level 2 frames, deduplicate in-flight requests for the same source/object, and avoid downloading
+  or rebuilding an unchanged latest volume. Bound both Level 2 and Level 3 retention by memory
+  budget/eviction policy; reuse decoded data and derived geometry where identities match.
+  Preserve per-source sharing and per-pane product/time independence (§4.6). Verify repeated
+  selection and multiple consumers reuse one load, stale completions cannot replace a newer
+  selection, and eviction keeps memory bounded on the 8 GB floor.
+- [ ] **Deliver a draggable timeline and playback backed by the cache.** The existing
+  Live/Archive selector and UTC field do not satisfy quick scrubbing. Implement real available
+  scan discovery, bounded adjacent-frame prefetch, drag scrubbing, previous/next frame,
+  play/pause, return-to-live, and visible selected/actual time plus loading/unavailable states.
+  Fit the bottom control zone (§5.4), keep state/scheduling in C++, and preserve per-channel Time
+  synchronization. Coalesce rapid seeks so dragging cannot flood downloads; do not fabricate
+  evenly spaced available scans. Test primary press-drag-release, keyboard stepping, playback,
+  sparse/missing scans, failed loads, and synchronized/independent panes. Replaying cached frames
+  must not redownload them; verify responsiveness and memory against the baseline.
+- [ ] **Add bounded on-device disk persistence after memory-cache/playback foundations.**
+  Define stable source/object identity, capacity/eviction, corruption recovery, and cache-clear
+  behavior. Verify reuse after restart and honest offline/cache status; keep live discovery fresh.
+  If raw-download caching requires changes in reused `wxdata`, make those upstream and advance
+  the pin; never hand-edit the read-only dependency tree.
+- [ ] **Scope Canadian radar against a verified data source before accepting implementation.**
+  Request the contributor's exact endpoint, sample file, available products/history, and
+  redistribution terms or documented public-safety exemption. ECCC's published
+  [radar FAQ](https://eccc-msc.github.io/open-data/faq/readme_en/) distinguishes free composites/GIF
+  imagery from raw radar feeds offered through
+  [cost-recovered services](https://eccc-msc.github.io/open-data/cost-recovered/readme_en/)
+  (checked 2026-09-09). "Free for a public safety tool" is not established by those pages.
+  Distinguish an imagery/composite layer from individual-site velocity, tilts and raw-volume
+  interrogation; record which scope the source supports. Integrate through Data Source → Data
+  Product → Visualization Layer → View, checking format/dependency licenses before adoption.
+- [ ] **Evaluate optional self-hosted caching after measuring remaining network costs.**
+  Existing wxdata provider factories support alternate S3 and specific HTTP provider formats;
+  this is not arbitrary-URL backend compatibility. Define the supported protocol, freshness,
+  failure/fallback behavior and settings before implementation. Keep direct-source access and
+  local caching usable, including local caching when a remote cache is selected. Do not start
+  operating a WxLens server or pull Phase 5 login/sync into this work. A remote cache cannot fix
+  client-side decode, geometry or overlay bottlenecks.
+- [ ] **Coordinate contributor PR boundaries.** Agree separate reviewable scopes for the
+  timeline/cache work, Canadian source support, and measured rendering fixes. Require concrete
+  before/after evidence for performance claims and source-access evidence for Canadian coverage;
+  avoid overlapping renderer rewrites based on the mistaken premise that radar has no GPU path.
+
 #### Phase 1 completion and release-readiness gates
 
 The feature slices above are not, by themselves, permission to call Phase 1 complete or publish a
@@ -2613,6 +2689,10 @@ The dated packaged-session defects and progressive-disclosure requests are track
 implementation/retest items in `docs/phase1-ux-feedback-2026-08-31.md`. Closing a broad gate below
 does not silently close an unchecked item in that record; reconcile both checklists during each
 acceptance rerun.
+
+Also reconcile the 2026-09-09 user-feedback checklist immediately above when closing the
+performance and UX gates. Its Canadian-data and optional-backend investigations remain visible
+follow-ups even when Phase 1 is otherwise ready.
 
 - [ ] **Settings coverage for every promised preference.** Verify persistence, defaults, reset
   behavior, addressable settings-section navigation, and actual runtime application for product
