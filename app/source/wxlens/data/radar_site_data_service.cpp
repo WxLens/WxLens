@@ -1,10 +1,14 @@
+#include <wxlens/data/frame_cache.hpp>
 #include <wxlens/data/radar_site_data_service.hpp>
 #include <wxlens/log/logger.hpp>
 #include <wxlens/products/level3_product_catalog.hpp>
 
 #include <scwx/provider/nexrad_data_provider_factory.hpp>
 #include <scwx/util/threads.hpp>
+#include <scwx/wsr88d/rda/generic_radar_data.hpp>
+#include <scwx/wsr88d/rpg/level3_message.hpp>
 
+#include <algorithm>
 #include <map>
 #include <atomic>
 #include <mutex>
@@ -20,6 +24,98 @@ namespace data
 
 static const std::string logPrefix_ = "data.radar_site_data_service";
 static const auto        logger_    = wxlens::log::Create(logPrefix_);
+
+namespace
+{
+
+/**
+ * Per-site retention budgets (docs/ROADMAP.md, 2026-09-09 checklist). These are
+ * per RadarSiteDataService instance, and one instance exists per radar site, so
+ * a user watching several sites holds several budgets. Sized against the
+ * roadmap's 8 GB low-end floor rather than this development machine.
+ *
+ * Provisional: no decoded-frame size has been measured on the modest-laptop
+ * target yet, so every load logs its estimated size to let the next measurement
+ * session calibrate these rather than guess again.
+ */
+constexpr std::size_t kLevel2CapacityBytes = 256U * 1024U * 1024U;
+constexpr std::size_t kLevel3CapacityBytes = 64U * 1024U * 1024U;
+
+/**
+ * Floor applied to every size estimate. wxdata reports decoded payload sizes,
+ * not allocation footprints, and a family that reports zero would otherwise let
+ * the cache grow without bound in entry count while staying "within budget".
+ * The floor makes retention monotonic, so the byte budget also bounds the entry
+ * count (256 Level 3 frames, 1024 Level 2 volumes at the budgets above).
+ */
+constexpr std::size_t kMinimumFrameBytes = 256U * 1024U;
+
+/// Sums the decoded moment payloads across every radial of every elevation
+/// scan. This is an estimate of retained data, not an exact allocation size:
+/// it excludes the map/shared_ptr overhead wxdata does not expose.
+std::size_t EstimateLevel2Bytes(const scwx::wsr88d::Ar2vFile& file)
+{
+   std::size_t bytes = 0U;
+
+   for (const auto& [elevationNumber, scan] : file.radar_data())
+   {
+      if (scan == nullptr)
+      {
+         continue;
+      }
+
+      for (const auto& [radialNumber, radial] : *scan)
+      {
+         if (radial != nullptr)
+         {
+            bytes += radial->data_size();
+         }
+      }
+   }
+
+   return std::max(bytes, kMinimumFrameBytes);
+}
+
+std::size_t EstimateLevel3Bytes(const scwx::wsr88d::Level3File& file)
+{
+   const auto message = file.message();
+   const std::size_t bytes = (message != nullptr) ? message->data_size() : 0U;
+   return std::max(bytes, kMinimumFrameBytes);
+}
+
+/// Log-friendly name for how a load was served, so the metrics lines report
+/// measured cache behaviour instead of a hard-coded value.
+const char* OriginName(FrameCache<scwx::wsr88d::Ar2vFile>::Origin origin)
+{
+   using Origin = FrameCache<scwx::wsr88d::Ar2vFile>::Origin;
+   switch (origin)
+   {
+   case Origin::Cache:
+      return "cache";
+   case Origin::Deduplicated:
+      return "deduplicated";
+   case Origin::Loaded:
+   default:
+      return "loaded";
+   }
+}
+
+const char* OriginName(FrameCache<scwx::wsr88d::Level3File>::Origin origin)
+{
+   using Origin = FrameCache<scwx::wsr88d::Level3File>::Origin;
+   switch (origin)
+   {
+   case Origin::Cache:
+      return "cache";
+   case Origin::Deduplicated:
+      return "deduplicated";
+   case Origin::Loaded:
+   default:
+      return "loaded";
+   }
+}
+
+} // namespace
 
 class RadarSiteDataService::Impl
 {
@@ -38,13 +134,25 @@ public:
    std::unordered_map<std::string,
                       std::shared_ptr<scwx::provider::NexradDataProvider>>
       level3Providers_;
-   std::unordered_map<std::string, std::shared_ptr<scwx::wsr88d::Level3File>>
-                                                  level3Cache_;
+
+   // Both caches are shared by every pane viewing this site (§4.6). They retain
+   // *decoded* files keyed by provider object key, so reselecting a frame skips
+   // the download and the parse; per-pane product/time independence is
+   // unaffected, because the key - not the pane - identifies the entry.
+   FrameCache<scwx::wsr88d::Ar2vFile>  level2Cache_ {kLevel2CapacityBytes};
+   FrameCache<scwx::wsr88d::Level3File> level3Cache_ {kLevel3CapacityBytes};
+
    std::vector<products::Level3ProductDescriptor> level3Catalog_;
    std::atomic_bool     catalogLoadInProgress_ {false};
    std::atomic_uint64_t nextRequestId_ {1};
    std::atomic_bool     liveLoadInProgress_ {false};
    QTimer               refreshTimer_;
+
+   /// Latest-volume key most recently published to consumers. A periodic
+   /// refresh that rediscovers this same key has nothing new to say, so it
+   /// stops rather than making every product rebuild identical geometry.
+   std::mutex  latestKeyMutex_;
+   std::string lastPublishedLatestKey_;
 
    std::shared_ptr<scwx::provider::NexradDataProvider>
    GetLevel3Provider(const std::string& awipsId)
@@ -65,10 +173,12 @@ RadarSiteDataService::RadarSiteDataService(const std::string& radarSite) :
     p {std::make_unique<Impl>(radarSite)}
 {
    p->refreshTimer_.setInterval(std::chrono::minutes {1});
+   // Deliberately not connected straight to LoadLatestLevel2Data: a periodic
+   // poll that finds the same volume must stay silent rather than republish it.
    connect(&p->refreshTimer_,
            &QTimer::timeout,
            this,
-           &RadarSiteDataService::LoadLatestLevel2Data);
+           [this]() { LoadLatestLevel2DataInternal(false); });
    p->refreshTimer_.start();
 }
 
@@ -108,12 +218,17 @@ RadarSiteDataService::Instance(const std::string& radarSite)
 
 void RadarSiteDataService::LoadLatestLevel2Data()
 {
+   LoadLatestLevel2DataInternal(true);
+}
+
+void RadarSiteDataService::LoadLatestLevel2DataInternal(bool publishUnchanged)
+{
    if (p->liveLoadInProgress_.exchange(true))
       return;
    logger_->info("Requesting latest Level 2 data for {}", p->radarSite_);
 
    scwx::util::async(
-      [this]()
+      [this, publishUnchanged]()
       {
          try
          {
@@ -134,19 +249,48 @@ void RadarSiteDataService::LoadLatestLevel2Data()
                return;
             }
 
+            // Nothing new since the last publish, and no consumer is waiting on
+            // a first frame: stop before the download *and* before making every
+            // product rebuild the geometry it already has.
+            if (!publishUnchanged)
+            {
+               std::lock_guard lock {p->latestKeyMutex_};
+               if (key == p->lastPublishedLatestKey_)
+               {
+                  logger_->debug(
+                     "Level 2 refresh for {}: latest volume unchanged ({}), "
+                     "skipping reload",
+                     p->radarSite_,
+                     key);
+                  p->liveLoadInProgress_ = false;
+                  return;
+               }
+            }
+
             const auto listingMs = stageTimer.nsecsElapsed() / 1.0e6;
             stageTimer.restart();
-            auto nexradFile = p->level2Provider_->LoadObjectByKey(key);
+            const auto load = p->level2Cache_.Load(
+               key,
+               [this, &key]()
+               {
+                  return std::dynamic_pointer_cast<scwx::wsr88d::Ar2vFile>(
+                     p->level2Provider_->LoadObjectByKey(key));
+               },
+               EstimateLevel2Bytes);
+            auto ar2vFile = load.value;
             logger_->info(
                "Level 2 load metrics: site={} key={} listing_ms={:.3f} "
-               "download_decode_ms={:.3f} decoded_cache_hit=false success={}",
+               "download_decode_ms={:.3f} decoded_cache_hit={} origin={} "
+               "cache_bytes={} cache_frames={} success={}",
                p->radarSite_,
                key,
                listingMs,
                stageTimer.nsecsElapsed() / 1.0e6,
-               nexradFile != nullptr);
-            auto ar2vFile =
-               std::dynamic_pointer_cast<scwx::wsr88d::Ar2vFile>(nexradFile);
+               load.cache_hit(),
+               OriginName(load.origin),
+               p->level2Cache_.size_bytes(),
+               p->level2Cache_.count(),
+               ar2vFile != nullptr);
 
             if (ar2vFile == nullptr)
             {
@@ -165,6 +309,10 @@ void RadarSiteDataService::LoadLatestLevel2Data()
                           ar2vFile->message_count(),
                           p->radarSite_,
                           ar2vFile->radar_data().size());
+            {
+               std::lock_guard lock {p->latestKeyMutex_};
+               p->lastPublishedLatestKey_ = key;
+            }
             p->liveLoadInProgress_ = false;
             QMetaObject::invokeMethod(
                this,
@@ -233,17 +381,29 @@ std::uint64_t RadarSiteDataService::LoadLevel2DataAt(
 
             const auto listingMs = stageTimer.nsecsElapsed() / 1.0e6;
             stageTimer.restart();
-            auto file = std::dynamic_pointer_cast<scwx::wsr88d::Ar2vFile>(
-               p->level2Provider_->LoadObjectByKey(key));
+            const auto load = p->level2Cache_.Load(
+               key,
+               [this, &key]()
+               {
+                  return std::dynamic_pointer_cast<scwx::wsr88d::Ar2vFile>(
+                     p->level2Provider_->LoadObjectByKey(key));
+               },
+               EstimateLevel2Bytes);
+            auto file = load.value;
             logger_->info(
                "Level 2 archive metrics: site={} request={} key={} "
                "listing_ms={:.3f} download_decode_ms={:.3f} "
-               "decoded_cache_hit=false success={}",
+               "decoded_cache_hit={} origin={} cache_bytes={} cache_frames={} "
+               "success={}",
                p->radarSite_,
                requestId,
                key,
                listingMs,
                stageTimer.nsecsElapsed() / 1.0e6,
+               load.cache_hit(),
+               OriginName(load.origin),
+               p->level2Cache_.size_bytes(),
+               p->level2Cache_.count(),
                file != nullptr);
             if (file == nullptr)
             {
@@ -413,36 +573,33 @@ std::uint64_t RadarSiteDataService::LoadLevel3DataAt(
 
             const auto listingMs = stageTimer.nsecsElapsed() / 1.0e6;
             stageTimer.restart();
+            // AWIPS id stays part of the key so two products cannot collide on
+            // a shared object key, exactly as the previous ad-hoc map did.
             const std::string cacheKey = awipsId + '\n' + key;
-            std::shared_ptr<scwx::wsr88d::Level3File> file;
-            {
-               std::lock_guard lock {p->level3Mutex_};
-               auto            it = p->level3Cache_.find(cacheKey);
-               if (it != p->level3Cache_.end())
-                  file = it->second;
-            }
-            const bool cacheHit = file != nullptr;
-            if (file == nullptr)
-            {
-               file = std::dynamic_pointer_cast<scwx::wsr88d::Level3File>(
-                  provider->LoadObjectByKey(key));
-               if (file != nullptr)
+            const auto        load     = p->level3Cache_.Load(
+               cacheKey,
+               [&provider, &key]()
                {
-                  std::lock_guard lock {p->level3Mutex_};
-                  p->level3Cache_.insert_or_assign(cacheKey, file);
-               }
-            }
+                  return std::dynamic_pointer_cast<scwx::wsr88d::Level3File>(
+                     provider->LoadObjectByKey(key));
+               },
+               EstimateLevel3Bytes);
+            auto file = load.value;
             logger_->info(
                "Level 3 load metrics: site={} awips={} request={} key={} "
                "listing_ms={:.3f} cache_or_download_decode_ms={:.3f} "
-               "decoded_cache_hit={} success={}",
+               "decoded_cache_hit={} origin={} cache_bytes={} cache_frames={} "
+               "success={}",
                p->radarSite_,
                awipsId,
                requestId,
                key,
                listingMs,
                stageTimer.nsecsElapsed() / 1.0e6,
-               cacheHit,
+               load.cache_hit(),
+               OriginName(load.origin),
+               p->level3Cache_.size_bytes(),
+               p->level3Cache_.count(),
                file != nullptr);
             if (file == nullptr)
             {

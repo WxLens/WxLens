@@ -30,6 +30,7 @@ qt_add_executable(wxlens-app
     source/wxlens/log/logger.hpp
     source/wxlens/log/frame_timing.cpp
     source/wxlens/log/frame_timing.hpp
+    source/wxlens/data/frame_cache.hpp
     source/wxlens/data/radar_site_data_service.cpp
     source/wxlens/data/radar_site_data_service.hpp
     source/wxlens/data/radar_site_database.cpp

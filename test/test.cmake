@@ -106,6 +106,7 @@ set(WXLENS_APP_SRC ${WXLENS_DIR}/app/source/wxlens)
 
 add_executable(wxlens-app-test
     source/wxlens/app_test_main.cpp
+    source/wxlens/data/frame_cache.test.cpp
     source/wxlens/data/radar_site_database.test.cpp
     source/wxlens/data/radar_site_marker_source.test.cpp
     source/wxlens/objects/map_object_scope.test.cpp
