@@ -41,6 +41,20 @@ jobs:
 
       # Only the submodules WxLens actually builds - see docs/adr/0002-wxdata-reuse-strategy.md
       # and docs/adr/0004-maplibre-qml-integration.md. Keep in sync with ci.yml/macos.yml.
+      # A backfill dispatch that omits build_ref checks out the tag itself - and any tag older
+      # than this packaging predates these scripts entirely, so the job spends the better part of
+      # an hour building before dying at the package step with an error that says nothing about
+      # the real cause. Catch it in seconds instead. (Observed: release.yml dispatched with
+      # tag=v0.1.0 and no build_ref checked out v0.1.0's commit, which has no tools/installer/ at
+      # all; all three package jobs failed that way.)
+      - name: Verify the checked-out ref has the packaging scripts
+        run: |
+          if [[ ! -f "tools/installer/linux/package.sh" ]]; then
+            echo "::error::tools/installer/linux/package.sh is missing from the checked-out ref ($(git rev-parse --short HEAD))."
+            echo "::error::Backfilling a tag older than the packaging? Re-run release.yml with build_ref set to a commit that has these scripts, e.g. main."
+            exit 1
+          fi
+
       - name: Initialize required submodules
         run: |
           git submodule update --init --depth 1 -- \
