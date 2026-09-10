@@ -279,3 +279,42 @@ normal `mapChanged` events reset the style-loaded state, and patch 0005's `style
 lets WxLens reattach the radar custom layer after the replacement style finishes loading. Keep
 this patch with the QML-facing Quick integration; recreating every pane would discard map state
 and hide a genuine missing setter behavior in the dependency.
+
+## macOS finding (2026-09-10): the rendering core emits ES shaders desktop GL cannot compile
+
+**Patch 0009 — mbgl hardcodes `#version 300 es` on every OpenGL platform.** The first patch in
+this series that targets the *rendering core* (`vendor/maplibre-native`) rather than the Qt
+wrapper, so it carries paths relative to that nested submodule and is applied from there —
+`git apply` run in the outer repository refuses paths that cross into a submodule.
+`external/maplibre-native-qt.cmake` therefore now drives two series through one
+`wxlens_apply_patch_series()` helper.
+
+Desktop OpenGL accepts the ES shading language only through `GL_ARB_ES3_compatibility`. Windows,
+Linux and Mesa drivers all expose it, which is why the hardcoded ES version string has never been
+a problem on those platforms. Apple's OpenGL does not: macOS tops out at 4.1 Core with no ES3
+compatibility path, so *every* mbgl shader fails to compile there. `ShaderProgramGL::create()`
+throws (`src/mbgl/gl/context.cpp`, "shader failed to compile"), the exception escapes
+`QMapLibre::Map::render()` into Qt's event loop, which has no handler, and the process aborts on
+the first frame. Reported as `EXC_CRASH (SIGABRT)` with `__cxa_throw` inside QMapLibre beneath
+`TextureNodeOpenGL::render`.
+
+The fix is a version directive swap on Apple only — `#version 330 core` instead of
+`#version 300 es`, in both the drawable path (`src/mbgl/shaders/gl/shader_program_gl.cpp`) and the
+legacy one (`src/mbgl/shaders/gl/legacy/program_base.hpp`, still compiled via `cmake/opengl.cmake`
+and still used, since `clipping_mask_program` draws the stencil clip). Patching only the first
+leaves macOS crashing on the second.
+
+This is a supported upstream path rather than a hack: `include/mbgl/shaders/gl/prelude.hpp`
+already branches on `GL_ES` and, for the non-ES case, `#define`s `lowp`/`mediump`/`highp` away so
+the shared shader bodies compile unchanged as desktop GLSL. Only the version line forced ES.
+
+Deliberately scoped to `__APPLE__`. Windows and Linux compile the ES source today via
+`ARB_ES3_compatibility`, and switching them to desktop GLSL would flip the prelude onto its other
+branch on two platforms that already work, for no benefit.
+
+**Not filed upstream yet.** The honest upstream fix is to select the directive from the context's
+actual capabilities rather than the host OS; this patch is the narrow version of that.
+
+| WxLens patch / finding | Upstream | Notes |
+| --- | --- | --- |
+| 0009 (ES shader version on desktop GL) | — | Not filed yet; see above |

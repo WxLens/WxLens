@@ -14,6 +14,45 @@ set(MLN_WITH_OPENGL ON)
 find_package(Git REQUIRED)
 set(MLN_QT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native-qt")
 
+# The rendering core is a submodule *inside* maplibre-native-qt, so patches against it carry paths
+# relative to that nested checkout and must be applied from there: `git apply` run in the outer
+# repository refuses any path that crosses into a submodule.
+set(MLN_CORE_SOURCE_DIR "${MLN_QT_SOURCE_DIR}/vendor/maplibre-native")
+
+# Applies an ordered patch series to sourceDir, idempotently. The LAST patch doubles as the
+# series' completion marker: later fixes intentionally touch lines introduced by earlier ones, so
+# reverse-testing an earlier patch in isolation stops being valid once a later one is present. A
+# clean checkout cannot contain the final patch without the whole series having applied first.
+function(wxlens_apply_patch_series label sourceDir)
+    set(patches ${ARGN})
+    list(GET patches -1 finalPatch)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" apply --check --reverse "${finalPatch}"
+        WORKING_DIRECTORY "${sourceDir}"
+        RESULT_VARIABLE alreadyApplied
+        OUTPUT_QUIET ERROR_QUIET)
+    if (alreadyApplied EQUAL 0)
+        message(STATUS "${label} patch series already applied (ADR 0004)")
+        return()
+    endif()
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" apply --check ${patches}
+        WORKING_DIRECTORY "${sourceDir}"
+        RESULT_VARIABLE applicable
+        OUTPUT_QUIET ERROR_QUIET)
+    if (NOT applicable EQUAL 0)
+        message(FATAL_ERROR "${label} patch series is neither cleanly applied nor applicable to "
+                            "${sourceDir} - see ADR 0004")
+    endif()
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" apply ${patches}
+        WORKING_DIRECTORY "${sourceDir}"
+        RESULT_VARIABLE applyResult)
+    if (NOT applyResult EQUAL 0)
+        message(FATAL_ERROR "Failed to apply ${label} patch series - see ADR 0004")
+    endif()
+endfunction()
+
 set(MLN_QT_PATCHES
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0004-mln-qt-plugins-cmake-source-dir.patch"
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0005-mln-qt-expose-map-object.patch"
@@ -21,36 +60,12 @@ set(MLN_QT_PATCHES
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0007-mln-qt-connect-map-signals-before-style-load.patch"
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0008-mln-qt-reload-style-from-qml.patch")
 
-# The final patch is the completion marker for this ordered series. Later fixes intentionally
-# touch lines introduced by earlier patches, so testing patch 0005's reverse in isolation stops
-# being valid after 0007 is present. A clean checkout cannot contain 0008 without this driver
-# having successfully applied 0004-0007 first.
-list(GET MLN_QT_PATCHES -1 MLN_QT_FINAL_PATCH)
-execute_process(
-    COMMAND "${GIT_EXECUTABLE}" apply --check --reverse "${MLN_QT_FINAL_PATCH}"
-    WORKING_DIRECTORY "${MLN_QT_SOURCE_DIR}"
-    RESULT_VARIABLE mlnPatchesAlreadyApplied
-    OUTPUT_QUIET ERROR_QUIET)
-if (mlnPatchesAlreadyApplied EQUAL 0)
-    message(STATUS "MapLibre Native Qt patch series already applied (ADR 0004)")
-else()
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" apply --check ${MLN_QT_PATCHES}
-        WORKING_DIRECTORY "${MLN_QT_SOURCE_DIR}"
-        RESULT_VARIABLE mlnPatchesApplicable
-        OUTPUT_QUIET ERROR_QUIET)
-    if (NOT mlnPatchesApplicable EQUAL 0)
-        message(FATAL_ERROR "MapLibre Native Qt patch series is neither cleanly applied nor "
-                            "applicable to ${MLN_QT_SOURCE_DIR} - see ADR 0004")
-    endif()
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" apply ${MLN_QT_PATCHES}
-        WORKING_DIRECTORY "${MLN_QT_SOURCE_DIR}"
-        RESULT_VARIABLE mlnPatchResult)
-    if (NOT mlnPatchResult EQUAL 0)
-        message(FATAL_ERROR "Failed to apply MapLibre Native Qt patch series - see ADR 0004")
-    endif()
-endif()
+# Against the rendering core rather than the Qt wrapper, hence its own series and source dir.
+set(MLN_CORE_PATCHES
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0009-mln-desktop-glsl-version-on-apple.patch")
+
+wxlens_apply_patch_series("MapLibre Native Qt" "${MLN_QT_SOURCE_DIR}" ${MLN_QT_PATCHES})
+wxlens_apply_patch_series("MapLibre Native core" "${MLN_CORE_SOURCE_DIR}" ${MLN_CORE_PATCHES})
 
 # `import MapLibre` QML module registration target uses CMAKE_SOURCE_DIR instead of
 # CMAKE_CURRENT_SOURCE_DIR, which only resolves correctly when this library is the top-level
@@ -82,6 +97,15 @@ endif()
 # `style` property after the map exists therefore does nothing. Theme-driven basemap changes need
 # the setter to forward the new URL to the live core Map, whose normal mapChanged/styleLoaded
 # signals then rebuild WxLens's custom layers. Found during the live-review follow-up to slice 10.
+
+# 0009 (rendering core, not the Qt wrapper): mbgl hardcodes "#version 300 es" for every OpenGL
+# platform, in both the drawable path (shaders/gl/shader_program_gl.cpp) and the legacy one
+# (shaders/gl/legacy/program_base.hpp, still compiled and still used - clipping_mask_program draws
+# the stencil clip). Desktop GL only accepts ES shader source through GL_ARB_ES3_compatibility,
+# which Windows/Linux/Mesa drivers expose and Apple's does not, so on macOS every shader fails to
+# compile and the resulting exception escapes Map::render() into Qt's event loop - std::terminate
+# on the first frame. Emits desktop GLSL on Apple only; gl/prelude.hpp already has the matching
+# non-GL_ES branch that #defines lowp/mediump/highp away. See ADR 0004.
 
 set(MLN_QT_WITH_QUICK_PLUGIN ON)
 set(MLN_QT_WITH_LOCATION OFF)
