@@ -318,3 +318,43 @@ actual capabilities rather than the host OS; this patch is the narrow version of
 | WxLens patch / finding | Upstream | Notes |
 | --- | --- | --- |
 | 0009 (ES shader version on desktop GL) | — | Not filed yet; see above |
+
+## macOS finding (2026-09-10, second): the error path destroys the error
+
+**Patch 0010 — `Context::verifyProgramLinkage()` throws `std::bad_alloc` while reporting a link
+failure.** With patch 0009 in place the tester's M4 reached a 4.1 Core context (confirmed:
+`OpenGL VENDOR: Apple RENDERER: Apple M4 Max VERSION: 4.1 Metal - 90.5`, `QSurfaceFormat` reporting
+`version 4.1 ... profile CoreProfile`) and still aborted on `std::bad_alloc`, with no MapLibre
+diagnostic of any kind on stderr.
+
+`src/mbgl/gl/context.cpp` declared an uninitialized `GLint logLength`, queried
+`GL_INFO_LOG_LENGTH` into it, and then called `std::make_unique<GLchar[]>(logLength)`
+*unconditionally, before* the `if (logLength > 0)` test that exists directly beneath it. When the
+driver leaves the out-param unwritten, that allocates a garbage-sized buffer - negative as `GLint`,
+astronomical as `size_t` - and throws `std::bad_alloc` before `Log::Error` can print the driver's
+explanation. The failure destroys its own diagnosis, and a perfectly diagnosable link failure
+presents as an out-of-memory abort on the first frame. `createShader()` has the same uninitialized
+declaration but places its allocation *inside* the guard, which is why a shader compile failure
+surfaces as `std::runtime_error` while a link failure does not.
+
+The patch initializes both to `0`, moves the program-log allocation inside the guard to match
+`createShader`, and adds an explicit "driver supplied no info log" branch to each so a failure with
+an empty log still says something rather than nothing.
+
+This is diagnostic infrastructure, not a fix for the underlying failure. What it buys is the
+driver's own message for the *actual* problem, which is a program link failure on macOS - the
+thing that has been invisible behind the `bad_alloc` from the very first report. Note this also
+means the original 2.1-context `std::bad_alloc` may always have been this same masked failure
+rather than a genuine allocation problem.
+
+Unrelated but worth recording: on a core profile `glGetString(GL_EXTENSIONS)` returns `NULL`, so
+`Context::initializeExtensions()` skips its whole body. That is harmless - the block only wires up
+the debugging and Tracy-timestamp extensions - but it does mean the "GPU Identifier: ..." log line
+never appears on macOS, which is not evidence that MapLibre logging is broken.
+
+**Not filed upstream yet.** Patch 0010 is a straightforward correctness fix and a good upstream
+candidate independent of anything WxLens-specific.
+
+| WxLens patch / finding | Upstream | Notes |
+| --- | --- | --- |
+| 0010 (bad_alloc in the shader/program error path) | — | Not filed yet; see above |

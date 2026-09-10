@@ -51,6 +51,11 @@ function(wxlens_apply_patch_series label sourceDir)
     if (NOT applyResult EQUAL 0)
         message(FATAL_ERROR "Failed to apply ${label} patch series - see ADR 0004")
     endif()
+    # Stated outright so a CI log proves the series went on. The guards above make a silent no-op
+    # impossible, but "configure succeeded" is indirect evidence and a build log should not need
+    # that inference to establish which vendored fixes are actually in the binary.
+    list(LENGTH patches patchCount)
+    message(STATUS "${label}: applied ${patchCount} patch(es) to ${sourceDir}")
 endfunction()
 
 set(MLN_QT_PATCHES
@@ -62,7 +67,8 @@ set(MLN_QT_PATCHES
 
 # Against the rendering core rather than the Qt wrapper, hence its own series and source dir.
 set(MLN_CORE_PATCHES
-    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0009-mln-desktop-glsl-version-on-apple.patch")
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0009-mln-desktop-glsl-version-on-apple.patch"
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0010-mln-dont-bad-alloc-reporting-shader-errors.patch")
 
 wxlens_apply_patch_series("MapLibre Native Qt" "${MLN_QT_SOURCE_DIR}" ${MLN_QT_PATCHES})
 wxlens_apply_patch_series("MapLibre Native core" "${MLN_CORE_SOURCE_DIR}" ${MLN_CORE_PATCHES})
