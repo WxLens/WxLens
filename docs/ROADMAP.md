@@ -2603,6 +2603,22 @@ on compatibility behaviour.
   confirm no regression: Windows now gets a genuine core context instead of the compatibility one
   it had been getting by accident.
 
+**Confirmed on hardware, and a second macOS wall behind it (2026-09-10):** the tester's M4 Pro run
+proved the core-profile fix works - startup now clears the `std::bad_alloc`, reaches
+`QCoreApplication::exec()` and renders its first frame, where it aborts differently:
+`EXC_CRASH (SIGABRT)` with `__cxa_throw` inside QMapLibre beneath `TextureNodeOpenGL::render`, an
+uncaught C++ exception escaping `Map::render()` into Qt's event loop. Cause: mbgl hardcodes
+`#version 300 es` for every OpenGL platform, and desktop GL accepts ES shader source only via
+`GL_ARB_ES3_compatibility`, which Apple's OpenGL does not expose. Addressed by patch 0009 (see
+ADR 0004), which emits `#version 330 core` on Apple in both the drawable and legacy shader paths.
+- **Also surfaced:** `external/maplibre-native-qt.cmake` sets `MLN_WITH_OPENGL ON` unconditionally,
+  so macOS runs the GL backend even though MapLibre Qt ships a Metal one (`texture_node_metal.mm`)
+  that is the intended Apple path. Patch 0009 keeps the single GL path working everywhere, which
+  preserves WxLens's own `QOpenGLFunctions_3_3_Core` custom layers; a Metal switch would strand
+  them until they are ported. Worth revisiting deliberately rather than by default.
+- **Not verified:** patch 0009 is unrun on hardware - it compiles the same shader bodies against a
+  different version directive, so a second wave of GLSL incompatibilities is possible.
+
 #### User feedback follow-up — rendering, playback, caching, and Canadian radar (2026-09-09)
 
 Captured at the user's request after reviewing external feedback against the current source.
