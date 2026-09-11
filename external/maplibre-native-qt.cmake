@@ -68,7 +68,8 @@ set(MLN_QT_PATCHES
 # Against the rendering core rather than the Qt wrapper, hence its own series and source dir.
 set(MLN_CORE_PATCHES
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0009-mln-desktop-glsl-version-on-apple.patch"
-    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0010-mln-dont-bad-alloc-reporting-shader-errors.patch")
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0010-mln-dont-bad-alloc-reporting-shader-errors.patch"
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0011-mln-stale-gl-error-as-bad-alloc.patch")
 
 wxlens_apply_patch_series("MapLibre Native Qt" "${MLN_QT_SOURCE_DIR}" ${MLN_QT_PATCHES})
 wxlens_apply_patch_series("MapLibre Native core" "${MLN_CORE_SOURCE_DIR}" ${MLN_CORE_PATCHES})
@@ -113,6 +114,16 @@ wxlens_apply_patch_series("MapLibre Native core" "${MLN_CORE_SOURCE_DIR}" ${MLN_
 # on the first frame. Emits desktop GLSL on Apple only; gl/prelude.hpp already has the matching
 # non-GL_ES branch that #defines lowp/mediump/highp away. See ADR 0004.
 
+# 0011 (rendering core): THE macOS first-frame crash. mbgl's GL backend never drains the error
+# queue in a release build - MBGL_CHECK_ERROR compiles to nothing under NDEBUG, leaving the two
+# glGetError() calls in gl/upload_pass.cpp as the only ones it makes. An error raised during
+# context setup therefore survived until the first buffer upload, which blamed it on that upload
+# and reported it as std::bad_alloc: RenderStaticData::upload()'s 16-byte static quad appeared to
+# fail to allocate and aborted the process. The queued error came from initializeExtensions()'s
+# glGetString(GL_EXTENSIONS), removed in a 3.2+ core profile, where it returns null and raises
+# GL_INVALID_ENUM - so this only ever fired on macOS. Drains before each upload, consumes the
+# deprecated query's error at its source, and logs the real GL error code before throwing.
+# See ADR 0004.
 set(MLN_QT_WITH_QUICK_PLUGIN ON)
 set(MLN_QT_WITH_LOCATION OFF)
 set(MLN_QT_WITH_WIDGETS OFF)

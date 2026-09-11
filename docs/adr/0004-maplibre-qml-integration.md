@@ -358,3 +358,63 @@ candidate independent of anything WxLens-specific.
 | WxLens patch / finding | Upstream | Notes |
 | --- | --- | --- |
 | 0010 (bad_alloc in the shader/program error path) | — | Not filed yet; see above |
+
+## macOS root cause (2026-09-11): a stale GL error reported as std::bad_alloc
+
+**Patch 0011 — the actual first-frame crash.** Found by symbolicating a RelWithDebInfo backtrace
+rather than by reading code; the two preceding hypotheses (ES shader source, then the link-failure
+reporting path) were both wrong, and each was disproved by a tester run.
+
+The symbolicated frames:
+
+```
+mbgl::gl::UploadPass::createVertexBufferResource(...)      upload_pass.cpp:40
+mbgl::gfx::UploadPass::createVertexBuffer<...>(...)        upload_pass.hpp:53
+mbgl::RenderStaticData::upload(gfx::UploadPass&)           render_static_data.cpp:15
+mbgl::Renderer::Impl::render(...)                          renderer_impl.cpp:248
+```
+
+`createVertexBufferResource` ends with:
+
+```cpp
+MBGL_CHECK_ERROR(glBufferData(GL_ARRAY_BUFFER, size, data, ...));
+if (glGetError()) {
+    throw std::bad_alloc();
+}
+```
+
+Two things combine badly. First, `MBGL_CHECK_ERROR` compiles to nothing under `NDEBUG`, so in a
+release build the two `glGetError()` calls in `gl/upload_pass.cpp` are the **only** ones the GL
+backend makes — nothing else ever empties the error queue. Second, mbgl reports *any* queued error
+as `std::bad_alloc`. So an error raised at any earlier point survives until the first buffer
+upload and is attributed to it.
+
+The upload in question is `RenderStaticData::upload()`, which pushes the four-vertex tile quad -
+**16 bytes**. There was never any memory pressure; `bad_alloc` was mbgl's way of saying "a GL error
+happened", and it named the wrong cause from the very first crash report.
+
+The queued error came from `Context::initializeExtensions()`, which calls
+`glGetString(GL_EXTENSIONS)`. That was removed from `glGetString` in a 3.2+ core profile, where it
+returns null and raises `GL_INVALID_ENUM`. mbgl already knows this — `hasAnisotropicFiltering()` in
+`render_location_indicator_layer.cpp` performs the same query and deliberately consumes the error —
+but `initializeExtensions()` never did. It only becomes fatal on a platform that forces a core
+profile, which is why Windows and Linux were unaffected: their compatibility contexts answer the
+query without error.
+
+Note the interaction with patch 0009's context fix. Requesting a core profile was correct and
+necessary, but it is also what made this query start raising `GL_INVALID_ENUM`. The original 2.1
+crash was the same misreporting mechanism with a different source error, which is why both looked
+identical as `std::bad_alloc` and why neither report ever mentioned memory.
+
+The patch drains the queue immediately before each upload so the check reflects only that call,
+consumes the deprecated query's error at its source, and logs the actual GL error code before
+throwing so the next occurrence names itself.
+
+**Not filed upstream yet.** Both halves are upstream-candidate and independent of WxLens: the
+error-queue handling in `gl/upload_pass.cpp` is a correctness bug on any core-profile desktop GL
+target, and `initializeExtensions()` should consume the error the same way the location-indicator
+layer already does.
+
+| WxLens patch / finding | Upstream | Notes |
+| --- | --- | --- |
+| 0011 (stale GL error reported as `bad_alloc`) | — | Not filed yet; see above |
