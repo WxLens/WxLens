@@ -418,3 +418,44 @@ layer already does.
 | WxLens patch / finding | Upstream | Notes |
 | --- | --- | --- |
 | 0011 (stale GL error reported as `bad_alloc`) | — | Not filed yet; see above |
+
+## macOS, third site (2026-09-11): the same pattern in the texture pool
+
+**Patch 0012.** With 0011 in place the crash moved rather than disappearing - which confirmed 0011
+was right and incomplete. The new backtrace (symbolicated offline against the shipped `.dSYM` by
+parsing its Mach-O symbol table, since no `atos` exists on the dev machine):
+
+```
+mbgl::gl::Texture2DPool::allocateGLMemory(...)        resource_pool.cpp:157
+mbgl::gl::Context::createUniqueTexture(...)
+mbgl::gl::Texture2D::allocateTexture() / ::create()
+mbgl::gl::DynamicTexture::uploadDeferredImages(gfx::UploadPass&)
+mbgl::GeometryTileRenderData::upload(gfx::UploadPass&)
+mbgl::RenderTile::upload(gfx::UploadPass&)
+mbgl::TileSourceRenderItem::upload(gfx::UploadPass&)
+```
+
+`Texture2DPool::allocateGLMemory()` carries the identical construct 0011 fixed: `glTexImage2D`
+followed by `if (glGetError()) { throw std::bad_alloc(); }`. Same treatment - drain first, log the
+real GL error code and the texture dimensions before throwing.
+
+Note the progress this represents: the failure moved from `RenderStaticData::upload()`, the very
+first static-geometry upload of the first frame, to *tile* upload. The renderer is now getting far
+enough to process actual map tiles.
+
+**The audit that should have come first.** Every `glGetError()` read in `src/mbgl` was enumerated
+before writing this patch, rather than fixing sites one crash at a time:
+
+| Site | Status |
+| --- | --- |
+| `gl/upload_pass.cpp` (x2) | fixed by 0011 |
+| `gl/resource_pool.cpp` | fixed by 0012 |
+| `gl/fence.cpp` | already drains in a loop |
+| `platform/gl_functions.cpp` | debug-only (`MBGL_CHECK_ERROR` internals) |
+| `renderer/layers/render_location_indicator_layer.cpp` | consumes its own error correctly |
+
+Those three were the only sites with the misreporting pattern in the GL backend, so 0011+0012
+should close the class rather than just the instance. The `mtl/` and `vulkan/` backends contain
+similar `bad_alloc` throws but are not built here.
+
+**Not filed upstream yet,** and belongs with 0011 as one report.
