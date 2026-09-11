@@ -144,10 +144,22 @@ jobs:
         if: inputs.build_type == 'RelWithDebInfo'
         run: |
           mkdir -p dsyms
-          while IFS= read -r binary; do
+          # Match Mach-O by content, not by filename: QMapLibre builds with FRAMEWORK ON, so its
+          # binary is QMapLibre.framework/Versions/A/QMapLibre - no .dylib suffix. A name-based
+          # find skips precisely the library whose frames the crash reports need.
+          while IFS= read -r -d '' binary; do
+            case "$(file -b "$binary")" in
+              *Mach-O*) ;;
+              *) continue ;;
+            esac
             dsymutil "$binary" -o "dsyms/$(basename "$binary").dSYM" || echo "dsymutil failed for $binary"
-          done < <(find build -type f \( -name 'WxLens' -o -name '*.dylib' \) -perm -u+x)
+          done < <(find build -type f -perm -u+x -print0)
+          ls dsyms
           du -sh dsyms
+          # Fail loudly rather than shipping symbols that omit the frames being chased.
+          for required in QMapLibre WxLens; do
+            test -d "dsyms/$required.dSYM" || { echo "::error::dsyms/$required.dSYM missing"; exit 1; }
+          done
       - uses: actions/upload-artifact@v4
         if: inputs.build_type == 'RelWithDebInfo'
         with:
