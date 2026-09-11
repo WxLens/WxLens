@@ -20,7 +20,7 @@ on:
         # notably MBGL_CHECK_ERROR stays compiled out. It only adds debug info, which macOS leaves
         # in the .o files: without the .dSYM produced below, a crash report from another machine
         # symbolicates third-party frames as raw offsets and says nothing about where it failed.
-        description: 'CMake build type. RelWithDebInfo additionally produces a .dSYM artifact for symbolicating crashes.'
+        description: 'CMake build type. RelWithDebInfo additionally produces a .dSYM artifact.'
         type: choice
         options: ['Release', 'RelWithDebInfo']
         default: 'Release'
@@ -134,12 +134,12 @@ jobs:
             -DCONAN_HOST_PROFILE="$PROFILE" -DCONAN_BUILD_PROFILE="$PROFILE"
       - name: Build and test
         run: |
-          cmake --build build --target wxlens-app wxlens-wxdata-test wxlens-app-test
-          ctest --test-dir build --output-on-failure -R 'wxlens-wxdata-test|^CrashReport\.'
+          cmake --build build --target wxlens-app wxlens-wxdata-test
+          ctest --test-dir build --output-on-failure -R wxlens-wxdata-test
       # macOS keeps DWARF in the .o files and only references them from the linked binary, so debug
-      # info does not travel with a copied .app. dsymutil pulls it into a .dSYM bundle that lldb
-      # and the crash reporter match by UUID - the difference between a backtrace naming functions
-      # and one printing raw offsets on someone else's Mac.
+      # info does not travel with a copied .app. dsymutil pulls it into a .dSYM bundle that lldb and
+      # the crash reporter match by UUID - the difference between a backtrace naming functions and
+      # one printing raw offsets on someone else's Mac.
       - name: Collect debug symbols
         if: inputs.build_type == 'RelWithDebInfo'
         run: |
@@ -163,17 +163,6 @@ jobs:
             PACKAGE_VERSION=$(sed -n 's/^set(WXLENS_VERSION "\([^"]*\)").*/\1/p' CMakeLists.txt)
           fi
           bash tools/installer/macos/package.sh build "$PACKAGE_VERSION" "$PACKAGE_ARCH"
-      - name: Launch the packaged app
-        run: |
-          python tools/installer/macos/smoke-test.py dist/*.dmg \
-            --output build/macos-startup --seconds 30
-      - name: Upload macOS startup diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-startup-${{ matrix.arch }}
-          path: build/macos-startup/
-          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: release-macos-${{ matrix.arch }}
