@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run from the repository root after a Release build on the target Mac architecture.
+# Run from the repository root after a build on the target Mac architecture.
+#
+# The optional 4th argument is the CMake configuration whose output to package, defaulting to
+# Release. It exists because the build lands in build/<config>/bin, so a RelWithDebInfo build -
+# the one that carries the debug info needed to symbolicate a crash on someone else's Mac - is
+# otherwise invisible to this script and packaging dies on a missing path.
 build_dir=$(cd "${1:?build directory required}" && pwd)
 version=${2:?version required}
 version=${version#v}
 arch=${3:?architecture required}
 [[ "$version" =~ ^[0-9A-Za-z][0-9A-Za-z.+-]*$ ]] || { echo "Invalid version" >&2; exit 1; }
 [[ "$arch" == arm64 || "$arch" == x64 ]] || { echo "Invalid architecture" >&2; exit 1; }
+config=${4:-Release}
+[[ "$config" =~ ^[A-Za-z][A-Za-z0-9]*$ ]] || { echo "Invalid configuration" >&2; exit 1; }
 
 stage=$(mktemp -d)
 
@@ -43,7 +50,7 @@ if [[ -d "$sqldrivers" ]]; then
 fi
 
 app="$stage/WxLens.app"
-ditto "$build_dir/Release/bin/WxLens.app" "$app"
+ditto "$build_dir/$config/bin/WxLens.app" "$app"
 cp LICENSE.txt ACKNOWLEDGEMENTS.md "$app/Contents/Resources/"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $version" "$app/Contents/Info.plist"
@@ -53,7 +60,7 @@ plugin=$(find "$app/Contents/Resources/qml/MapLibre" -name '*.dylib' -type f -pr
 test -n "$plugin"
 macdeployqt "$app" -qmldir="$PWD/app/qml" \
   -qmlimport="$app/Contents/Resources/qml" -executable="$plugin" \
-  -libpath="$build_dir/Release/lib" -libpath="$build_dir/Release/bin" -always-overwrite
+  -libpath="$build_dir/$config/lib" -libpath="$build_dir/$config/bin" -always-overwrite
 
 # Refuse to ship Mach-O files still linked to the builder's Qt, Conan or Homebrew tree.
 while IFS= read -r -d '' binary; do
