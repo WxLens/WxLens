@@ -70,7 +70,8 @@ set(MLN_CORE_PATCHES
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0009-mln-desktop-glsl-version-on-apple.patch"
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0010-mln-dont-bad-alloc-reporting-shader-errors.patch"
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0011-mln-stale-gl-error-as-bad-alloc.patch"
-    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0012-mln-stale-gl-error-in-texture-pool.patch")
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0012-mln-stale-gl-error-in-texture-pool.patch"
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0013-mln-core-profile-texture-formats.patch")
 
 wxlens_apply_patch_series("MapLibre Native Qt" "${MLN_QT_SOURCE_DIR}" ${MLN_QT_PATCHES})
 wxlens_apply_patch_series("MapLibre Native core" "${MLN_CORE_SOURCE_DIR}" ${MLN_CORE_PATCHES})
@@ -131,6 +132,13 @@ wxlens_apply_patch_series("MapLibre Native core" "${MLN_CORE_SOURCE_DIR}" ${MLN_
 # allocation during tile upload. An audit of every glGetError() read in src/mbgl confirms these
 # three were the only ones: fence.cpp already drains in a loop, platform/gl_functions.cpp is
 # debug-only, and render_location_indicator_layer.cpp handles its own. See ADR 0004.
+# 0013 (rendering core): a real core-profile incompatibility, not a misreported error. mbgl maps
+# TexturePixelType::Alpha/Luminance to GL_ALPHA/GL_LUMINANCE, fixed-function formats that a 3.2+
+# core profile removed - glTexImage2D rejects them, which aborted macOS while uploading a tile's
+# first glyph/SDF atlas. Maps both to GL_RED on Apple (in gl/enum.cpp, the single point texture
+# allocation, glTexSubImage2D upload and readback all share) and applies a swizzle at allocation
+# so sampling still yields (0,0,0,r) for Alpha and (r,r,r,1) for Luminance - without which the
+# formats would be accepted and then sample the wrong channel, failing silently. See ADR 0004.
 set(MLN_QT_WITH_QUICK_PLUGIN ON)
 set(MLN_QT_WITH_LOCATION OFF)
 set(MLN_QT_WITH_WIDGETS OFF)
