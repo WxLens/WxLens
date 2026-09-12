@@ -60,12 +60,36 @@ Rectangle {
             Row {
                 width: parent.width - 30
                 Text {
+                    id: helpTitle
                     text: "WxLens help and shortcuts"
                     color: themeManager.textPrimary
                     font.pixelSize: 18
                     font.bold: true
                 }
-                Item { width: Math.max(0, parent.width - 245); height: 1 }
+                // Sized from the two labels rather than a fixed 245, so adding the version on the
+                // right cannot push it off the edge at a different font scale.
+                Item {
+                    width: Math.max(0, parent.width - helpTitle.width - versionLabel.width - 12)
+                    height: 1
+                }
+                // Deliberately here, on the dialog a tester is already being asked to open, rather
+                // than buried in settings. Selectable because the answer to "which build are you
+                // running?" usually has to be pasted into a bug report - and during the macOS
+                // startup investigation every build called itself 0.1.0, which made that question
+                // unanswerable without checking upload timestamps.
+                TextEdit {
+                    id: versionLabel
+                    text: appVersion + " (" + appBuildCommit + ")"
+                    color: themeManager.textMuted
+                    font.pixelSize: 12
+                    readOnly: true
+                    selectByMouse: true
+                    // Height plus alignment rather than anchors: Row positions its children, and
+                    // anchoring inside a positioner makes Qt warn and stop laying it out. The
+                    // spacer Item above avoids anchors for the same reason.
+                    height: helpTitle.height
+                    verticalAlignment: Text.AlignBottom
+                }
             }
 
             Row {

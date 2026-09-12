@@ -29,6 +29,15 @@
 
 #include <algorithm>
 
+// Defined by app/CMakeLists.txt from WXLENS_VERSION. Defaulted so the file still compiles if it
+// is ever built outside that target rather than failing on a missing macro.
+#if !defined(WXLENS_VERSION_STRING)
+#define WXLENS_VERSION_STRING "unknown"
+#endif
+#if !defined(WXLENS_BUILD_COMMIT_STRING)
+#define WXLENS_BUILD_COMMIT_STRING "unknown"
+#endif
+
 static const std::string logPrefix_ = "main";
 
 namespace
@@ -211,6 +220,9 @@ int main(int argc, char* argv[])
 
    wxlens::panes::PaneGridModel paneGridModel;
    paneGridModel.setDefaultSourceKey(QString::fromStdString(kDefaultRadarSite));
+   engine.rootContext()->setContextProperty("appVersion", QStringLiteral(WXLENS_VERSION_STRING));
+   engine.rootContext()->setContextProperty("appBuildCommit",
+                                            QStringLiteral(WXLENS_BUILD_COMMIT_STRING));
    engine.rootContext()->setContextProperty("paneGridModel", &paneGridModel);
    // Family defaults (which palette velocity/reflectivity/... panes use) persist like any other
    // preference; the editor's own drafts deliberately do not (factory palettes are never
