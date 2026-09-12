@@ -67,7 +67,6 @@ set(MLN_QT_PATCHES
 
 # Against the rendering core rather than the Qt wrapper, hence its own series and source dir.
 set(MLN_CORE_PATCHES
-    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0009-mln-desktop-glsl-version-on-apple.patch"
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0010-mln-dont-bad-alloc-reporting-shader-errors.patch"
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0011-mln-stale-gl-error-as-bad-alloc.patch"
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0012-mln-stale-gl-error-in-texture-pool.patch"
@@ -106,15 +105,6 @@ wxlens_apply_patch_series("MapLibre Native core" "${MLN_CORE_SOURCE_DIR}" ${MLN_
 # `style` property after the map exists therefore does nothing. Theme-driven basemap changes need
 # the setter to forward the new URL to the live core Map, whose normal mapChanged/styleLoaded
 # signals then rebuild WxLens's custom layers. Found during the live-review follow-up to slice 10.
-
-# 0009 (rendering core, not the Qt wrapper): mbgl hardcodes "#version 300 es" for every OpenGL
-# platform, in both the drawable path (shaders/gl/shader_program_gl.cpp) and the legacy one
-# (shaders/gl/legacy/program_base.hpp, still compiled and still used - clipping_mask_program draws
-# the stencil clip). Desktop GL only accepts ES shader source through GL_ARB_ES3_compatibility,
-# which Windows/Linux/Mesa drivers expose and Apple's does not, so on macOS every shader fails to
-# compile and the resulting exception escapes Map::render() into Qt's event loop - std::terminate
-# on the first frame. Emits desktop GLSL on Apple only; gl/prelude.hpp already has the matching
-# non-GL_ES branch that #defines lowp/mediump/highp away. See ADR 0004.
 
 # 0011 (rendering core): THE macOS first-frame crash. mbgl's GL backend never drains the error
 # queue in a release build - MBGL_CHECK_ERROR compiles to nothing under NDEBUG, leaving the two
