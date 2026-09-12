@@ -459,3 +459,42 @@ should close the class rather than just the instance. The `mtl/` and `vulkan/` b
 similar `bad_alloc` throws but are not built here.
 
 **Not filed upstream yet,** and belongs with 0011 as one report.
+
+## Patch 0009 confirmed by experiment (2026-09-12)
+
+Patch 0009 was written on a hypothesis and, when patch 0010 failed to change the crash, looked
+like it might never have been needed. It was removed deliberately to find out, since ADR 0004
+requires re-verifying every vendored patch on each submodule bump and a patch that earns nothing
+should not be carried.
+
+The experiment settled it. Without 0009, Apple's GLSL compiler emitted this 2810 times:
+
+```
+Shader failed to compile: ERROR: 0:1: '' : version '300' is not supported
+                        : 0:1: '' : syntax error: #version
+                        : 0:2: '' : #version required and missing.
+                        : 0:78: '0' : syntax error: integers in layouts require GLSL 140 or later
+```
+
+That is the driver confirming the original reasoning outright: macOS cannot compile
+`#version 300 es`, because Apple's OpenGL exposes no `GL_ARB_ES3_compatibility`. **0009 is
+load-bearing and stays.**
+
+Two things are worth keeping from how this played out:
+
+- **A null result on one patch says nothing about another.** 0010 not changing the crash was taken
+  as evidence against 0009, when the two address unrelated defects. 0009's necessity was only ever
+  testable by removing it.
+- **The failure is silent, not fatal.** mbgl catches the compile error, logs it and marks the
+  program failed, so without 0009 the app runs and the basemap simply never draws. Nothing
+  crashes. And before 0010, the failure could not even be reported - the error path allocated from
+  an uninitialized length and threw `std::bad_alloc` before reaching `Log::Error`. 0010 is the
+  reason this log line exists, which makes the two patches complementary rather than redundant.
+
+### Custom-layer GL errors are inherited, not ours
+
+The same run resolved the `GL error 1280` noise from `RadarSweepLayer`. With drain-on-entry
+instrumentation in place the log showed **76 errors already queued on entry and 0 raised by the
+layer itself** (74 at `render()`, one each at `initialize()` and `UploadSweep()`). The layer is
+clean; it was reporting errors mbgl left in the queue. A future cleanup could drain in mbgl's
+render pass, but nothing in WxLens needs changing.
