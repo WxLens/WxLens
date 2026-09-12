@@ -43,7 +43,37 @@ if (MSVC)
 endif()
 
 set(WXLENS_DIR ${PROJECT_SOURCE_DIR})
-set(WXLENS_VERSION "0.1.0")
+set(WXLENS_VERSION "0.1.1")
+
+# A version number alone cannot tell two builds of the same version apart, and that cost real time
+# during the macOS startup investigation: every diagnostic build called itself 0.1.0, so working
+# out which one a tester was actually running meant comparing GitHub upload timestamps against
+# asset download counts. Capturing the commit makes any build self-identifying, released or not.
+#
+# Resolved at configure time, so it reflects the tree as configured: editing a file afterwards
+# does not update it. That is why the dirty marker exists rather than being assumed absent - a
+# bare commit id would claim precision the binary may not have.
+set(WXLENS_BUILD_COMMIT "unknown")
+find_package(Git QUIET)
+if (GIT_FOUND)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" rev-parse --short=7 HEAD
+                    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+                    OUTPUT_VARIABLE wxlensGitCommit
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    RESULT_VARIABLE wxlensGitStatus
+                    ERROR_QUIET)
+    if (wxlensGitStatus EQUAL 0 AND wxlensGitCommit)
+        set(WXLENS_BUILD_COMMIT "${wxlensGitCommit}")
+        execute_process(COMMAND "${GIT_EXECUTABLE}" diff --quiet HEAD
+                        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+                        RESULT_VARIABLE wxlensGitDirty
+                        ERROR_QUIET)
+        if (NOT wxlensGitDirty EQUAL 0)
+            set(WXLENS_BUILD_COMMIT "${WXLENS_BUILD_COMMIT}-modified")
+        endif()
+    endif()
+endif()
+message(STATUS "WxLens ${WXLENS_VERSION} (build ${WXLENS_BUILD_COMMIT})")
 
 # wxdata reuse: docs/adr/0002-wxdata-reuse-strategy.md (Option A) - link the legacy Supercell Wx
 # repo's Qt-free wxdata library unmodified. Only wxdata is added; the rest of the legacy repo

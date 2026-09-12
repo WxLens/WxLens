@@ -258,3 +258,10 @@ if (WIN32)
                            $<TARGET_FILE:wxlens-app>
                        COMMENT "Running windeployqt for wxlens-app...")
 endif()
+
+# Surfaced in the UI (HelpDialog) so a build can identify itself. Until now WXLENS_VERSION only
+# reached the macOS bundle strings, which meant the running application had no idea what version
+# it was and no way to tell a tester.
+target_compile_definitions(wxlens-app PRIVATE
+    WXLENS_VERSION_STRING="${WXLENS_VERSION}"
+    WXLENS_BUILD_COMMIT_STRING="${WXLENS_BUILD_COMMIT}")
