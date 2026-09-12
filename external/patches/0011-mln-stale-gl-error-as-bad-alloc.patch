@@ -1,0 +1,74 @@
+diff --git a/src/mbgl/gl/context.cpp b/src/mbgl/gl/context.cpp
+index 59a716c..a1c99e6 100644
+--- a/src/mbgl/gl/context.cpp
++++ b/src/mbgl/gl/context.cpp
+@@ -151,7 +151,16 @@ void Context::endFrame() {
+ void Context::initializeExtensions(const std::function<gl::ProcAddress(const char*)>& getProcAddress) {
+     MLN_TRACE_FUNC();
+ 
+-    if (const auto* extensions = reinterpret_cast<const char*>(MBGL_CHECK_ERROR(glGetString(GL_EXTENSIONS)))) {
++    const auto* extensions = reinterpret_cast<const char*>(MBGL_CHECK_ERROR(glGetString(GL_EXTENSIONS)));
++    // GL_EXTENSIONS was removed from glGetString in a 3.2+ core profile: the call returns null and
++    // raises GL_INVALID_ENUM. Consume it here. MBGL_CHECK_ERROR compiles to nothing under NDEBUG,
++    // so in a release build nothing would clear it until UploadPass's post-upload check, which
++    // reports whatever is queued as std::bad_alloc from an unrelated buffer upload - on macOS that
++    // aborted the process on its first frame. mbgl already consumes this same query's error in
++    // render_location_indicator_layer.cpp; initializeExtensions simply never did.
++    while (glGetError() != GL_NO_ERROR) {
++    }
++    if (extensions) {
+         auto fn = [&](std::initializer_list<std::pair<const char*, const char*>> probes) -> ProcAddress {
+             for (auto probe : probes) {
+                 if (strstr(extensions, probe.first) != nullptr) {
+diff --git a/src/mbgl/gl/upload_pass.cpp b/src/mbgl/gl/upload_pass.cpp
+index ac456e1..67e23b5 100644
+--- a/src/mbgl/gl/upload_pass.cpp
++++ b/src/mbgl/gl/upload_pass.cpp
+@@ -15,6 +15,7 @@
+ #include <mbgl/gl/texture2d.hpp>
+ 
+ #include <algorithm>
++#include <string>
+ 
+ namespace mbgl {
+ namespace gl {
+@@ -35,8 +36,22 @@ std::unique_ptr<gfx::VertexBufferResource> UploadPass::createVertexBufferResourc
+     // NOLINTNEXTLINE(performance-move-const-arg)
+     UniqueBuffer result{std::move(id), {commandEncoder.context}};
+     commandEncoder.context.vertexBuffer = result;
++    // Drain anything already queued before uploading. MBGL_CHECK_ERROR compiles to nothing under
++    // NDEBUG, so in a release build the two glGetError() calls in this file are the only ones the
++    // GL backend makes - nothing else ever empties the queue. An error raised much earlier
++    // therefore survives until here, gets blamed on this upload, and is reported as std::bad_alloc:
++    // a 16-byte static quad "failing to allocate" and aborting the process on its first frame.
++    // Observed on macOS core profile, where Context::initializeExtensions()'s deprecated
++    // glGetString(GL_EXTENSIONS) leaves GL_INVALID_ENUM queued (also fixed, in context.cpp).
++    while (glGetError() != GL_NO_ERROR) {
++    }
+     MBGL_CHECK_ERROR(glBufferData(GL_ARRAY_BUFFER, size, data, Enum<gfx::BufferUsageType>::to(usage)));
+-    if (glGetError()) {
++    if (const GLenum error = glGetError()) {
++        // bad_alloc is what callers expect here, but say what actually happened first - the error
++        // code is otherwise lost and the exception names the wrong cause entirely.
++        Log::Error(Event::OpenGL,
++                   "Vertex buffer upload of " + std::to_string(size) + " bytes failed with GL error " +
++                       std::to_string(error));
+         throw std::bad_alloc();
+     }
+     return std::make_unique<gl::VertexBufferResource>(std::move(result), static_cast<int>(size));
+@@ -63,8 +78,14 @@ std::unique_ptr<gfx::IndexBufferResource> UploadPass::createIndexBufferResource(
+     UniqueBuffer result{std::move(id), {commandEncoder.context}};
+     commandEncoder.context.bindVertexArray = 0;
+     commandEncoder.context.globalVertexArrayState.indexBuffer = result;
++    // Same stale-error hazard as createVertexBufferResource above - see the comment there.
++    while (glGetError() != GL_NO_ERROR) {
++    }
+     MBGL_CHECK_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, Enum<gfx::BufferUsageType>::to(usage)));
+-    if (glGetError()) {
++    if (const GLenum error = glGetError()) {
++        Log::Error(Event::OpenGL,
++                   "Index buffer upload of " + std::to_string(size) + " bytes failed with GL error " +
++                       std::to_string(error));
+         throw std::bad_alloc();
+     }
+     return std::make_unique<gl::IndexBufferResource>(std::move(result), static_cast<int>(size));

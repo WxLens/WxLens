@@ -190,6 +190,16 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
+                SettingsChoice {
+                    visible: root.currentSection === "appearance"
+                    width: contentColumn.width
+                    label: "Advanced pane linking"
+                    explanation: "Split panes share pan and zoom by default. Enable to show each pane's linking menu and choose independent views or custom links. Turning this off matches all maps to the active pane and restores map-only linking."
+                    options: ["Off", "On"]
+                    currentIndex: appSettings.advancedPaneLinking ? 1 : 0
+                    onSelected: (index) => appSettings.advancedPaneLinking = index === 1
+                }
+
                 // -- Appearance ---------------------------------------------------------------
                 SettingsChoice {
                     visible: root.currentSection === "appearance"

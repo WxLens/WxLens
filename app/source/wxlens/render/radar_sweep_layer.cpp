@@ -36,6 +36,29 @@ void CheckGlError(QOpenGLFunctions_3_3_Core* gl, const char* where)
       logger_->error("GL error {} at {}", static_cast<unsigned int>(err), where);
    }
 }
+
+/**
+ * Reports, and clears, errors that were already queued before this layer did anything.
+ *
+ * Without this, CheckGlError above cannot tell "this layer raised an error" from "an error was
+ * sitting in the queue when this layer was entered". That distinction matters because a custom
+ * layer runs *mid-frame*, inside mbgl's render pass: mbgl leaves its own errors queued (its
+ * MBGL_CHECK_ERROR compiles to nothing in a release build), so whatever calls glGetError first
+ * takes the blame for them. That misattribution is exactly what disguised a queued
+ * GL_INVALID_ENUM as an out-of-memory crash inside MapLibre's buffer and texture uploads - see
+ * docs/adr/0004-maplibre-qml-integration.md. Draining on entry makes each later CheckGlError
+ * report only what the code between the two calls actually caused.
+ */
+void DrainPendingGlErrors(QOpenGLFunctions_3_3_Core* gl, const char* where)
+{
+   for (GLenum err = gl->glGetError(); err != GL_NO_ERROR; err = gl->glGetError())
+   {
+      logger_->error(
+         "GL error {} already queued on entry to {} (not raised by this layer)",
+         static_cast<unsigned int>(err),
+         where);
+   }
+}
 } // namespace
 
 class RadarSweepLayer::Impl
@@ -103,6 +126,7 @@ public:
 void RadarSweepLayer::Impl::UploadSweep(QOpenGLFunctions_3_3_Core* gl,
                                         const std::shared_ptr<const products::SweepData>& sweep)
 {
+   DrainPendingGlErrors(gl, "UploadSweep()");
    gl->glBindVertexArray(vao_);
 
    gl->glBindBuffer(GL_ARRAY_BUFFER, vbo_[0]);
@@ -149,6 +173,7 @@ void RadarSweepLayer::Impl::UploadColorTableLut(
    QOpenGLFunctions_3_3_Core* gl,
    const std::shared_ptr<const products::ColorTableLut>& colorTableLut)
 {
+   DrainPendingGlErrors(gl, "UploadColorTableLut()");
    gl->glActiveTexture(GL_TEXTURE0);
    gl->glBindTexture(GL_TEXTURE_1D, texture_);
    gl->glTexImage1D(GL_TEXTURE_1D,
@@ -215,6 +240,8 @@ void RadarSweepLayer::initialize()
       logger_->error("Failed to initialize OpenGL 3.3 core functions");
       return;
    }
+
+   DrainPendingGlErrors(p->gl_.get(), "initialize()");
 
    p->shaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
    if (!p->shaderProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex,
@@ -296,6 +323,7 @@ void RadarSweepLayer::render(const QMapLibre::CustomLayerRenderParameters& param
 
    try
    {
+      DrainPendingGlErrors(p->gl_.get(), "render()");
       p->gl_->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
       p->shaderProgram_->bind();

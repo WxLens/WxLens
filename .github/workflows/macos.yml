@@ -15,6 +15,15 @@ on:
         description: 'Package version (defaults to the version in CMakeLists.txt)'
         type: string
         default: ''
+      build_type:
+        # RelWithDebInfo still defines NDEBUG, so the binary behaves identically to a Release one -
+        # notably MBGL_CHECK_ERROR stays compiled out. It only adds debug info, which macOS leaves
+        # in the .o files: without the .dSYM produced below, a crash report from another machine
+        # symbolicates third-party frames as raw offsets and says nothing about where it failed.
+        description: 'CMake build type. RelWithDebInfo additionally produces a .dSYM artifact.'
+        type: choice
+        options: ['Release', 'RelWithDebInfo']
+        default: 'Release'
 
 permissions:
   contents: read
@@ -116,8 +125,9 @@ jobs:
       - name: Configure
         env:
           PROFILE: wxlens-macos_clang-18_${{ matrix.arch }}
+          BUILD_TYPE: ${{ inputs.build_type || 'Release' }}
         run: |
-          cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
             -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
             -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=external/cmake-conan/conan_provider.cmake \
@@ -126,15 +136,46 @@ jobs:
         run: |
           cmake --build build --target wxlens-app wxlens-wxdata-test
           ctest --test-dir build --output-on-failure -R wxlens-wxdata-test
+      # macOS keeps DWARF in the .o files and only references them from the linked binary, so debug
+      # info does not travel with a copied .app. dsymutil pulls it into a .dSYM bundle that lldb and
+      # the crash reporter match by UUID - the difference between a backtrace naming functions and
+      # one printing raw offsets on someone else's Mac.
+      - name: Collect debug symbols
+        if: inputs.build_type == 'RelWithDebInfo'
+        run: |
+          mkdir -p dsyms
+          # Match Mach-O by content, not by filename: QMapLibre builds with FRAMEWORK ON, so its
+          # binary is QMapLibre.framework/Versions/A/QMapLibre - no .dylib suffix. A name-based
+          # find skips precisely the library whose frames the crash reports need.
+          while IFS= read -r -d '' binary; do
+            case "$(file -b "$binary")" in
+              *Mach-O*) ;;
+              *) continue ;;
+            esac
+            dsymutil "$binary" -o "dsyms/$(basename "$binary").dSYM" || echo "dsymutil failed for $binary"
+          done < <(find build -type f -perm -u+x -print0)
+          ls dsyms
+          du -sh dsyms
+          # Fail loudly rather than shipping symbols that omit the frames being chased.
+          for required in QMapLibre WxLens; do
+            test -d "dsyms/$required.dSYM" || { echo "::error::dsyms/$required.dSYM missing"; exit 1; }
+          done
+      - uses: actions/upload-artifact@v4
+        if: inputs.build_type == 'RelWithDebInfo'
+        with:
+          name: debug-symbols-${{ matrix.arch }}
+          path: dsyms
+          if-no-files-found: error
       - name: Package disk image
         env:
           PACKAGE_VERSION: ${{ inputs.version }}
           PACKAGE_ARCH: ${{ matrix.arch }}
+          PACKAGE_CONFIG: ${{ inputs.build_type || 'Release' }}
         run: |
           if [[ -z "$PACKAGE_VERSION" ]]; then
             PACKAGE_VERSION=$(sed -n 's/^set(WXLENS_VERSION "\([^"]*\)").*/\1/p' CMakeLists.txt)
           fi
-          bash tools/installer/macos/package.sh build "$PACKAGE_VERSION" "$PACKAGE_ARCH"
+          bash tools/installer/macos/package.sh build "$PACKAGE_VERSION" "$PACKAGE_ARCH" "$PACKAGE_CONFIG"
       - uses: actions/upload-artifact@v4
         with:
           name: release-macos-${{ matrix.arch }}

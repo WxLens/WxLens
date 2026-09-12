@@ -23,6 +23,8 @@ class MapObjectScopeTest : public ::testing::Test
 protected:
    void SetUp() override
    {
+      // These scope cases explicitly exercise independent and manually grouped panes.
+      model_.setAdvancedPaneLinking(true);
       model_.setDefaultSourceKey(QString {});
       model_.setGridSize(2, 2);
       store_.Clear();

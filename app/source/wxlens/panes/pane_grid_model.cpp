@@ -84,6 +84,7 @@ public:
    int     nextPaneId_ {0};
    int     syncRevision_ {0};
    int     activePaneIndex_ {0};
+   bool    advancedPaneLinking_ {false};
    bool    centerMapOnSiteChange_ {true};
    int     radarSiteScope_ {0}; // AppSettings::RadarSiteScope::AllPanes
 
@@ -264,6 +265,20 @@ void PaneGridModel::setGridSize(int width, int height)
                  { PropagateChannel(pane, channel, origin); });
       }
       endInsertRows();
+      if (!p->advancedPaneLinking_)
+      {
+         auto* reference = qobject_cast<PaneController*>(activePane());
+         for (std::size_t i = current; i < desired; ++i)
+         {
+            auto* pane = p->panes_[i].get();
+            for (const auto channel : kCameraChannels)
+               pane->setSyncGroup(channel, 1);
+            if (reference != nullptr && reference != pane)
+               copyCamera(reference->paneId(), pane->paneId());
+         }
+         ++p->syncRevision_;
+         Q_EMIT syncRevisionChanged();
+      }
    }
 
    // Do not remove trailing pane controllers when a layout shrinks. Their PaneHost delegates own
@@ -280,6 +295,29 @@ void PaneGridModel::setGridSize(int width, int height)
    {
       Q_EMIT activePaneChanged();
    }
+}
+
+void PaneGridModel::setAdvancedPaneLinking(bool enabled)
+{
+   if (enabled == p->advancedPaneLinking_) return;
+   p->advancedPaneLinking_ = enabled;
+   if (!enabled)
+   {
+      auto* reference = qobject_cast<PaneController*>(activePane());
+      for (const auto& pane : p->panes_)
+      {
+         for (const auto channel : kUserLinkChannels)
+         {
+            const bool camera = std::find(kCameraChannels.begin(), kCameraChannels.end(), channel) != kCameraChannels.end();
+            pane->setSyncGroup(channel, camera ? 1 : kNoSyncGroup);
+         }
+         if (reference != nullptr && reference != pane.get())
+            copyCamera(reference->paneId(), pane->paneId());
+      }
+      ++p->syncRevision_;
+      Q_EMIT syncRevisionChanged();
+   }
+   logger_->info("Advanced pane linking {}", enabled ? "enabled" : "disabled; restored shared map view");
 }
 
 void PaneGridModel::PropagateChannel(PaneController* source,

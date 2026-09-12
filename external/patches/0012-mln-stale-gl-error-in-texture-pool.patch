@@ -1,0 +1,39 @@
+diff --git a/src/mbgl/gl/resource_pool.cpp b/src/mbgl/gl/resource_pool.cpp
+index 86ea1b7..86bf78c 100644
+--- a/src/mbgl/gl/resource_pool.cpp
++++ b/src/mbgl/gl/resource_pool.cpp
+@@ -1,6 +1,7 @@
+ #include <mbgl/gl/resource_pool.hpp>
+ 
+ #include <cassert>
++#include <string>
+ #include <type_traits>
+ 
+ #include <mbgl/gl/context.hpp>
+@@ -145,6 +146,11 @@ TextureID Texture2DPool::allocateGLMemory(const Texture2DDesc& desc) {
+     // Bind to TU 0 and upload
+     context->activeTextureUnit = 0;
+     context->texture[0] = id;
++    // Drain first - same hazard as gl/upload_pass.cpp's buffer uploads, see the comment there.
++    // MBGL_CHECK_ERROR compiles to nothing under NDEBUG, so a queued error from anywhere earlier
++    // would be blamed on this allocation and reported as std::bad_alloc.
++    while (glGetError() != GL_NO_ERROR) {
++    }
+     MBGL_CHECK_ERROR(glTexImage2D(GL_TEXTURE_2D,
+                                   0,
+                                   Enum<gfx::TexturePixelType>::sizedFor(desc.pixelFormat, desc.channelType),
+@@ -154,7 +160,13 @@ TextureID Texture2DPool::allocateGLMemory(const Texture2DDesc& desc) {
+                                   Enum<gfx::TexturePixelType>::to(desc.pixelFormat),
+                                   Enum<gfx::TextureChannelDataType>::to(desc.channelType),
+                                   nullptr));
+-    if (glGetError()) {
++    if (const GLenum error = glGetError()) {
++        // Say what actually happened: bad_alloc names the wrong cause for every GL error that is
++        // not GL_OUT_OF_MEMORY, and the size/format is what makes an unsupported-format rejection
++        // distinguishable from genuine exhaustion.
++        Log::Error(Event::OpenGL,
++                   "Texture allocation of " + std::to_string(desc.size.width) + "x" +
++                       std::to_string(desc.size.height) + " failed with GL error " + std::to_string(error));
+         throw std::bad_alloc();
+     }
+ 

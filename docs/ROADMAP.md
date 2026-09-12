@@ -2559,6 +2559,142 @@ live/archive product from every applicable renderer family (radial, raster, grap
 graphic/tabular text) passes its automated tests and the packaged application's visual acceptance
 path. A populated product picker or successful parser call alone is not coverage.
 
+**Pane movement default revised (2026-09-05, owner decision):** split panes share camera
+channels (Location, Zoom, Bearing, Pitch) by default. The top-right link menu is hidden unless
+Settings > Appearance > Advanced pane linking is enabled (persisted, default off). Enabling
+reveals the existing per-channel presets; disabling matches every retained pane to the active
+map and restores camera-only group A membership. Product/palette/time remain independently
+selectable. New panes inherit the active camera in simple mode. This is a presentation/default
+policy over per-channel synchronization, not a replacement global linked flag.
+Validation: Release app/QML and test builds pass; all 167 WxLens model tests pass, including
+shared camera defaults, active-view restoration, grid growth/retention, independent advanced
+views, and preference persistence/reset. Packaged 2x2 press-drag-release and wheel zoom moved
+all four maps together. Appearance's Off/On control revealed and hid the pane menus immediately;
+Off was restored and confirmed in appearance.toml. Captures and build/test logs are under
+`tools/retest/captures/pane-link-*.png` and `build-release-vs2026/pane-link-*.log` locally.
+
+**macOS startup crash fixed - the app never requested a core-profile GL context (2026-09-09):**
+WxLens died in `std::bad_alloc` during startup on an Apple M4 Pro, while forcing software rendering
+got partway in. Qt reported `RENDERER: Apple M4 Pro, VERSION: 2.1 Metal - 90.5` - a legacy 2.1
+compatibility context. Root cause: `main()` built its `QSurfaceFormat` from
+`QSurfaceFormat::defaultFormat()` and set only `setSamples(4)`, never naming a profile or version.
+Windows and Linux drivers answer an unqualified request with a 4.x *compatibility* context that
+happens to expose everything the app uses, so the omission stayed invisible there; macOS returns
+2.1 Compatibility unless a >= 3.2 core profile is explicitly requested, and offers nothing between
+that and 4.1 Core. The whole GL path assumes 3.3 core - both custom layers resolve entry points
+through `QOpenGLFunctions_3_3_Core`, the ported shaders are desktop `#version 330 core` (this
+section already records dropping the legacy `precision mediump float;` line for that reason), and
+mbgl's Qt backend dispatches through `QOpenGLExtraFunctions`
+(`platform/qt/src/mbgl/gl_functions.cpp`), whose GL 3.0+ entry points are absent on a 2.1 context,
+so its capability queries fail instead of returning real limits and the sizes it derives from them
+stop being meaningful - hence `bad_alloc` rather than a clean unsupported-GL error.
+
+Fix: `main.cpp` now sets `CoreProfile` + `RenderableType::OpenGL`, with `setVersion(4, 1)` under
+`#if defined(__APPLE__)`, keeping `setSamples(4)`. That is the legacy app's `InitializeOpenGL()`
+(`scwx-qt/source/scwx/qt/main/main.cpp`) almost verbatim, including its Apple version pin and its
+comment naming the same 4.1-Core-or-2.1-Compatibility choice; porting only `map_widget.cpp`'s
+`setSamples(4)` is how the profile request went missing here. Core profile has no default VAO 0,
+but `RadarSweepLayer` and `PolylineLayer` already generate and bind their own, so nothing depended
+on compatibility behaviour.
+
+- **Not verified:** not compiled or run locally - there is no configured build tree, and the macOS
+  path is not reproducible from this Windows session. CI's `macos-clang18-arm64-release` preset
+  compile-checks it. Still needs a real M4 startup to confirm the fix, and a Windows launch to
+  confirm no regression: Windows now gets a genuine core context instead of the compatibility one
+  it had been getting by accident.
+
+**Confirmed on hardware, and a second macOS wall behind it (2026-09-10):** the tester's M4 Pro run
+proved the core-profile fix works - startup now clears the `std::bad_alloc`, reaches
+`QCoreApplication::exec()` and renders its first frame, where it aborts differently:
+`EXC_CRASH (SIGABRT)` with `__cxa_throw` inside QMapLibre beneath `TextureNodeOpenGL::render`, an
+uncaught C++ exception escaping `Map::render()` into Qt's event loop. Cause: mbgl hardcodes
+`#version 300 es` for every OpenGL platform, and desktop GL accepts ES shader source only via
+`GL_ARB_ES3_compatibility`, which Apple's OpenGL does not expose. Addressed by patch 0009 (see
+ADR 0004), which emits `#version 330 core` on Apple in both the drawable and legacy shader paths.
+- **Also surfaced:** `external/maplibre-native-qt.cmake` sets `MLN_WITH_OPENGL ON` unconditionally,
+  so macOS runs the GL backend even though MapLibre Qt ships a Metal one (`texture_node_metal.mm`)
+  that is the intended Apple path. Patch 0009 keeps the single GL path working everywhere, which
+  preserves WxLens's own `QOpenGLFunctions_3_3_Core` custom layers; a Metal switch would strand
+  them until they are ported. Worth revisiting deliberately rather than by default.
+- **Not verified:** patch 0009 is unrun on hardware - it compiles the same shader bodies against a
+  different version directive, so a second wave of GLSL incompatibilities is possible.
+
+#### User feedback follow-up — rendering, playback, caching, and Canadian radar (2026-09-09)
+
+Captured at the user's request after reviewing external feedback against the current source.
+These are **unchecked implementation/investigation items**, not completed work. The review was
+static source inspection; no runtime timings were measured. Work in small vertical slices (§0.2).
+Priority order: establish measurements, fix alert-overlay rendering, deliver cached timeline
+playback, scope Canadian access, then evaluate an optional caching backend. Canadian coverage and
+the optional backend remain separately scoped follow-ups, not new Phase 1 completion gates.
+
+- [ ] **Reproduce and measure the reported slowness.** Use `docs/performance-baseline.md` and
+  the modest-laptop target below. Compare camera movement with alerts enabled/disabled, cold
+  frame loads, revisiting a loaded frame, product/tilt changes, and independent/synchronized
+  multi-pane views. Separate listing/download, decode, geometry preparation, GPU upload, and
+  rendering time; record request counts, cache hits, memory, and frame-time stalls. Record the
+  tested build and graphics driver/backend. Do not attribute every delay to NWS/AWS without
+  measuring it.
+- [ ] **Fix camera-movement cost in warning/placefile overlays.**
+  `app/qml/Panes/WeatherOverlaysLayer.qml` currently requests Canvas painting on camera changes
+  and reprojects/redraws warning polygons. This confirms repeated work, not its measured share of
+  the reported lag. Move dense geographic geometry to retained GPU-backed rendering, rebuilding
+  geometry when data changes and applying camera transforms during movement. Check §4.3's unified
+  overlay ownership before choosing the renderer; `render/polyline_layer.*` is an unwired,
+  unverified starting point, not a complete polygon/fill solution. Preserve fills, outlines,
+  visibility, labels and geographic alignment through pan/zoom/rotation; trigger repaints on
+  data changes. Verify representative dense alerts/placefiles and compare against the baseline.
+- [ ] **Optimize the existing accelerated radar path where measurements justify it.**
+  `render/radar_sweep_layer.cpp` already uses OpenGL shaders, GPU buffers and draw calls;
+  supported Level 3 rasters feed that same sweep renderer. Unchanged sweep/LUT pointers avoid
+  repeated uploads during camera movement. Do not plan a generic "add hardware acceleration"
+  rewrite. Profile CPU decode/geometry preparation, uploads and GPU drawing independently, and
+  verify the actual graphics implementation on the affected machine before diagnosing fallback.
+- [ ] **Add bounded shared frame caching and request deduplication.**
+  `data/radar_site_data_service.cpp` shares services per site and caches decoded Level 3 files,
+  but Level 2 loads call the provider's downloading `LoadObjectByKey` path again. Add retained
+  Level 2 frames, deduplicate in-flight requests for the same source/object, and avoid downloading
+  or rebuilding an unchanged latest volume. Bound both Level 2 and Level 3 retention by memory
+  budget/eviction policy; reuse decoded data and derived geometry where identities match.
+  Preserve per-source sharing and per-pane product/time independence (§4.6). Verify repeated
+  selection and multiple consumers reuse one load, stale completions cannot replace a newer
+  selection, and eviction keeps memory bounded on the 8 GB floor.
+- [ ] **Deliver a draggable timeline and playback backed by the cache.** The existing
+  Live/Archive selector and UTC field do not satisfy quick scrubbing. Implement real available
+  scan discovery, bounded adjacent-frame prefetch, drag scrubbing, previous/next frame,
+  play/pause, return-to-live, and visible selected/actual time plus loading/unavailable states.
+  Fit the bottom control zone (§5.4), keep state/scheduling in C++, and preserve per-channel Time
+  synchronization. Coalesce rapid seeks so dragging cannot flood downloads; do not fabricate
+  evenly spaced available scans. Test primary press-drag-release, keyboard stepping, playback,
+  sparse/missing scans, failed loads, and synchronized/independent panes. Replaying cached frames
+  must not redownload them; verify responsiveness and memory against the baseline.
+- [ ] **Add bounded on-device disk persistence after memory-cache/playback foundations.**
+  Define stable source/object identity, capacity/eviction, corruption recovery, and cache-clear
+  behavior. Verify reuse after restart and honest offline/cache status; keep live discovery fresh.
+  If raw-download caching requires changes in reused `wxdata`, make those upstream and advance
+  the pin; never hand-edit the read-only dependency tree.
+- [ ] **Scope Canadian radar against a verified data source before accepting implementation.**
+  Request the contributor's exact endpoint, sample file, available products/history, and
+  redistribution terms or documented public-safety exemption. ECCC's published
+  [radar FAQ](https://eccc-msc.github.io/open-data/faq/readme_en/) distinguishes free composites/GIF
+  imagery from raw radar feeds offered through
+  [cost-recovered services](https://eccc-msc.github.io/open-data/cost-recovered/readme_en/)
+  (checked 2026-09-09). "Free for a public safety tool" is not established by those pages.
+  Distinguish an imagery/composite layer from individual-site velocity, tilts and raw-volume
+  interrogation; record which scope the source supports. Integrate through Data Source → Data
+  Product → Visualization Layer → View, checking format/dependency licenses before adoption.
+- [ ] **Evaluate optional self-hosted caching after measuring remaining network costs.**
+  Existing wxdata provider factories support alternate S3 and specific HTTP provider formats;
+  this is not arbitrary-URL backend compatibility. Define the supported protocol, freshness,
+  failure/fallback behavior and settings before implementation. Keep direct-source access and
+  local caching usable, including local caching when a remote cache is selected. Do not start
+  operating a WxLens server or pull Phase 5 login/sync into this work. A remote cache cannot fix
+  client-side decode, geometry or overlay bottlenecks.
+- [ ] **Coordinate contributor PR boundaries.** Agree separate reviewable scopes for the
+  timeline/cache work, Canadian source support, and measured rendering fixes. Require concrete
+  before/after evidence for performance claims and source-access evidence for Canadian coverage;
+  avoid overlapping renderer rewrites based on the mistaken premise that radar has no GPU path.
+
 #### Phase 1 completion and release-readiness gates
 
 The feature slices above are not, by themselves, permission to call Phase 1 complete or publish a
@@ -2569,6 +2705,10 @@ The dated packaged-session defects and progressive-disclosure requests are track
 implementation/retest items in `docs/phase1-ux-feedback-2026-08-31.md`. Closing a broad gate below
 does not silently close an unchecked item in that record; reconcile both checklists during each
 acceptance rerun.
+
+Also reconcile the 2026-09-09 user-feedback checklist immediately above when closing the
+performance and UX gates. Its Canadian-data and optional-backend investigations remain visible
+follow-ups even when Phase 1 is otherwise ready.
 
 - [ ] **Settings coverage for every promised preference.** Verify persistence, defaults, reset
   behavior, addressable settings-section navigation, and actual runtime application for product

@@ -101,6 +101,8 @@ public:
 
    /** The default radar site new panes are created with, until pane chrome can set it (§4.5). */
    void setDefaultSourceKey(const QString& sourceKey);
+   // A presentation policy applied through the existing per-channel groups.
+   void setAdvancedPaneLinking(bool enabled);
    void setCenterMapOnSiteChange(bool enabled);
    void setRadarSiteScope(int scope);
 

@@ -1,0 +1,48 @@
+diff --git a/src/mbgl/gl/context.cpp b/src/mbgl/gl/context.cpp
+index 5e77490..59a716c 100644
+--- a/src/mbgl/gl/context.cpp
++++ b/src/mbgl/gl/context.cpp
+@@ -214,12 +214,17 @@ UniqueShader Context::createShader(ShaderType type, const std::initializer_list<
+         return result;
+     }
+ 
+-    GLint logLength;
++    // Initialized: if the query fails (or the driver simply does not write the out-param) this is
++    // read anyway, and an indeterminate value here is not a cosmetic problem - see the allocation
++    // guard in verifyProgramLinkage below for what it costs.
++    GLint logLength = 0;
+     MBGL_CHECK_ERROR(glGetShaderiv(result, GL_INFO_LOG_LENGTH, &logLength));
+     if (logLength > 0) {
+         const auto log = std::make_unique<GLchar[]>(logLength);
+         MBGL_CHECK_ERROR(glGetShaderInfoLog(result, logLength, &logLength, log.get()));
+         Log::Error(Event::Shader, std::string("Shader failed to compile: ") + log.get());
++    } else {
++        Log::Error(Event::Shader, "Shader failed to compile, and the driver supplied no info log");
+     }
+ 
+     throw std::runtime_error("shader failed to compile");
+@@ -258,12 +263,22 @@ void Context::verifyProgramLinkage(ProgramID program_) {
+         return;
+     }
+ 
+-    GLint logLength;
++    // Was: an uninitialized GLint, then an unconditional make_unique<GLchar[]>(logLength) placed
++    // BEFORE the `> 0` test - so whenever the driver left logLength unwritten, this allocated a
++    // garbage-sized (often negative, hence huge as size_t) buffer and threw std::bad_alloc while
++    // trying to report a link failure. The real error was destroyed by its own error path: the
++    // process aborted on an uncaught bad_alloc with the driver's explanation never printed.
++    // Observed on macOS 4.1 Core, where it made a diagnosable link failure look like an
++    // out-of-memory crash during the first frame. Initialize, and allocate only inside the guard,
++    // matching createShader above.
++    GLint logLength = 0;
+     MBGL_CHECK_ERROR(glGetProgramiv(program_, GL_INFO_LOG_LENGTH, &logLength));
+-    const auto log = std::make_unique<GLchar[]>(logLength);
+     if (logLength > 0) {
++        const auto log = std::make_unique<GLchar[]>(logLength);
+         MBGL_CHECK_ERROR(glGetProgramInfoLog(program_, logLength, &logLength, log.get()));
+         Log::Error(Event::Shader, std::string("Program failed to link: ") + log.get());
++    } else {
++        Log::Error(Event::Shader, "Program failed to link, and the driver supplied no info log");
+     }
+ 
+     throw std::runtime_error("program failed to link");

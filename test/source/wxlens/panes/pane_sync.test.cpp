@@ -27,6 +27,7 @@ protected:
    {
       // An empty source key keeps PaneController from binding a real radar product, so these
       // tests never touch the network or the site database - they are about sync only.
+      model_.setAdvancedPaneLinking(true);
       model_.setDefaultSourceKey(QString {});
       model_.setGridSize(2, 2);
    }
@@ -41,6 +42,47 @@ protected:
 };
 
 } // namespace
+
+TEST_F(PaneSyncTest, SimpleModeLinksCameraAndRestoresActiveView)
+{
+   model_.setActivePaneIndex(2);
+   Pane(2)->setCenter(41.0, -95.0);
+   Pane(2)->setZoom(8.0);
+   model_.setAdvancedPaneLinking(false);
+   for (int i = 0; i < 4; ++i)
+   {
+      EXPECT_EQ(model_.syncPreset(Pane(i)->paneId()), QStringLiteral("map"));
+      EXPECT_NEAR(Pane(i)->centerLatitude(), 41.0, kTolerance);
+      EXPECT_NEAR(Pane(i)->zoom(), 8.0, kTolerance);
+   }
+   Pane(0)->setCenter(38.0, -97.0);
+   Pane(0)->setZoom(6.0);
+   EXPECT_NEAR(Pane(3)->centerLatitude(), 38.0, kTolerance);
+   EXPECT_NEAR(Pane(3)->zoom(), 6.0, kTolerance);
+   model_.setGridSize(3, 2);
+   EXPECT_NEAR(Pane(5)->zoom(), 6.0, kTolerance);
+   EXPECT_EQ(model_.syncPreset(Pane(5)->paneId()), QStringLiteral("map"));
+   model_.setGridSize(1, 1);
+   Pane(0)->setZoom(7.0);
+   model_.setGridSize(3, 2);
+   EXPECT_NEAR(Pane(5)->zoom(), 7.0, kTolerance);
+   model_.setAdvancedPaneLinking(true);
+   model_.setSyncPreset(Pane(1)->paneId(), QStringLiteral("independent"), 0);
+   Pane(0)->setZoom(9.0);
+   EXPECT_NEAR(Pane(1)->zoom(), 7.0, kTolerance);
+}
+
+TEST(PaneDefaultLinkTest, NewGridSharesCameraOnly)
+{
+   PaneGridModel model;
+   model.setDefaultSourceKey(QString {});
+   model.setGridSize(2, 2);
+   for (int i = 0; i < 4; ++i)
+   {
+      auto* pane = qvariant_cast<PaneController*>(model.data(model.index(i, 0), PaneGridModel::PaneRole));
+      EXPECT_EQ(model.syncPreset(pane->paneId()), QStringLiteral("map"));
+   }
+}
 
 TEST_F(PaneSyncTest, GridProvidesIndependentPanes)
 {
