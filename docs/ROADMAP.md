@@ -1494,6 +1494,81 @@ sequence, and none of them is a tail-end nice-to-have:
     from compilation.
 
 
+**Added 2026-09-22 from the 2026-09-09 user-feedback checklist.** Slice 11 shipped archive/time
+controls; these two deliver the scrubber and playback that §5.4 anticipated and that the
+checklist's fifth item specifies. Sequenced as a pair: **19 exists to make 20 testable**, and is
+not to be built speculatively ahead of it.
+
+19. **`wxlens-app-lib` split + headless QML harness** — infrastructure whose only user-visible
+    change is none.
+    - Split `wxlens-app` into a static `wxlens-app-lib` plus a thin `main.cpp`, moving
+      `qt_add_qml_module` onto the library with the URI unchanged (`WxLens.App`) so no QML import
+      moves. **This is owed regardless:** `test/test.cmake` already names it ("the app should be
+      split into a static library plus a thin main()") and currently recompiles ~35 app sources
+      into `wxlens-app-test`.
+    - Add a `wxlens-qml-test` target on `Qt6::QuickTest`, which is **already present in the pinned
+      Qt 6.11.1** — no new dependency, so no §0 license review. Run it under
+      `QT_QPA_PLATFORM=offscreen`; Linux CI already proves the full Qt/QML/MapLibre stack survives
+      `xvfb` with `LIBGL_ALWAYS_SOFTWARE=1`, so the hard part is solved and in use.
+    - Introduce a map seam. `PaneHost.qml` binds directly to `MapLibre.MapView`/`MapQuickItem`;
+      tests need a stub exposing only `coordinate`/`zoomLevel`. **Scope discipline: this tests
+      WxLens's QML logic, not MapLibre.** Pixel-level render verification is explicitly out of
+      scope — llvmpipe is not the user's GPU, and that comparison would be permanently flaky.
+    - **The gap this closes:** §0.2 requires feedback-loop guards be proven "with tests, not just
+      care". `pane_sync.test.cpp` does that thoroughly for the C++ half, but the other half of the
+      same guard is `applyingSync` in `PaneHost.qml`, which has no tests at all — the loop guard is
+      currently split across a tested language and an untested one.
+    - **Known risk:** `qt_add_qml_module` on a static library needs correct plugin import
+      (`qt_import_qml_plugins` / `Q_IMPORT_QML_PLUGIN`) and can interact badly with the AOT
+      qmlcachegen pass. If it does, document the exact limitation per §0.2 rather than inventing an
+      architectural workaround.
+    - **Honest limit:** this would **not** have caught `2610acb`'s floating markers, which were the
+      native map's GPU frame lagging QML's synchronous property update. That class of bug still
+      needs a live window. What this covers is logic-level regression around it.
+    - **Acceptance:** every existing model test still passes unchanged, the packaged app launches
+      with no new QML warnings, and at least one QML test asserts an applied sync does not echo
+      back as local user input.
+
+20. **Timeline scrubber + playback** — the 2026-09-09 checklist's fifth item.
+    - **Scan discovery needs no new provider code and no `wxdata` change.**
+      `NexradDataProvider::GetTimePointsByDate(date, update)` already returns real scan times, and
+      `update=false` reads the provider's existing cache without touching the network. Expose it
+      through `RadarSiteDataService` as a real availability list. **Never synthesize evenly spaced
+      scan times** — the checklist says so explicitly, and §4.7 forbids fabricated metadata.
+    - **State lives in C++, not QML** (§0.2): available scans, selected index, play/pause, loop
+      bounds, prefetch policy. `SyncChannel::Time` is already real state from slice 11;
+      `SyncChannel::Animation` is declared but stateless, and `ChangeOrigin::DataDriven` already
+      carries the comment "e.g. an animation timer advancing Time". **This slice is what those
+      were declared for** — do not add a second time concept beside them.
+    - **Coalesce seeks.** A drag emits a position per frame; collapse them so one in-flight load
+      survives and a stale completion can never replace a newer selection. `FrameCache`'s in-flight
+      deduplication (`149bcf1`) handles concurrent *identical* keys but not supersession — that is
+      this slice's job, not something already solved.
+    - **Prefetch bounded adjacent frames** through that same cache, honouring its byte budget.
+    - **The GUI-thread geometry cost is the real risk, and playback is what exposes it.** `149bcf1`
+      measured ~355 ms of synchronous GUI-thread geometry rebuild per frame and explicitly did not
+      move it. Caching lets a *repeat* frame skip it, so a replayed loop is fine — but the first
+      pass through a cold loop stalls the UI roughly a third of a second per frame. Either move
+      geometry preparation off the GUI thread, or pre-build it ahead of the playhead during
+      prefetch. Shipping a scrubber on top of an unchanged synchronous rebuild would deliver a
+      feature that *demonstrates* the reported slowness instead of one that answers it.
+    - **UI belongs to the one bottom zone, not a second bar.** §5.4 warns specifically against
+      discovering this too late and ending up with two stacked bars eating a third of the window.
+      Slice 16 (control surface relocation) is marked "runs with slice 11"; it now overlaps **this**
+      slice instead, and the two must be laid out together before either ships. Deliver drag
+      scrubbing, previous/next frame, play/pause, return-to-live, and visibly distinct selected
+      versus actual scan time with honest loading/unavailable states.
+    - **Verification:** C++ tests for the availability list, prefetch bounds, seek coalescing and
+      stale-completion rejection; slice 19's harness for press-drag-release and keyboard stepping;
+      then a packaged pass covering sparse/missing scans, failed loads, and grouped versus
+      independent panes. Replaying a cached loop must not re-download — assert that against the
+      cache's own counters, not by eye.
+    - **[OPEN QUESTION]** do grouped panes advance through `Time` or `Animation` — i.e. do linked
+      panes share one playhead, or each animate their own window from a shared selection? Decide
+      before wiring; it changes what propagates.
+    - **[OPEN QUESTION]** Level 2 only for the first cut, or Level 3 playback too? Level 3 has its
+      own per-AWIPS-ID provider and catalog, so including it widens the slice materially.
+
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
 structure, not a rigid contract — but keep the principle: each slice buildable and testable on
 its own before the next begins.
@@ -2791,6 +2866,11 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   evenly spaced available scans. Test primary press-drag-release, keyboard stepping, playback,
   sparse/missing scans, failed loads, and synchronized/independent panes. Replaying cached frames
   must not redownload them; verify responsiveness and memory against the baseline.
+
+  **Planned 2026-09-22 as slices 19-20** in the Phase 1 slice list above: 19 splits the app
+  into a library so a headless `Qt6::QuickTest` harness can exercise the drag, and 20 is this
+  item. Scan discovery resolved to an existing API - `GetTimePointsByDate` - so no `wxdata`
+  change is needed. Close both together with this box.
 - [ ] **Add bounded on-device disk persistence after memory-cache/playback foundations.**
   Define stable source/object identity, capacity/eviction, corruption recovery, and cache-clear
   behavior. Verify reuse after restart and honest offline/cache status; keep live discovery fresh.
