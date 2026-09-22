@@ -161,3 +161,64 @@ target_link_libraries(wxlens-app-test GTest::gtest
                                       wxlens-app-libplugin)
 
 gtest_discover_tests(wxlens-app-test)
+
+# ---------------------------------------------------------------------------------------------
+# wxlens-qml-test: the logic that lives in QML, which wxlens-app-test cannot reach (ROADMAP
+# slice 19). Qt6::QuickTest ships with the pinned Qt, so this adds no dependency.
+#
+# Scope is deliberately narrow: filter predicates, guard flags and the handlers that maintain
+# them. Rendering is NOT verified here - these run under the `offscreen` platform plugin, and in
+# CI over software-rasterized GL, so pixel comparisons would assert against something no user
+# runs. Visual behavior stays a packaged visual pass.
+find_package(Qt6 REQUIRED COMPONENTS QuickTest)
+
+# Qt's own plugin directory, derived from an imported Qt target rather than hardcoded, so this
+# follows whichever Qt the build was configured against.
+get_target_property(WXLENS_QT_QMAKE_EXECUTABLE Qt6::qmake IMPORTED_LOCATION)
+get_filename_component(WXLENS_QT_BIN_DIR "${WXLENS_QT_QMAKE_EXECUTABLE}" DIRECTORY)
+get_filename_component(WXLENS_QT_PLUGIN_PATH "${WXLENS_QT_BIN_DIR}/../plugins" ABSOLUTE)
+
+qt_add_executable(wxlens-qml-test source/wxlens/qml_test_main.cpp)
+
+# WIN32_EXECUTABLE OFF matters more than it looks: qt_add_executable defaults it ON, which on
+# Windows produces a GUI-subsystem binary with no console. The suite then runs and reports to
+# nowhere - it exits 0 having printed nothing, which reads exactly like a passing run and would
+# make an empty or failing suite indistinguishable from a green one.
+set_target_properties(wxlens-qml-test PROPERTIES CXX_STANDARD 20
+                                                 CXX_STANDARD_REQUIRED ON
+                                                 CXX_EXTENSIONS OFF
+                                                 AUTOMOC ON
+                                                 WIN32_EXECUTABLE OFF)
+
+# QUICK_TEST_SOURCE_DIR is how QuickTest locates the tst_*.qml files. Pointing it at the source
+# tree rather than a copied/bundled directory means editing a test file does not require a
+# rebuild to rerun it.
+target_compile_definitions(wxlens-qml-test PRIVATE
+    QUICK_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
+
+# wxlens-app-libplugin registers the WxLens.App module the test files import; without it they
+# fail at `import WxLens.App` exactly as the application did before wxlens-app linked it.
+target_link_libraries(wxlens-qml-test PRIVATE Qt6::QuickTest
+                                              wxlens-app-lib
+                                              wxlens-app-libplugin)
+
+# Running the binary by hand on Windows prints nothing to an inherited console - it exits 0
+# having reported nothing, which looks exactly like a pass. Use `-o <file>,txt` (or run it through
+# ctest, which captures output properly) to actually see results.
+add_test(NAME wxlens-qml-test COMMAND wxlens-qml-test)
+# The offscreen plugin keeps these from opening windows on a developer's desktop. windeployqt
+# deploys only the `windows` platform plugin, so on Windows the test also needs Qt's own plugin
+# directory on QT_PLUGIN_PATH - without it the binary aborts with "no Qt platform plugin could be
+# initialized", which is a confusing way to learn that the harness is fine and the path is not.
+set_tests_properties(wxlens-qml-test PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_PLUGIN_PATH=${WXLENS_QT_PLUGIN_PATH}")
+
+# Windows needs Qt's bin directory on PATH as well. The other test binaries get away without it
+# only by accident: they land in the same output directory wxlens-app's windeployqt populates, and
+# happen to need nothing it did not deploy. Qt6QuickTest/Qt6Test are not deployed, because no
+# shipped binary uses them, so this target is the first to actually need the search path. The
+# failure without it names an unrelated DLL, which is a misleading trail to follow.
+if (WIN32)
+    set_property(TEST wxlens-qml-test APPEND PROPERTY
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${WXLENS_QT_BIN_DIR}")
+endif()

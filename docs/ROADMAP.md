@@ -1529,6 +1529,36 @@ not to be built speculatively ahead of it.
       with no new QML warnings, and at least one QML test asserts an applied sync does not echo
       back as local user input.
 
+    **IMPLEMENTED (2026-09-22), with one acceptance item outstanding.** `wxlens-app-lib` carries
+    the sources and the QML module; `wxlens-app` is main.cpp plus the Windows `.rc`;
+    `wxlens-app-test` links the library instead of recompiling ~35 sources and drops four
+    duplicated resource blocks. `wxlens-qml-test` runs `tst_*.qml` under `Qt6::QuickTest` on the
+    offscreen platform, is wired into CTest with its own environment, and runs in `ci.yml`. First
+    coverage is `WeatherOverlaysLayer`'s nearby-warnings filter - the QML shipped untested in
+    `90037ef` - at 9 assertions, proven to fail under a deliberate mutation rather than merely
+    reported green. 189 model tests still pass.
+
+    **Outstanding:** the `applyingSync` echo-suppression test named in the acceptance criteria is
+    **not** written. `PaneHost.qml` is the only QML file importing `MapLibre`, so instantiating it
+    needs either the real map or the injected-map seam this slice listed; that seam was not built.
+    The filter test is real coverage but it is not the §0.2 loop-guard gap, which stays open.
+
+    **Four findings worth not rediscovering:**
+    - `qt_add_qml_module` on a STATIC library generates a separate `<target>plugin` carrying type
+      registration and compiled QML. Linking only the library builds and links cleanly, then fails
+      at runtime with `No module named "WxLens.App" found`.
+    - `qt_add_executable` defaults `WIN32_EXECUTABLE` ON, producing a GUI-subsystem test binary
+      that reports to nowhere and exits 0 - indistinguishable from a pass.
+    - Even as a console binary, the suite prints nothing to an inherited console on Windows. Use
+      `-o <file>,txt`, or run it through ctest.
+    - `windeployqt` deploys only the `windows` platform plugin, and never `Qt6QuickTest`/`Qt6Test`,
+      so the target needs Qt's own plugin directory and `bin` on its CTest environment. The
+      failure names an unrelated DLL.
+
+    **Unverified:** Linux and macOS. The split changes PUBLIC compile options those platforms
+    consume (`QT_NO_EMIT`) and static-plugin linking, and the QML suite has only ever run on
+    Windows; CI is where both get their first run.
+
 20. **Timeline scrubber + playback** — the 2026-09-09 checklist's fifth item.
     - **Scan discovery needs no new provider code and no `wxdata` change.**
       `NexradDataProvider::GetTimePointsByDate(date, update)` already returns real scan times, and

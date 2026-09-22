@@ -166,11 +166,19 @@ jobs:
             -DCONAN_BUILD_PROFILE=${{ matrix.conan_profile }}
 
       - name: Build
-        run: cmake --build build --target wxlens-app wxlens-wxdata-test
+        run: cmake --build build --target wxlens-app wxlens-wxdata-test wxlens-qml-test
 
       - name: Test (wxdata suite)
         working-directory: build
         run: ctest --output-on-failure -R wxlens-wxdata-test
+
+      # The QML suite runs headless: the target carries QT_QPA_PLATFORM=offscreen and the Qt
+      # plugin/library paths as CTest properties, so no display or extra setup is needed here.
+      # Verified on Windows only before this landed - this job is where Linux and macOS get
+      # their first run.
+      - name: Test (QML suite)
+        working-directory: build
+        run: ctest --output-on-failure -R wxlens-qml-test
 
   linux:
     uses: ./.github/workflows/linux.yml
