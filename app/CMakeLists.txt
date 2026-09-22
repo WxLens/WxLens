@@ -24,8 +24,13 @@ find_package(glm REQUIRED)
 # toml++ backs the structured config store (docs/adr/0003-config-storage-format.md).
 find_package(tomlplusplus REQUIRED)
 
-qt_add_executable(wxlens-app
-    source/wxlens/main/main.cpp
+# Split into a library plus a thin main() so wxlens-app-test can LINK these sources instead of
+# recompiling them, and - the reason it happened now - so the QML module can live on a target a
+# test binary is allowed to link against. An executable cannot be linked into another target, so
+# while qt_add_qml_module sat on wxlens-app there was no way to exercise the QML in a test at all.
+# test/test.cmake anticipated this ("the app should be split into a static library plus a thin
+# main()"); ROADMAP slice 19 is where it came due.
+qt_add_library(wxlens-app-lib STATIC
     source/wxlens/log/logger.cpp
     source/wxlens/log/logger.hpp
     source/wxlens/log/frame_timing.cpp
@@ -95,12 +100,16 @@ qt_add_executable(wxlens-app
     source/wxlens/util/radar_geometry.hpp
     source/wxlens/util/unit_format.cpp
     source/wxlens/util/unit_format.hpp
+)
+
+qt_add_executable(wxlens-app
+    source/wxlens/main/main.cpp
     $<$<PLATFORM_ID:Windows>:res/branding/app.rc>
 )
 
-target_include_directories(wxlens-app PRIVATE source "${CMAKE_CURRENT_BINARY_DIR}/generated")
+target_include_directories(wxlens-app-lib PUBLIC source "${CMAKE_CURRENT_BINARY_DIR}/generated")
 
-qt_add_qml_module(wxlens-app
+qt_add_qml_module(wxlens-app-lib
     URI WxLens.App
     VERSION 1.0
     QML_FILES
@@ -144,7 +153,7 @@ qt_add_qml_module(wxlens-app
 # and prevents WxLens's copies drifting from the reused legacy dependency.
 set(WXLENS_WCT_PALETTE_DIR
     "${CMAKE_SOURCE_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct")
-qt_add_resources(wxlens-app "wxlens-wct-palettes"
+qt_add_resources(wxlens-app-lib "wxlens-wct-palettes"
     PREFIX "/qt/qml/WxLens/App/res/palettes/wct"
     BASE "${WXLENS_WCT_PALETTE_DIR}"
     FILES
@@ -164,12 +173,18 @@ qt_add_resources(wxlens-app "wxlens-wct-palettes"
 
 # WxLens's reflectivity and velocity defaults use application-owned ramps tuned for legibility
 # over the dark map. Keep these visual assets outside the read-only dependency.
-qt_add_resources(wxlens-app "wxlens-app-palettes"
+qt_add_resources(wxlens-app-lib "wxlens-app-palettes"
     PREFIX "/qt/qml/WxLens/App/res/palettes/wct"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/res/palettes/wct"
     FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/res/palettes/wct/DR.pal"
         "${CMAKE_CURRENT_SOURCE_DIR}/res/palettes/wct/DV.pal")
+
+set_target_properties(wxlens-app-lib PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
 
 set_target_properties(wxlens-app PROPERTIES
     CXX_STANDARD 20
@@ -179,7 +194,7 @@ set_target_properties(wxlens-app PROPERTIES
     MACOSX_BUNDLE ON
 )
 
-target_link_libraries(wxlens-app PRIVATE
+target_link_libraries(wxlens-app-lib PUBLIC
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::OpenGL
@@ -196,6 +211,15 @@ target_link_libraries(wxlens-app PRIVATE
     $<$<PLATFORM_ID:Windows>:dbghelp>
 )
 
+# Both halves are required, and the second one is easy to miss. qt_add_qml_module on a STATIC
+# library splits the module in two: the library holds the C++, while a generated companion target
+# (<target>plugin) carries the type registration and the compiled QML/resources. Linking only
+# wxlens-app-lib builds and links cleanly, then fails at runtime with
+# `No module named "WxLens.App" found` - confirmed by an offscreen launch during this slice, where
+# every C++ subsystem logged a normal startup and only the QML engine failed. Link the plugin
+# explicitly rather than relying on qt_add_executable's finalization to infer it.
+target_link_libraries(wxlens-app PRIVATE wxlens-app-lib wxlens-app-libplugin)
+
 # declarative_maplibre (docs/adr/0004-maplibre-qml-integration.md) is a Qt QML plugin - a
 # MODULE_LIBRARY loaded by the QML engine at runtime, not something an app links against at
 # compile time (target_link_libraries on it is a CMake error: "may not be linked into another
@@ -209,7 +233,7 @@ target_link_libraries(wxlens-app PRIVATE
 # multi-config generator.
 add_dependencies(wxlens-app declarative_maplibre)
 
-set_target_properties(wxlens-app PROPERTIES
+set_target_properties(wxlens-app-lib PROPERTIES
     QT_QML_IMPORT_PATH "${WXLENS_MLN_QT_QML_PLUGIN_DIR}/.."
 )
 
@@ -240,7 +264,7 @@ add_custom_command(TARGET wxlens-app
                    COMMENT "Deploying MapLibre QML plugin next to wxlens-app...")
 
 if (MSVC)
-    target_compile_options(wxlens-app PRIVATE "/MP")
+    target_compile_options(wxlens-app-lib PUBLIC "/MP")
     # wxdata.cmake sets this PRIVATE on wxdata itself (external/, read-only) so it doesn't
     # propagate to consumers - matches test/test.cmake's identical fix. Without it, an unguarded
     # <windows.h> in wxlens-app's own compilation (pulled in transitively, e.g. via
@@ -248,7 +272,7 @@ if (MSVC)
     # operator==, producing a cascade of unrelated-looking syntax errors in units/core.h -
     # confirmed while adding Phase 1 slice 2's radar_product_status.cpp, the first wxlens-app
     # source to pull in scwx::util::TimeString.
-    target_compile_options(wxlens-app PRIVATE -DNOMINMAX)
+    target_compile_options(wxlens-app-lib PUBLIC -DNOMINMAX)
 endif()
 
 if (LINUX)
@@ -259,7 +283,7 @@ if (LINUX)
     # test/test.cmake already carries this exact fix for wxlens-wxdata-test; it just never got
     # applied here or to wxlens-app-test. Safe unconditionally: wxlens-app has zero bare `emit`
     # calls (Q_EMIT throughout), so disabling the macro changes nothing it relies on.
-    target_compile_definitions(wxlens-app PRIVATE QT_NO_EMIT)
+    target_compile_definitions(wxlens-app-lib PUBLIC QT_NO_EMIT)
 endif()
 
 if (WIN32)

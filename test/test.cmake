@@ -94,15 +94,12 @@ gtest_discover_tests(wxlens-wxdata-test)
 # Separate target from wxlens-wxdata-test because these need Qt, while the wxdata suite is
 # deliberately Qt-free.
 #
-# The app's sources are compiled into this target rather than linked, since wxlens-app is an
-# executable. If that source list grows much further, the app should be split into a static
-# library plus a thin main() and both targets should link that instead.
+# Links wxlens-app-lib rather than recompiling the app's sources, which is what this comment used
+# to say should eventually happen. The split landed in ROADMAP slice 19.
 find_package(Qt6 REQUIRED COMPONENTS Core Quick OpenGL Qml Network)
 find_package(GeographicLib REQUIRED)
 find_package(glm REQUIRED)
 find_package(tomlplusplus REQUIRED)
-
-set(WXLENS_APP_SRC ${WXLENS_DIR}/app/source/wxlens)
 
 add_executable(wxlens-app-test
     source/wxlens/app_test_main.cpp
@@ -130,82 +127,13 @@ add_executable(wxlens-app-test
     source/wxlens/util/unit_format.test.cpp
     source/wxlens/util/crash_report.test.cpp
 
-    ${WXLENS_APP_SRC}/data/radar_site_data_service.cpp
-    ${WXLENS_APP_SRC}/data/radar_site_database.cpp
-    ${WXLENS_APP_SRC}/data/radar_site_marker_source.cpp
-    ${WXLENS_APP_SRC}/log/logger.cpp
-    ${WXLENS_APP_SRC}/objects/map_object.hpp
-    ${WXLENS_APP_SRC}/objects/map_object_store.cpp
-    ${WXLENS_APP_SRC}/objects/measurement_controller.cpp
-    ${WXLENS_APP_SRC}/objects/object_tool_controller.cpp
-    ${WXLENS_APP_SRC}/objects/snap_target_registry.cpp
-    ${WXLENS_APP_SRC}/objects/saved_place_manager.cpp
-    ${WXLENS_APP_SRC}/overlays/overlay_manager.cpp
-    ${WXLENS_APP_SRC}/panes/pane_controller.cpp
-    ${WXLENS_APP_SRC}/panes/pane_grid_model.cpp
-    ${WXLENS_APP_SRC}/panes/sync_types.hpp
-    ${WXLENS_APP_SRC}/palettes/palette_manager.cpp
-    ${WXLENS_APP_SRC}/palettes/palette_model.cpp
-    ${WXLENS_APP_SRC}/products/radar_sweep_product.cpp
-    ${WXLENS_APP_SRC}/products/level3_product_catalog.cpp
-    ${WXLENS_APP_SRC}/products/level3_radial_product.cpp
-    ${WXLENS_APP_SRC}/products/level3_raster_product.cpp
-    ${WXLENS_APP_SRC}/products/level3_graphic_overlay.cpp
-    ${WXLENS_APP_SRC}/products/level3_text_product.cpp
-    ${WXLENS_APP_SRC}/render/radar_sweep_layer.cpp
-    ${WXLENS_APP_SRC}/settings/app_settings.cpp
-    ${WXLENS_APP_SRC}/settings/settings_store.cpp
-    ${WXLENS_APP_SRC}/theme/theme_manager.cpp
-    ${WXLENS_APP_SRC}/util/geodesic.cpp
-    ${WXLENS_APP_SRC}/util/radar_geometry.cpp
-    ${WXLENS_APP_SRC}/util/unit_format.cpp
-    ${WXLENS_APP_SRC}/util/crash_report.cpp
-    ${WXLENS_APP_SRC}/util/crash_report_manager.cpp
     ${CMAKE_FILES})
 
-# radar_sites.json reaches the app through qt_add_qml_module's resources, which wxlens-app-test
-# does not get - and without it data::FindRadarSite returns nullopt for every site, so the whole
-# site-metadata path (including the feet -> metres conversion §4.7's beam geometry depends on)
-# would be untestable. Same resource path the app uses, so radar_site_database.cpp needs no
-# test-only branch.
-qt_add_resources(wxlens-app-test "wxlens-app-test-config"
-    PREFIX "/qt/qml/WxLens/App/res/config"
-    BASE "${WXLENS_DIR}/app/res/config"
-    FILES "${WXLENS_DIR}/app/res/config/radar_sites.json")
-
-# Must mirror app/CMakeLists.txt, *including* which palettes the application overrides with its
-# own ramps. This previously bundled the vendored DR/DV while the app ships its own, so palette
-# tests were green against data the application never loads - WxLens's DV declares MPH and the
-# vendored one KT, and units are exactly what the product-family matching reads.
-set(WXLENS_TEST_WCT_DIR "${WXLENS_DIR}/external/legacy-supercell-wx/scwx-qt/res/palettes/wct")
-qt_add_resources(wxlens-app-test "wxlens-app-test-wct-palettes"
-    PREFIX "/qt/qml/WxLens/App/res/palettes/wct"
-    BASE "${WXLENS_TEST_WCT_DIR}"
-    FILES "${WXLENS_TEST_WCT_DIR}/CC.pal"
-          "${WXLENS_TEST_WCT_DIR}/Default16.pal"
-          "${WXLENS_TEST_WCT_DIR}/DOD_DSD.pal"
-          "${WXLENS_TEST_WCT_DIR}/ET.pal"
-          "${WXLENS_TEST_WCT_DIR}/HC.pal"
-          "${WXLENS_TEST_WCT_DIR}/KDP.pal"
-          "${WXLENS_TEST_WCT_DIR}/KDP2.pal"
-          "${WXLENS_TEST_WCT_DIR}/OHP.pal"
-          "${WXLENS_TEST_WCT_DIR}/SRV.pal"
-          "${WXLENS_TEST_WCT_DIR}/STP.pal"
-          "${WXLENS_TEST_WCT_DIR}/SW.pal"
-          "${WXLENS_TEST_WCT_DIR}/VIL.pal"
-          "${WXLENS_TEST_WCT_DIR}/ZDR.pal")
-qt_add_resources(wxlens-app-test "wxlens-app-test-app-palettes"
-    PREFIX "/qt/qml/WxLens/App/res/palettes/wct"
-    BASE "${WXLENS_DIR}/app/res/palettes/wct"
-    FILES "${WXLENS_DIR}/app/res/palettes/wct/DR.pal"
-          "${WXLENS_DIR}/app/res/palettes/wct/DV.pal")
-
-qt_add_resources(wxlens-app-test "wxlens-app-test-themes"
-    PREFIX "/qt/qml/WxLens/App/res/themes"
-    BASE "${WXLENS_DIR}/app/res/themes"
-    FILES "${WXLENS_DIR}/app/res/themes/operational-dark.toml"
-          "${WXLENS_DIR}/app/res/themes/daylight.toml")
-
+# Resources (radar_sites.json, the WCT and app palettes, the themes) arrive with
+# wxlens-app-lib's QML module at the same /qt/qml/WxLens/App prefixes the application uses, so
+# this target no longer re-declares them. That removes a mirroring obligation that had already
+# gone wrong once: the duplicated list here used to bundle the vendored DR/DV palettes while the
+# app shipped its own, so palette tests passed against data the application never loads.
 set_target_properties(wxlens-app-test PROPERTIES CXX_STANDARD 20
                                                  CXX_STANDARD_REQUIRED ON
                                                  CXX_EXTENSIONS OFF
@@ -218,30 +146,18 @@ target_compile_definitions(wxlens-app-test PRIVATE
 
 if (MSVC)
     set_target_properties(wxlens-app-test PROPERTIES LINK_FLAGS "/ignore:4099")
-    # Same NOMINMAX requirement as wxlens-app - see app/CMakeLists.txt for the failure mode.
-    target_compile_options(wxlens-app-test PRIVATE -DNOMINMAX)
-    target_compile_options(wxlens-app-test PRIVATE "/MP")
 endif()
 
-if (LINUX)
-    # Same oneTBB/Qt `emit` macro collision as wxlens-wxdata-test above and wxlens-app
-    # (app/CMakeLists.txt) - this target compiles the same app/source/wxlens/*.cpp files that
-    # pull in wxdata's <execution>-using headers.
-    target_compile_definitions(wxlens-app-test PRIVATE QT_NO_EMIT)
-endif()
+# NOMINMAX, /MP and QT_NO_EMIT are no longer repeated here. wxlens-app-lib declares them PUBLIC,
+# so every target compiling against these headers inherits one definition instead of keeping a
+# copy in sync - the drift this file previously warned about ("never got applied here").
 
+# Qt, wxdata, Boost, GeographicLib, glm, toml++ and QMapLibre all arrive transitively through
+# wxlens-app-lib's PUBLIC link interface. wxlens-app-libplugin must be named explicitly for the
+# same reason wxlens-app names it: it carries the QML module's compiled resources, which several
+# suites read back through the /qt/qml/WxLens/App prefix.
 target_link_libraries(wxlens-app-test GTest::gtest
-                                      Qt6::Core
-                                      Qt6::Qml
-                                      Qt6::Quick
-                                      Qt6::OpenGL
-                                      Qt6::Network
-                                      wxdata
-                                      Boost::timer
-                                      Boost::json
-                                      GeographicLib::GeographicLib
-                                      glm::glm-header-only
-                                      tomlplusplus::tomlplusplus
-                                      QMapLibre::Core)
+                                      wxlens-app-lib
+                                      wxlens-app-libplugin)
 
 gtest_discover_tests(wxlens-app-test)
