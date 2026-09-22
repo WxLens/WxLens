@@ -61,6 +61,17 @@ class PaneController : public QObject
    Q_PROPERTY(double homeLatitude READ homeLatitude NOTIFY productChanged)
    Q_PROPERTY(double homeLongitude READ homeLongitude NOTIFY productChanged)
 
+   /**
+    * Per-pane override of OverlayManager::nearbyWarningsOnly (0 = follow the global default, 1 =
+    * always show every warning in this pane, 2 = only warnings near this pane's homeLatitude/
+    * homeLongitude). Lives here rather than on OverlayManager because it is inherently per-pane;
+    * it is about display preference, not a `radarSite` field, so it does not run afoul of §4.6's
+    * audit note. Session-only by design - panes do not persist their product/camera state across
+    * restarts today either, so this would be the one outlier if it did.
+    */
+   Q_PROPERTY(int warningsFilterOverride READ warningsFilterOverride WRITE setWarningsFilterOverride
+                 NOTIFY warningsFilterOverrideChanged)
+
    // Location is read-only as a property and written through setCenter(): latitude and longitude
    // are one channel, and setting them one at a time would fan a half-updated coordinate out to
    // grouped panes.
@@ -125,6 +136,9 @@ public:
 
    [[nodiscard]] double homeLatitude() const;
    [[nodiscard]] double homeLongitude() const;
+
+   [[nodiscard]] int warningsFilterOverride() const;
+   void setWarningsFilterOverride(int value);
 
    [[nodiscard]] double centerLatitude() const;
    [[nodiscard]] double centerLongitude() const;
@@ -257,6 +271,7 @@ public:
 signals:
    void productChanged();
    void productCatalogChanged();
+   void warningsFilterOverrideChanged();
    void paletteChanged();
    void cameraChanged();
    /**

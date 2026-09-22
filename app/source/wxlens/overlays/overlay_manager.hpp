@@ -33,6 +33,14 @@ class OverlayManager : public QObject
    Q_PROPERTY(QVariantList placefiles READ placefiles NOTIFY placefilesChanged)
    Q_PROPERTY(bool warningsVisible READ warningsVisible WRITE setWarningsVisible NOTIFY warningsVisibleChanged)
    Q_PROPERTY(bool placefilesVisible READ placefilesVisible WRITE setPlacefilesVisible NOTIFY placefilesVisibleChanged)
+   // Global default for whether a pane draws every active warning nationwide or only the ones
+   // near its own site. A pane can override this individually via
+   // PaneController::warningsFilterOverride; this is just what a pane uses when it hasn't.
+   Q_PROPERTY(bool nearbyWarningsOnly READ nearbyWarningsOnly WRITE setNearbyWarningsOnly NOTIFY
+                 nearbyWarningsOnlyChanged)
+   // WSR-88D's maximum unambiguous range, reused as the "nearby" radius for nearbyWarningsOnly so
+   // QML has one place to read it instead of duplicating the constant.
+   Q_PROPERTY(double nearbyWarningsRangeMeters READ nearbyWarningsRangeMeters CONSTANT)
    Q_PROPERTY(bool refreshingWarnings READ refreshingWarnings NOTIFY refreshingWarningsChanged)
    Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
 
@@ -45,11 +53,14 @@ public:
    QVariantList placefiles() const;
    bool warningsVisible() const;
    bool placefilesVisible() const;
+   bool nearbyWarningsOnly() const;
+   double nearbyWarningsRangeMeters() const;
    bool refreshingWarnings() const;
    QString statusText() const;
 
    void setWarningsVisible(bool visible);
    void setPlacefilesVisible(bool visible);
+   void setNearbyWarningsOnly(bool value);
 
    Q_INVOKABLE void refreshWarnings();
    Q_INVOKABLE bool importWarningFile(const QUrl& url);
@@ -62,6 +73,7 @@ signals:
    void placefilesChanged();
    void warningsVisibleChanged();
    void placefilesVisibleChanged();
+   void nearbyWarningsOnlyChanged();
    void refreshingWarningsChanged();
    void statusTextChanged();
 

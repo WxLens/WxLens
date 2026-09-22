@@ -130,6 +130,7 @@ public:
    double zoom_ {kDefaultZoom};
    double bearing_ {0.0};
    double pitch_ {0.0};
+   int warningsFilterOverride_ {0};
 };
 
 void PaneController::Impl::RebindProduct()
@@ -594,6 +595,18 @@ double PaneController::homeLatitude() const
 double PaneController::homeLongitude() const
 {
    return (p->radarProduct_ != nullptr) ? p->radarProduct_->site_longitude() : kFallbackLongitude;
+}
+
+int PaneController::warningsFilterOverride() const
+{
+   return p->warningsFilterOverride_;
+}
+
+void PaneController::setWarningsFilterOverride(int value)
+{
+   if (p->warningsFilterOverride_ == value) return;
+   p->warningsFilterOverride_ = value;
+   Q_EMIT warningsFilterOverrideChanged();
 }
 
 double PaneController::centerLatitude() const

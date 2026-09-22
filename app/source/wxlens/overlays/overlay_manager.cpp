@@ -33,6 +33,12 @@ static const auto logger_ = wxlens::log::Create("wxlens::overlays::overlay_manag
 
 namespace {
 
+// WSR-88D's maximum unambiguous range. Reused as the "nearby" radius for OverlayManager's
+// nearbyWarningsOnly filter - not a rendering constant, so it lives beside the warning parsing
+// it actually serves rather than with the range-ring UI defaults in object_tool_controller.cpp
+// (which deliberately do NOT imply the radar's real range).
+constexpr double kNearbyWarningsRangeMeters = 230000.0;
+
 QString ColorString(const boost::gil::rgba8_pixel_t& color)
 {
    return QString("#%1%2%3%4")
@@ -93,8 +99,23 @@ void AppendWarnings(const std::vector<std::shared_ptr<scwx::awips::TextProductFi
             {
                continue;
             }
+            // Plain centroid, not a true polygon centroid - warning polygons are small enough
+            // (county-scale) that this is well within the kNearbyWarningsRangeMeters filter's
+            // margin, and it is computed once per refresh rather than per paint.
+            double centroidLatitude  = 0.0;
+            double centroidLongitude = 0.0;
+            for (const auto& coordinate : coordinates)
+            {
+               centroidLatitude += coordinate.latitude_;
+               centroidLongitude += coordinate.longitude_;
+            }
+            centroidLatitude /= static_cast<double>(coordinates.size());
+            centroidLongitude /= static_cast<double>(coordinates.size());
+
             QVariantMap item;
             item.insert("coordinates", Coordinates(coordinates));
+            item.insert("latitude", centroidLatitude);
+            item.insert("longitude", centroidLongitude);
             item.insert("color", WarningColor(vtec.phenomenon()));
             item.insert("label", QString::fromStdString(
                scwx::awips::GetPhenomenonText(vtec.phenomenon())));
@@ -255,6 +276,7 @@ public:
          QJsonDocument {QJsonObject {{"version", 1},
                                      {"warningsVisible", warningsVisible_},
                                      {"placefilesVisible", placefilesVisible_},
+                                     {"nearbyWarningsOnly", nearbyWarningsOnly_},
                                      {"placefiles", sources}}}
             .toJson();
       if (file.write(data) == data.size()) file.commit();
@@ -273,6 +295,7 @@ public:
       if (root.value("version").toInt() != 1) return;
       warningsVisible_ = root.value("warningsVisible").toBool(warningsVisible_);
       placefilesVisible_ = root.value("placefilesVisible").toBool(placefilesVisible_);
+      nearbyWarningsOnly_ = root.value("nearbyWarningsOnly").toBool(nearbyWarningsOnly_);
       for (const QJsonValue value : root.value("placefiles").toArray())
       {
          const QUrl url {value.toString()};
@@ -319,6 +342,7 @@ public:
    std::vector<PlacefileRecord> placefiles_;
    bool warningsVisible_ {true};
    bool placefilesVisible_ {true};
+   bool nearbyWarningsOnly_ {false};
    bool refreshingWarnings_ {false};
    QString statusText_;
 };
@@ -339,6 +363,8 @@ QVariantList OverlayManager::warningPolygons() const { return p->warningPolygons
 QVariantList OverlayManager::placefileItems() const { return p->placefileItems_; }
 bool OverlayManager::warningsVisible() const { return p->warningsVisible_; }
 bool OverlayManager::placefilesVisible() const { return p->placefilesVisible_; }
+bool OverlayManager::nearbyWarningsOnly() const { return p->nearbyWarningsOnly_; }
+double OverlayManager::nearbyWarningsRangeMeters() const { return kNearbyWarningsRangeMeters; }
 bool OverlayManager::refreshingWarnings() const { return p->refreshingWarnings_; }
 QString OverlayManager::statusText() const { return p->statusText_; }
 
@@ -365,6 +391,13 @@ void OverlayManager::setPlacefilesVisible(bool value)
    p->placefilesVisible_ = value;
    p->SaveConfig();
    Q_EMIT placefilesVisibleChanged();
+}
+void OverlayManager::setNearbyWarningsOnly(bool value)
+{
+   if (p->nearbyWarningsOnly_ == value) return;
+   p->nearbyWarningsOnly_ = value;
+   p->SaveConfig();
+   Q_EMIT nearbyWarningsOnlyChanged();
 }
 
 void OverlayManager::refreshWarnings()

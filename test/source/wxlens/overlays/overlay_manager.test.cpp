@@ -69,4 +69,25 @@ TEST_F(OverlayManagerTest, VisibilityAndPlacefilesPersistAcrossRestart)
    EXPECT_GT(record.value("itemCount").toInt(), 0);
 }
 
+TEST_F(OverlayManagerTest, NearbyWarningsOnlyDefaultsOffAndPersistsAcrossRestart)
+{
+   {
+      OverlayManager manager {settings_};
+      EXPECT_FALSE(manager.nearbyWarningsOnly());
+      EXPECT_GT(manager.nearbyWarningsRangeMeters(), 0.0);
+
+      manager.setNearbyWarningsOnly(true);
+      EXPECT_TRUE(manager.nearbyWarningsOnly());
+      // Narrowing which warnings draw is its own channel - it must not switch the warnings
+      // layer itself off the way setWarningsVisible(false) would.
+      EXPECT_TRUE(manager.warningsVisible());
+   }
+
+   settings::SettingsStore reopened;
+   reopened.SetConfigDirectory(directory_.path());
+   OverlayManager restarted {reopened};
+   EXPECT_TRUE(restarted.nearbyWarningsOnly());
+   EXPECT_TRUE(restarted.warningsVisible());
+}
+
 }} // namespace wxlens::overlays

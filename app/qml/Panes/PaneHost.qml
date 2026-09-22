@@ -639,9 +639,10 @@ Rectangle {
                 }
             }
 
-            // Nothing to act on - don't flash an empty menu at the user.
+            // Nothing to act on - don't flash an empty menu at the user. The warnings-filter entry
+            // is always available once a pane has a controller, so it alone is enough to open.
             if (contextMenu.targetObjectId < 0 && contextMenu.visibleObjectCount === 0 &&
-                !root.showLabel) {
+                !root.showLabel && !root.hasController) {
                 return
             }
 
@@ -660,10 +661,24 @@ Rectangle {
             objectsLayer.highlightedObjectId = -1
         }
 
+        // wxlens::panes::PaneController::warningsFilterOverride: 0 follow the global default, 1
+        // force all warnings, 2 force nearby-only for this pane.
+        function warningsFilterLabel(override) {
+            switch (override) {
+            case 1: return "Warnings: all (this pane)"
+            case 2: return "Warnings: nearby only (this pane)"
+            default: return "Warnings: default (all panes)"
+            }
+        }
+
         readonly property var entries: {
             var items = []
             if (contextMenu.targetObjectId >= 0) {
                 items.push({ label: "Delete " + contextMenu.targetName, action: "delete" })
+            }
+            if (root.hasController) {
+                items.push({ label: contextMenu.warningsFilterLabel(root.paneController.warningsFilterOverride),
+                             action: "cycleWarningsFilter" })
             }
             if (contextMenu.visibleObjectCount > 0) {
                 items.push({ label: contextMenu.visibleObjectCount === 1
@@ -713,6 +728,9 @@ Rectangle {
                         onClicked: {
                             if (parent.modelData.action === "delete") {
                                 contextMenu.store.removeObject(contextMenu.targetObjectId)
+                            } else if (parent.modelData.action === "cycleWarningsFilter") {
+                                root.paneController.warningsFilterOverride =
+                                    (root.paneController.warningsFilterOverride + 1) % 3
                             } else if (parent.modelData.action === "clearPane") {
                                 contextMenu.store.removeObjectsInPane(root.paneController)
                             } else if (parent.modelData.action === "matchFirst") {
