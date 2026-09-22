@@ -1563,11 +1563,20 @@ not to be built speculatively ahead of it.
       then a packaged pass covering sparse/missing scans, failed loads, and grouped versus
       independent panes. Replaying a cached loop must not re-download — assert that against the
       cache's own counters, not by eye.
-    - **[OPEN QUESTION]** do grouped panes advance through `Time` or `Animation` — i.e. do linked
-      panes share one playhead, or each animate their own window from a shared selection? Decide
-      before wiring; it changes what propagates.
-    - **[OPEN QUESTION]** Level 2 only for the first cut, or Level 3 playback too? Level 3 has its
-      own per-AWIPS-ID provider and catalog, so including it widens the slice materially.
+    - ~~**[OPEN QUESTION]** do grouped panes advance through `Time` or `Animation`?~~
+      **RESOLVED 2026-09-22 (project owner): one shared playhead.** Grouped panes advance together
+      through the existing `Time` channel; a frame advance is an ordinary `Time` change carrying
+      `ChangeOrigin::DataDriven`. **The owner expects per-pane animation to be wanted later**, so
+      this is a decision about what ships now, not about what the architecture may express.
+      Consequence to honour: leave `SyncChannel::Animation` declared and unused rather than
+      deleting it as dead, and do **not** fold playback state into the `Time` channel's meaning.
+      §0.2 already forbids collapsing per-channel sync for implementation convenience; keeping the
+      two separate is exactly what makes the later feature a wiring change instead of a rewrite.
+    - ~~**[OPEN QUESTION]** Level 2 only for the first cut, or Level 3 playback too?~~
+      **RESOLVED 2026-09-22 (project owner): Level 2 only to start.** Level 3's per-AWIPS-ID
+      provider and catalog stay out of this slice. Build the availability list, prefetch and
+      coalescing against the `RadarSiteDataService` interface rather than against Level 2
+      specifics, so adding Level 3 later is a second implementation of a settled seam.
 
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
 structure, not a rigid contract — but keep the principle: each slice buildable and testable on
