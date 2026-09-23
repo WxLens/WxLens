@@ -124,8 +124,11 @@ jobs:
             -DCONAN_HOST_PROFILE="$PROFILE" -DCONAN_BUILD_PROFILE="$PROFILE"
       - name: Build and test
         run: |
-          cmake --build build --target wxlens-app wxlens-wxdata-test wxlens-app-test
-          ctest --test-dir build --output-on-failure -R 'wxlens-wxdata-test|^CrashReport\.'
+          # -L selects by label; the previous -R matched no tests and still exited 0.
+          # IemApiProviderTest drives a live third-party API and hard-fails when it is
+          # unreachable, unlike wxdata's other network tests which skip themselves.
+          cmake --build build --target wxlens-app wxlens-wxdata-test wxlens-app-test wxlens-qml-test
+          ctest --test-dir build --output-on-failure --no-tests=error -L wxlens -E IemApiProviderTest
       - name: Package disk image
         env:
           PACKAGE_VERSION: ${{ inputs.version }}

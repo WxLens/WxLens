@@ -87,7 +87,13 @@ target_link_libraries(wxlens-wxdata-test GTest::gtest
                                          Boost::timer
                                          Boost::json)
 
-gtest_discover_tests(wxlens-wxdata-test)
+# Labels, because gtest_discover_tests registers each case under its GoogleTest name
+# (`CodedLocation.WFO100W`), never the target name. `ctest -R wxlens-wxdata-test` therefore
+# matches nothing at all - and ctest without --no-tests=error reports "No tests were found!!!"
+# and exits 0, so a filter like that passes while running nothing. Labels give CI something
+# stable to select, and deliberately exclude the vendored MapLibre test target, which is not
+# ours to gate on.
+gtest_discover_tests(wxlens-wxdata-test PROPERTIES LABELS "wxlens;wxdata")
 
 # ---------------------------------------------------------------------------------------------
 # wxlens-app-test: WxLens's own C++ model classes, tested independently of QML (docs/ROADMAP.md).
@@ -160,7 +166,7 @@ target_link_libraries(wxlens-app-test GTest::gtest
                                       wxlens-app-lib
                                       wxlens-app-libplugin)
 
-gtest_discover_tests(wxlens-app-test)
+gtest_discover_tests(wxlens-app-test PROPERTIES LABELS "wxlens;app")
 
 # ---------------------------------------------------------------------------------------------
 # wxlens-qml-test: the logic that lives in QML, which wxlens-app-test cannot reach (ROADMAP
@@ -223,6 +229,7 @@ target_link_libraries(wxlens-qml-test PRIVATE Qt6::QuickTest
 # having reported nothing, which looks exactly like a pass. Use `-o <file>,txt` (or run it through
 # ctest, which captures output properly) to actually see results.
 add_test(NAME wxlens-qml-test COMMAND wxlens-qml-test)
+set_tests_properties(wxlens-qml-test PROPERTIES LABELS "wxlens;qml")
 # The offscreen plugin keeps these from opening windows on a developer's desktop. windeployqt
 # deploys only the `windows` platform plugin, so on Windows the test also needs Qt's own plugin
 # directory on QT_PLUGIN_PATH - without it the binary aborts with "no Qt platform plugin could be
