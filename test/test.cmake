@@ -170,10 +170,27 @@ gtest_discover_tests(wxlens-app-test)
 # them. Rendering is NOT verified here - these run under the `offscreen` platform plugin, and in
 # CI over software-rasterized GL, so pixel comparisons would assert against something no user
 # runs. Visual behavior stays a packaged visual pass.
-find_package(Qt6 REQUIRED COMPONENTS QuickTest)
+# QUIET, not REQUIRED. test.cmake is configured by every job on every platform, including the
+# release packaging ones, so a REQUIRED component that a given Qt installation happens not to
+# ship would fail configuration for all of them - turning "the QML tests are unavailable here"
+# into "nothing builds anywhere". Qt Quick Test lives in qtdeclarative and is expected to be
+# present wherever Qt6::Quick is, but this file should not be what discovers otherwise.
+# CI names wxlens-qml-test as an explicit build target, so a missing component still fails
+# loudly there rather than silently skipping the suite.
+find_package(Qt6 QUIET COMPONENTS QuickTest)
 
-# Qt's own plugin directory, derived from an imported Qt target rather than hardcoded, so this
-# follows whichever Qt the build was configured against.
+if (NOT TARGET Qt6::QuickTest)
+    message(STATUS
+        "Qt6::QuickTest not found - skipping wxlens-qml-test. The C++ suites are unaffected.")
+    return()
+endif()
+
+# Qt's own plugin and library directories, derived from an imported Qt target rather than
+# hardcoded, so this follows whichever Qt the build was configured against.
+if (NOT TARGET Qt6::qmake)
+    message(STATUS "Qt6::qmake not available - skipping wxlens-qml-test.")
+    return()
+endif()
 get_target_property(WXLENS_QT_QMAKE_EXECUTABLE Qt6::qmake IMPORTED_LOCATION)
 get_filename_component(WXLENS_QT_BIN_DIR "${WXLENS_QT_QMAKE_EXECUTABLE}" DIRECTORY)
 get_filename_component(WXLENS_QT_PLUGIN_PATH "${WXLENS_QT_BIN_DIR}/../plugins" ABSOLUTE)
