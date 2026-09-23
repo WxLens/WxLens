@@ -2749,25 +2749,24 @@ ADR 0004), which emits `#version 330 core` on Apple in both the drawable and leg
 - **Not verified:** patch 0009 is unrun on hardware - it compiles the same shader bodies against a
   different version directive, so a second wave of GLSL incompatibilities is possible.
 
-**macOS startup investigation follow-up (2026-09-09):** Actions run `34351147658`
-built commit `376c8d5`, which already includes the core-profile request above. Both
-architectures built, tested wxdata, and packaged successfully, but neither job launched
-the app. A continued startup crash therefore remains unresolved; the earlier heading's
-"fixed" describes the attempted context correction, not verified runtime recovery.
-`macdeployqt` reported intermediate signing errors involving `QMapLibreQuickPrivate`,
-but the packaging script's subsequent explicit signing and strict verification passed.
-Those messages alone do not establish a signature failure in the shipped app.
+**macOS startup smoke test (2026-09-09), crash investigation superseded.** Actions run
+`34351147658` built commit `376c8d5` with the core-profile request; both architectures built,
+tested and packaged, but neither job launched the app, so this added a launch check. **The
+"continued startup crash remains unresolved" conclusion recorded here at the time has since been
+answered** - the root cause was a stale GL error surfacing as `std::bad_alloc` (patches 0011-0013,
+see ADR 0004), not a signing or context problem. The `macdeployqt` signing messages noted here were
+correctly judged not to indicate a signature failure in the shipped app.
 
-- **Implemented:** native macOS CI now mounts the finished DMG, copies and verifies the
-  bundle, and checks 30-second startup survival without development Qt/QML or loader
-  overrides. Early exits fail packaging; diagnostics are uploaded even on failure.
-- **Tested locally:** Python syntax and simulated process checks for early successful
-  exit, failure, SIGABRT, environment isolation, and terminate/kill timeout cleanup;
-  `git diff --check` passed. These do not substitute for a native Mac launch.
-- **Not verified:** native execution from this Windows workspace, correct rendering,
-  downloaded-app Gatekeeper behavior, and the cause of the affected Mac's crash.
-- **Next:** run the updated workflow and compare its startup diagnostics with the
-  affected Mac's crash report before choosing another runtime fix.
+What remains current is the check itself:
+
+- **Implemented:** native macOS CI mounts the finished DMG, copies and verifies the bundle, and
+  checks 30-second startup survival without development Qt/QML or loader overrides. Early exits
+  fail packaging; diagnostics are uploaded even on failure.
+- **Tested locally:** Python syntax and simulated process checks for early successful exit,
+  failure, SIGABRT, environment isolation, and terminate/kill timeout cleanup. These do not
+  substitute for a native Mac launch.
+- **Not verified:** native execution from a Windows workspace, correct rendering, and
+  downloaded-app Gatekeeper behavior.
 
 #### User feedback follow-up — rendering, playback, caching, and Canadian radar (2026-09-09)
 

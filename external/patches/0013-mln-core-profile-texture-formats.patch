@@ -1,0 +1,68 @@
+diff --git a/src/mbgl/gl/enum.cpp b/src/mbgl/gl/enum.cpp
+index a9adb0a..4e58cac 100644
+--- a/src/mbgl/gl/enum.cpp
++++ b/src/mbgl/gl/enum.cpp
+@@ -379,14 +379,32 @@ platform::GLenum Enum<gfx::TexturePixelType>::to(const gfx::TexturePixelType val
+     switch (value) {
+         case gfx::TexturePixelType::RGBA:
+             return GL_RGBA;
++        // GL_ALPHA and GL_LUMINANCE are fixed-function formats that a 3.2+ core profile removed
++        // outright: glTexImage2D rejects them, which on macOS aborted the process while uploading
++        // the first glyph/SDF atlas of a tile. The core-profile replacement is a one-channel
++        // GL_RED texture whose swizzle restores the old sampling semantics, applied where the
++        // texture is allocated (gl/resource_pool.cpp) so shaders reading .a or .rgb are unaffected.
++        //
++        // This mapping is the single point every call site shares - texture allocation, the
++        // glTexSubImage2D upload in gl/texture2d.cpp, and the readback in gl/context.cpp - so
++        // changing it here keeps the allocated and uploaded formats consistent. Windows and Linux
++        // keep the legacy formats, which their compatibility contexts still accept.
+         case gfx::TexturePixelType::Alpha:
++#if defined(__APPLE__)
++            return GL_RED;
++#else
+             return GL_ALPHA;
++#endif
+         case gfx::TexturePixelType::Stencil:
+             return GL_STENCIL_INDEX;
+         case gfx::TexturePixelType::Depth:
+             return GL_DEPTH_COMPONENT;
+         case gfx::TexturePixelType::Luminance:
++#if defined(__APPLE__)
++            return GL_RED;
++#else
+             return GL_LUMINANCE;
++#endif
+     }
+     return GL_INVALID_ENUM;
+ }
+diff --git a/src/mbgl/gl/resource_pool.cpp b/src/mbgl/gl/resource_pool.cpp
+index 86bf78c..2e5daba 100644
+--- a/src/mbgl/gl/resource_pool.cpp
++++ b/src/mbgl/gl/resource_pool.cpp
+@@ -170,6 +170,26 @@ TextureID Texture2DPool::allocateGLMemory(const Texture2DDesc& desc) {
+         throw std::bad_alloc();
+     }
+ 
++#if defined(__APPLE__)
++    // gl/enum.cpp maps Alpha and Luminance to GL_RED here, because the core profile removed
++    // GL_ALPHA and GL_LUMINANCE. Sampling differs though: GL_ALPHA read as (0,0,0,r) and
++    // GL_LUMINANCE as (r,r,r,1), while GL_RED reads as (r,0,0,1). Restore the original semantics
++    // with a swizzle so every shader sampling these atlases is unaffected - without this the
++    // formats would be accepted and then sample as the wrong channel, which is worse than the
++    // crash it replaces because it fails silently.
++    if (desc.pixelFormat == gfx::TexturePixelType::Alpha) {
++        MBGL_CHECK_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_ZERO));
++        MBGL_CHECK_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_ZERO));
++        MBGL_CHECK_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_ZERO));
++        MBGL_CHECK_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED));
++    } else if (desc.pixelFormat == gfx::TexturePixelType::Luminance) {
++        MBGL_CHECK_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED));
++        MBGL_CHECK_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED));
++        MBGL_CHECK_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED));
++        MBGL_CHECK_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ONE));
++    }
++#endif
++
+     // Update stats
+     context->renderingStats().numCreatedTextures++;
+ 

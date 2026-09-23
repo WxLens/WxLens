@@ -51,6 +51,11 @@ function(wxlens_apply_patch_series label sourceDir)
     if (NOT applyResult EQUAL 0)
         message(FATAL_ERROR "Failed to apply ${label} patch series - see ADR 0004")
     endif()
+    # Stated outright so a CI log proves the series went on. The guards above make a silent no-op
+    # impossible, but "configure succeeded" is indirect evidence and a build log should not need
+    # that inference to establish which vendored fixes are actually in the binary.
+    list(LENGTH patches patchCount)
+    message(STATUS "${label}: applied ${patchCount} patch(es) to ${sourceDir}")
 endfunction()
 
 set(MLN_QT_PATCHES
@@ -62,7 +67,11 @@ set(MLN_QT_PATCHES
 
 # Against the rendering core rather than the Qt wrapper, hence its own series and source dir.
 set(MLN_CORE_PATCHES
-    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0009-mln-desktop-glsl-version-on-apple.patch")
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0009-mln-desktop-glsl-version-on-apple.patch"
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0010-mln-dont-bad-alloc-reporting-shader-errors.patch"
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0011-mln-stale-gl-error-as-bad-alloc.patch"
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0012-mln-stale-gl-error-in-texture-pool.patch"
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0013-mln-core-profile-texture-formats.patch")
 
 wxlens_apply_patch_series("MapLibre Native Qt" "${MLN_QT_SOURCE_DIR}" ${MLN_QT_PATCHES})
 wxlens_apply_patch_series("MapLibre Native core" "${MLN_CORE_SOURCE_DIR}" ${MLN_CORE_PATCHES})
@@ -107,6 +116,29 @@ wxlens_apply_patch_series("MapLibre Native core" "${MLN_CORE_SOURCE_DIR}" ${MLN_
 # on the first frame. Emits desktop GLSL on Apple only; gl/prelude.hpp already has the matching
 # non-GL_ES branch that #defines lowp/mediump/highp away. See ADR 0004.
 
+# 0011 (rendering core): THE macOS first-frame crash. mbgl's GL backend never drains the error
+# queue in a release build - MBGL_CHECK_ERROR compiles to nothing under NDEBUG, leaving the two
+# glGetError() calls in gl/upload_pass.cpp as the only ones it makes. An error raised during
+# context setup therefore survived until the first buffer upload, which blamed it on that upload
+# and reported it as std::bad_alloc: RenderStaticData::upload()'s 16-byte static quad appeared to
+# fail to allocate and aborted the process. The queued error came from initializeExtensions()'s
+# glGetString(GL_EXTENSIONS), removed in a 3.2+ core profile, where it returns null and raises
+# GL_INVALID_ENUM - so this only ever fired on macOS. Drains before each upload, consumes the
+# deprecated query's error at its source, and logs the real GL error code before throwing.
+# See ADR 0004.
+# 0012 (rendering core): the third and last site of 0011's pattern in the GL backend -
+# Texture2DPool::allocateGLMemory (gl/resource_pool.cpp). 0011 fixed the two buffer uploads in
+# gl/upload_pass.cpp, which moved the crash from RenderStaticData's static quad to texture
+# allocation during tile upload. An audit of every glGetError() read in src/mbgl confirms these
+# three were the only ones: fence.cpp already drains in a loop, platform/gl_functions.cpp is
+# debug-only, and render_location_indicator_layer.cpp handles its own. See ADR 0004.
+# 0013 (rendering core): a real core-profile incompatibility, not a misreported error. mbgl maps
+# TexturePixelType::Alpha/Luminance to GL_ALPHA/GL_LUMINANCE, fixed-function formats that a 3.2+
+# core profile removed - glTexImage2D rejects them, which aborted macOS while uploading a tile's
+# first glyph/SDF atlas. Maps both to GL_RED on Apple (in gl/enum.cpp, the single point texture
+# allocation, glTexSubImage2D upload and readback all share) and applies a swizzle at allocation
+# so sampling still yields (0,0,0,r) for Alpha and (r,r,r,1) for Luminance - without which the
+# formats would be accepted and then sample the wrong channel, failing silently. See ADR 0004.
 set(MLN_QT_WITH_QUICK_PLUGIN ON)
 set(MLN_QT_WITH_LOCATION OFF)
 set(MLN_QT_WITH_WIDGETS OFF)

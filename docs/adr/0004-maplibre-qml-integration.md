@@ -318,3 +318,183 @@ actual capabilities rather than the host OS; this patch is the narrow version of
 | WxLens patch / finding | Upstream | Notes |
 | --- | --- | --- |
 | 0009 (ES shader version on desktop GL) | — | Not filed yet; see above |
+
+## macOS finding (2026-09-10, second): the error path destroys the error
+
+**Patch 0010 — `Context::verifyProgramLinkage()` throws `std::bad_alloc` while reporting a link
+failure.** With patch 0009 in place the tester's M4 reached a 4.1 Core context (confirmed:
+`OpenGL VENDOR: Apple RENDERER: Apple M4 Max VERSION: 4.1 Metal - 90.5`, `QSurfaceFormat` reporting
+`version 4.1 ... profile CoreProfile`) and still aborted on `std::bad_alloc`, with no MapLibre
+diagnostic of any kind on stderr.
+
+`src/mbgl/gl/context.cpp` declared an uninitialized `GLint logLength`, queried
+`GL_INFO_LOG_LENGTH` into it, and then called `std::make_unique<GLchar[]>(logLength)`
+*unconditionally, before* the `if (logLength > 0)` test that exists directly beneath it. When the
+driver leaves the out-param unwritten, that allocates a garbage-sized buffer - negative as `GLint`,
+astronomical as `size_t` - and throws `std::bad_alloc` before `Log::Error` can print the driver's
+explanation. The failure destroys its own diagnosis, and a perfectly diagnosable link failure
+presents as an out-of-memory abort on the first frame. `createShader()` has the same uninitialized
+declaration but places its allocation *inside* the guard, which is why a shader compile failure
+surfaces as `std::runtime_error` while a link failure does not.
+
+The patch initializes both to `0`, moves the program-log allocation inside the guard to match
+`createShader`, and adds an explicit "driver supplied no info log" branch to each so a failure with
+an empty log still says something rather than nothing.
+
+This is diagnostic infrastructure, not a fix for the underlying failure. What it buys is the
+driver's own message for the *actual* problem, which is a program link failure on macOS - the
+thing that has been invisible behind the `bad_alloc` from the very first report. Note this also
+means the original 2.1-context `std::bad_alloc` may always have been this same masked failure
+rather than a genuine allocation problem.
+
+Unrelated but worth recording: on a core profile `glGetString(GL_EXTENSIONS)` returns `NULL`, so
+`Context::initializeExtensions()` skips its whole body. That is harmless - the block only wires up
+the debugging and Tracy-timestamp extensions - but it does mean the "GPU Identifier: ..." log line
+never appears on macOS, which is not evidence that MapLibre logging is broken.
+
+**Not filed upstream yet.** Patch 0010 is a straightforward correctness fix and a good upstream
+candidate independent of anything WxLens-specific.
+
+| WxLens patch / finding | Upstream | Notes |
+| --- | --- | --- |
+| 0010 (bad_alloc in the shader/program error path) | — | Not filed yet; see above |
+
+## macOS root cause (2026-09-11): a stale GL error reported as std::bad_alloc
+
+**Patch 0011 — the actual first-frame crash.** Found by symbolicating a RelWithDebInfo backtrace
+rather than by reading code; the two preceding hypotheses (ES shader source, then the link-failure
+reporting path) were both wrong, and each was disproved by a tester run.
+
+The symbolicated frames:
+
+```
+mbgl::gl::UploadPass::createVertexBufferResource(...)      upload_pass.cpp:40
+mbgl::gfx::UploadPass::createVertexBuffer<...>(...)        upload_pass.hpp:53
+mbgl::RenderStaticData::upload(gfx::UploadPass&)           render_static_data.cpp:15
+mbgl::Renderer::Impl::render(...)                          renderer_impl.cpp:248
+```
+
+`createVertexBufferResource` ends with:
+
+```cpp
+MBGL_CHECK_ERROR(glBufferData(GL_ARRAY_BUFFER, size, data, ...));
+if (glGetError()) {
+    throw std::bad_alloc();
+}
+```
+
+Two things combine badly. First, `MBGL_CHECK_ERROR` compiles to nothing under `NDEBUG`, so in a
+release build the two `glGetError()` calls in `gl/upload_pass.cpp` are the **only** ones the GL
+backend makes — nothing else ever empties the error queue. Second, mbgl reports *any* queued error
+as `std::bad_alloc`. So an error raised at any earlier point survives until the first buffer
+upload and is attributed to it.
+
+The upload in question is `RenderStaticData::upload()`, which pushes the four-vertex tile quad -
+**16 bytes**. There was never any memory pressure; `bad_alloc` was mbgl's way of saying "a GL error
+happened", and it named the wrong cause from the very first crash report.
+
+The queued error came from `Context::initializeExtensions()`, which calls
+`glGetString(GL_EXTENSIONS)`. That was removed from `glGetString` in a 3.2+ core profile, where it
+returns null and raises `GL_INVALID_ENUM`. mbgl already knows this — `hasAnisotropicFiltering()` in
+`render_location_indicator_layer.cpp` performs the same query and deliberately consumes the error —
+but `initializeExtensions()` never did. It only becomes fatal on a platform that forces a core
+profile, which is why Windows and Linux were unaffected: their compatibility contexts answer the
+query without error.
+
+Note the interaction with patch 0009's context fix. Requesting a core profile was correct and
+necessary, but it is also what made this query start raising `GL_INVALID_ENUM`. The original 2.1
+crash was the same misreporting mechanism with a different source error, which is why both looked
+identical as `std::bad_alloc` and why neither report ever mentioned memory.
+
+The patch drains the queue immediately before each upload so the check reflects only that call,
+consumes the deprecated query's error at its source, and logs the actual GL error code before
+throwing so the next occurrence names itself.
+
+**Not filed upstream yet.** Both halves are upstream-candidate and independent of WxLens: the
+error-queue handling in `gl/upload_pass.cpp` is a correctness bug on any core-profile desktop GL
+target, and `initializeExtensions()` should consume the error the same way the location-indicator
+layer already does.
+
+| WxLens patch / finding | Upstream | Notes |
+| --- | --- | --- |
+| 0011 (stale GL error reported as `bad_alloc`) | — | Not filed yet; see above |
+
+## macOS, third site (2026-09-11): the same pattern in the texture pool
+
+**Patch 0012.** With 0011 in place the crash moved rather than disappearing - which confirmed 0011
+was right and incomplete. The new backtrace (symbolicated offline against the shipped `.dSYM` by
+parsing its Mach-O symbol table, since no `atos` exists on the dev machine):
+
+```
+mbgl::gl::Texture2DPool::allocateGLMemory(...)        resource_pool.cpp:157
+mbgl::gl::Context::createUniqueTexture(...)
+mbgl::gl::Texture2D::allocateTexture() / ::create()
+mbgl::gl::DynamicTexture::uploadDeferredImages(gfx::UploadPass&)
+mbgl::GeometryTileRenderData::upload(gfx::UploadPass&)
+mbgl::RenderTile::upload(gfx::UploadPass&)
+mbgl::TileSourceRenderItem::upload(gfx::UploadPass&)
+```
+
+`Texture2DPool::allocateGLMemory()` carries the identical construct 0011 fixed: `glTexImage2D`
+followed by `if (glGetError()) { throw std::bad_alloc(); }`. Same treatment - drain first, log the
+real GL error code and the texture dimensions before throwing.
+
+Note the progress this represents: the failure moved from `RenderStaticData::upload()`, the very
+first static-geometry upload of the first frame, to *tile* upload. The renderer is now getting far
+enough to process actual map tiles.
+
+**The audit that should have come first.** Every `glGetError()` read in `src/mbgl` was enumerated
+before writing this patch, rather than fixing sites one crash at a time:
+
+| Site | Status |
+| --- | --- |
+| `gl/upload_pass.cpp` (x2) | fixed by 0011 |
+| `gl/resource_pool.cpp` | fixed by 0012 |
+| `gl/fence.cpp` | already drains in a loop |
+| `platform/gl_functions.cpp` | debug-only (`MBGL_CHECK_ERROR` internals) |
+| `renderer/layers/render_location_indicator_layer.cpp` | consumes its own error correctly |
+
+Those three were the only sites with the misreporting pattern in the GL backend, so 0011+0012
+should close the class rather than just the instance. The `mtl/` and `vulkan/` backends contain
+similar `bad_alloc` throws but are not built here.
+
+**Not filed upstream yet,** and belongs with 0011 as one report.
+
+## Patch 0009 confirmed by experiment (2026-09-12)
+
+Patch 0009 was written on a hypothesis and, when patch 0010 failed to change the crash, looked
+like it might never have been needed. It was removed deliberately to find out, since ADR 0004
+requires re-verifying every vendored patch on each submodule bump and a patch that earns nothing
+should not be carried.
+
+The experiment settled it. Without 0009, Apple's GLSL compiler emitted this 2810 times:
+
+```
+Shader failed to compile: ERROR: 0:1: '' : version '300' is not supported
+                        : 0:1: '' : syntax error: #version
+                        : 0:2: '' : #version required and missing.
+                        : 0:78: '0' : syntax error: integers in layouts require GLSL 140 or later
+```
+
+That is the driver confirming the original reasoning outright: macOS cannot compile
+`#version 300 es`, because Apple's OpenGL exposes no `GL_ARB_ES3_compatibility`. **0009 is
+load-bearing and stays.**
+
+Two things are worth keeping from how this played out:
+
+- **A null result on one patch says nothing about another.** 0010 not changing the crash was taken
+  as evidence against 0009, when the two address unrelated defects. 0009's necessity was only ever
+  testable by removing it.
+- **The failure is silent, not fatal.** mbgl catches the compile error, logs it and marks the
+  program failed, so without 0009 the app runs and the basemap simply never draws. Nothing
+  crashes. And before 0010, the failure could not even be reported - the error path allocated from
+  an uninitialized length and threw `std::bad_alloc` before reaching `Log::Error`. 0010 is the
+  reason this log line exists, which makes the two patches complementary rather than redundant.
+
+### Custom-layer GL errors are inherited, not ours
+
+The same run resolved the `GL error 1280` noise from `RadarSweepLayer`. With drain-on-entry
+instrumentation in place the log showed **76 errors already queued on entry and 0 raised by the
+layer itself** (74 at `render()`, one each at `initialize()` and `UploadSweep()`). The layer is
+clean; it was reporting errors mbgl left in the queue. A future cleanup could drain in mbgl's
+render pass, but nothing in WxLens needs changing.
