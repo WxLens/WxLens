@@ -3184,26 +3184,41 @@ sync system as single-site panes.
 **Size:** L.
 
 ### Phase 3 — Additional data layers + velocity improvements
-**Goal:** togglable overlay stacking (satellite + radar + soundings + jet stream + pressure)
-plus the lower-priority velocity-improvement sub-track.
+**Goal:** togglable overlay stacking (satellite + radar + soundings + jet stream + pressure +
+convective-parameter/surface-analysis fields) plus the lower-priority velocity-improvement
+sub-track.
 **Scope:** satellite imagery (GOES via AWS), sounding data view (Wyoming/RUC — **[OPEN
 QUESTION]** full interactive Skew-T diagram vs. simpler tabular display first), jet stream +
 MSLP overlays (NOMADS GRIB2), overlay toggle/opacity UI in chrome; velocity dealiasing;
 direction-relative velocity color mode via vendored `hsluv-c`.
+**Scope addition (2026-09-25, resolved per §9 Q13):** the model/gridded-field slice widens
+beyond jet-stream+MSLP to include, still from NOMADS GRIB2: CAPE, CIN, Supercell Composite,
+Significant Tornado Parameter, 500mb/850mb wind, max updraft helicity — plus a separate NOAA
+RTMA-derived surface-analysis layer (surface temp/dewpoint/wind speed/visibility/cloud cover;
+see `docs/data-sources.md`'s Phase 3+ candidates for the source). This still explicitly excludes
+full arbitrary Volume-Browser breadth (cross-sections, time-height, per-level model soundings) —
+that remains out of scope for Phase 3.
 **Key technical work:**
-- New provider modules (`SatelliteDataService`, `SoundingDataService`, `ModelGridDataService`),
-  same singleton-cache pattern.
-- GRIB2 + NetCDF4 decoder adoption (license/footprint review per §0/§6 first).
+- New provider modules (`SatelliteDataService`, `SoundingDataService`, `ModelGridDataService`,
+  and an `RtmaDataService` for the surface-analysis layer), same singleton-cache pattern.
+- GRIB2 + NetCDF4 decoder adoption (license/footprint review per §0/§6 first) — the widened
+  convective-parameter set uses the same decoder as the original jet-stream/MSLP slice; RTMA is
+  its own separate NOAA product/access pattern (see `docs/data-sources.md`).
 - Geostationary reprojection for GOES imagery — **[OPEN QUESTION]** GDAL (heavy, capable,
   well-trodden) vs. a purpose-built lighter transform; decide at kickoff once real GOES
   size/perf data is in hand.
-- Overlay stacking/compositing in the render layer — layer order + opacity per overlay.
+- Overlay stacking/compositing in the render layer — layer order + opacity per overlay, surfaced
+  through the unified "Layers" panel UX pattern resolved in §9 Q12 (a single panel with a quick
+  toggle + optional filter per overlay row, rather than one dialog per overlay type).
+- Per-field contour styling (line type, thickness, colormap-vs-single-color) for the new
+  convective-parameter/RTMA layers, consistent with how the existing overlay styling works.
 - Dealiasing module (self-contained, no new dependency).
 - Direction-relative color mode as a per-pane/per-product toggle, alternative to the existing
   `.pal`-driven toward/away coloring.
-**Size:** L (data layers) + M (velocity sub-track). Recommend splitting into two sequenced
-sub-phases (3a: satellite+model overlays, 3b: velocity improvements) since they're technically
-independent and velocity work carries no data-source risk.
+**Size:** L (data layers, now including the widened model-field set) + M (velocity sub-track).
+Recommend splitting into two sequenced sub-phases (3a: satellite+model+RTMA overlays, 3b:
+velocity improvements) since they're technically independent and velocity work carries no
+data-source risk.
 
 ### Phase 4 — 3D storm structure rendering
 **Goal:** volumetric storm structure visualization (debris ball, etc.) — explicitly last
@@ -3264,6 +3279,70 @@ config/data-model choices don't accidentally preclude it later.
 - Skew-T sounding diagram as a first-class view vs. raw data access (Phase 3 open question).
 - Publishing `wxdata` as a proper Conan package (vs. submodule + `add_subdirectory`).
 
+### 8.1 Feature/UX ideas from a competitor feature-parity audit (2026-09-25)
+
+The user reviewed two competing radar apps' full settings surfaces for feature ideas — captured
+here as WxLens feature concepts in our own words, not as things to copy. Per §0.1's "inspiration
+only, never copied" rule, none of this carries over UI layout, branding, exact wording, or
+proprietary implementation, and none of it should be referenced by a competing app's name in
+commit messages, code, or comments — describe the capability itself. New *data sources* surfaced
+by the same audit live in `docs/data-sources.md` (its new "Phase 3+ candidates" and "restricted
+sources" sections), not here.
+
+- **Per-phenomenon warning/watch toggles with push notifications.** Today's overlay toggle
+  (§7 Phase 1) is a single blanket on/off. A real gap worth closing eventually: independent
+  toggles per warning/watch category (tornado, severe thunderstorm, flash flood, winter,
+  fire, hydro, marine, etc. — `wxdata/awips` already parses the VTEC/phenomenon codes needed), each
+  with its own optional OS-level push notification. Push notifications are a new capability with
+  no existing WxLens infrastructure — needs its own design pass (delivery mechanism, background
+  behavior) whenever scoped.
+- **A live, browsable alerts list, separate from the alert settings dialog.** Two distinct
+  surfaces are worth having: one for *what to show/notify on* (settings), and a separate one for
+  *what's active right now* (a sortable, filterable live list with per-category counts).
+- **Combine overlapping polygons into one popup.** When a clicked/tapped point falls under more
+  than one overlapping polygon of the same overlay family (e.g. two offices' overlapping warning
+  polygons, or overlapping outage-area polygons), show all of them together in a single combined
+  popup instead of just the topmost one. A small, generally-applicable interaction detail worth
+  building once into whatever the shared polygon-click-info affordance ends up being, rather than
+  per-overlay.
+- **Historical Local Storm Report archive search** (date-range query, not just live display) as
+  a capability distinct from live LSR display, if/when LSRs are built.
+- **Multi-moment point interrogation ("quick-scope") tool.** Beyond the already-planned §4.4
+  point-info/measurement modes: a way to preview several radar moments (reflectivity, velocity,
+  CC, spectrum width, ZDR, storm-relative velocity, etc.) at one point/time via a press-and-hold
+  or similar gesture, without switching the pane's active product. Complements, doesn't replace,
+  §4.7's beam-height/tower-bearing readout — worth designing them together.
+- **A real keyboard-shortcut scheme.** Nothing like this exists in WxLens today. Worth building
+  out eventually, covering at least: per-product hotkeys, play/pause, prev/next/first/last frame,
+  tilt up/down, data-opacity up/down, playback-speed up/down, toggle measurement/inspector/
+  storm-track/drawing tools, pane-layout presets (e.g. dual/quad view), and quick-open per-domain
+  settings dialogs.
+- **Radar-site metadata refinements**: a "research/testbed radar" category distinct from
+  operational NEXRAD/TDWR (some NWS-adjacent radars are non-operational research installations),
+  and a **live radar-operational-status indicator** (a site currently down/not reporting, vs. the
+  static site database WxLens already has) — the latter needs a live status feed, not just
+  `radar_sites.json`.
+- **Export the current view as an image** (screenshot/share), a small, self-contained capability
+  distinct from the app's own crash/debug reporting.
+- **User-triggered "send debug data" action**, distinct from and complementary to the existing
+  automatic crash reporting (`util::CrashReportManager`, §3.4) — an explicit, user-initiated
+  log/diagnostic export for support purposes.
+- **"Reset all settings" action** in whatever the eventual support/about surface is.
+- **A perceptually-uniform palette option** (e.g. a Viridis-style preset) alongside whatever
+  bundled `.pal` presets ship — a modern scientific-visualization option worth having alongside
+  the traditional NWS-style ones already planned for `res/palettes/`.
+- **Separate frame-count settings for single-site radar vs. tile/composite products**
+  (mosaic/satellite), rather than one shared loop-length setting — composite products reasonably
+  want a different default loop length than single-site radar.
+- **Map label text size** as its own accessibility-oriented setting, distinct from general UI
+  scaling.
+- **Radar data-opacity / brightness control** as a per-domain setting (already implied by §4.6's
+  architecture, called out explicitly here so it isn't missed when the settings surfaces are
+  actually built).
+
+**UX-architecture question this audit surfaced — resolved 2026-09-25, see §9 Q12: a single
+unified "Layers" panel is the direction, not per-overlay dedicated dialogs.**
+
 ---
 
 ## 9. Open questions for the user / other planning agents
@@ -3301,6 +3380,23 @@ config/data-model choices don't accidentally preclude it later.
     2026-09-02: floating is the shipping default.** At 1280x800 in a real 3×3 layout the floating
     bar obscures a substantial strip across all three bottom panes; docked mode correctly reserves
     54 px and obscures none. The user reviewed that tradeoff and explicitly selected floating.
+12. ~~**Overlay control UX pattern**~~ (§8.1) — **RESOLVED 2026-09-25: a single unified "Layers"
+    panel** (quick toggle + optional filter icon per overlay row) is the shipping direction, not
+    per-overlay dedicated dialogs and not a hybrid. Apply this pattern once Phase 3 builds out
+    enough overlays (warnings, MDs, outlooks, LSRs, etc.) to need one; deep per-overlay styling
+    (opacity/border/etc., where warranted) should be reachable from within that same panel rather
+    than via separate top-level dialogs.
+13. ~~**Model/gridded-field breadth**~~ (§7 Phase 3, `docs/capability-matrix.md`'s "Model/gridded
+    fields" row) — **RESOLVED 2026-09-25: widen Phase 3's scope now.** In addition to the
+    original 250mb wind (jet stream) + MSLP slice, Phase 3's model/gridded data work should
+    include the broader convective-parameter + surface-analysis field set surfaced by the
+    2026-09-25 feature-parity audit: CAPE, CIN, Supercell Composite, Significant Tornado
+    Parameter, 500mb/850mb wind, updraft helicity (all NOMADS GRIB2, same decoder work as the
+    original slice), plus RTMA-derived surface temp/dewpoint/wind/visibility/cloud-cover analysis
+    (a separate NOAA product/source, see `docs/data-sources.md`). This does not widen scope to
+    full arbitrary Volume-Browser breadth (cross-sections, time-height, per-level soundings from
+    models, etc.) — that remains explicitly out of scope per §7 Phase 3 and the capability
+    matrix.
 
 ---
 
