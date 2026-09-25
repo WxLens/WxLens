@@ -1,4 +1,5 @@
 #include <wxlens/util/crash_handler.hpp>
+#include <wxlens/util/crash_reporting_config.hpp>
 
 #if defined(_WIN32)
 
@@ -219,12 +220,19 @@ LONG WINAPI HandleException(EXCEPTION_POINTERS* exceptionInfo)
                "exception : 0x%08lx (%s)\r\n"
                "address   : 0x%llx\r\n"
                "thread    : %lu\r\n",
-               now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond,
+               now.wYear,
+               now.wMonth,
+               now.wDay,
+               now.wHour,
+               now.wMinute,
+               now.wSecond,
                static_cast<unsigned long>(code),
                ExceptionCodeName(code),
                static_cast<unsigned long long>(address),
                static_cast<unsigned long>(GetCurrentThreadId()));
    WriteAll(file, header);
+
+   WriteAll(file, "version   : " WXLENS_REPORTER_VERSION "\r\n");
 
    if (code == EXCEPTION_ACCESS_VIOLATION &&
        exceptionInfo->ExceptionRecord->NumberParameters >= 2)
@@ -393,8 +401,9 @@ namespace util
 
 void InstallCrashHandler(const std::string&)
 {
-   // See the header: the Windows implementation is DbgHelp-based. A POSIX backtrace()
-   // implementation belongs here when WxLens actually builds on one.
+   // macOS reports are collected by CrashReportManager after restarting.
+   // Linux capture is not implemented; no in-process POSIX signal handler is
+   // installed.
 }
 
 void DumpAllThreadStacks(const char*) {}

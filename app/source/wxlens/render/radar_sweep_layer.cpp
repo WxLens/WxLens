@@ -13,6 +13,7 @@
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
+#include <QElapsedTimer>
 
 namespace wxlens
 {
@@ -126,7 +127,13 @@ public:
 void RadarSweepLayer::Impl::UploadSweep(QOpenGLFunctions_3_3_Core* gl,
                                         const std::shared_ptr<const products::SweepData>& sweep)
 {
+   // Drain first: this clears GL errors inherited from whatever ran before us, so the checks
+   // below attribute only this function's own failures (origin/main's error-attribution work).
+   // The timer then measures the upload itself rather than that bookkeeping.
    DrainPendingGlErrors(gl, "UploadSweep()");
+
+   QElapsedTimer uploadTimer;
+   uploadTimer.start();
    gl->glBindVertexArray(vao_);
 
    gl->glBindBuffer(GL_ARRAY_BUFFER, vbo_[0]);
@@ -167,6 +174,12 @@ void RadarSweepLayer::Impl::UploadSweep(QOpenGLFunctions_3_3_Core* gl,
    numVertices_ = static_cast<GLsizei>(sweep->vertices.size() / 2);
 
    CheckGlError(gl, "UploadSweep()");
+   // Time on the calling thread, including driver work; no glFinish is added,
+   // so this is deliberately not described as GPU execution time.
+   logger_->info("Sweep upload: vertices={} bytes={} submission_wall_ms={:.3f}",
+                 numVertices_,
+                 sweep->vertices.size() * sizeof(float) + momentDataSize,
+                 uploadTimer.nsecsElapsed() / 1.0e6);
 }
 
 void RadarSweepLayer::Impl::UploadColorTableLut(

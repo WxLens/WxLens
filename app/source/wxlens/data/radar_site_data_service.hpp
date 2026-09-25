@@ -103,6 +103,18 @@ signals:
                                 QString       reason);
 
 private:
+   /**
+    * Shared implementation of the live path.
+    *
+    * `publishUnchanged` separates the two callers. An explicit
+    * LoadLatestLevel2Data() comes from a consumer that has no data yet, so it
+    * must publish even when the latest key has not moved (served from cache, so
+    * still no download). The periodic refresh passes false: rediscovering the
+    * same volume is not news, and republishing it would make every product
+    * rebuild identical geometry on the GUI thread once a minute.
+    */
+   void LoadLatestLevel2DataInternal(bool publishUnchanged);
+
    class Impl;
    std::unique_ptr<Impl> p;
 };

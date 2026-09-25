@@ -16,6 +16,35 @@ Item {
         return points
     }
 
+    // 0 = follow the global default (manager.nearbyWarningsOnly), 1 = force all, 2 = force nearby
+    // only. See PaneController::warningsFilterOverride.
+    readonly property bool nearbyWarningsOnly: {
+        if (!root.paneController) return false
+        const override = root.paneController.warningsFilterOverride
+        if (override === 1) return false
+        if (override === 2) return true
+        return root.manager ? root.manager.nearbyWarningsOnly : false
+    }
+
+    // Great-circle distance in meters (haversine). Warning centroids and pane sites are both
+    // close enough together that this is accurate well past the kNearbyWarningsRangeMeters cutoff.
+    function distanceMeters(lat1, lon1, lat2, lon2) {
+        const toRad = Math.PI / 180
+        const earthRadiusMeters = 6371000.0
+        const dLat = (lat2 - lat1) * toRad
+        const dLon = (lon2 - lon1) * toRad
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    }
+
+    function isNearby(warning) {
+        if (!root.nearbyWarningsOnly || !root.paneController || !root.manager) return true
+        return root.distanceMeters(root.paneController.homeLatitude, root.paneController.homeLongitude,
+                                   warning.latitude, warning.longitude) <= root.manager.nearbyWarningsRangeMeters
+    }
+
     Canvas {
         id: canvas
         anchors.fill: parent
@@ -36,6 +65,7 @@ Item {
             if (root.manager.warningsVisible) {
                 const warnings = root.manager.warningPolygons
                 for (var w = 0; w < warnings.length; ++w) {
+                    if (!root.isNearby(warnings[w])) continue
                     if (!path(root.project(warnings[w].coordinates), true)) continue
                     ctx.globalAlpha = 0.12; ctx.fillStyle = warnings[w].color; ctx.fill()
                     ctx.globalAlpha = 0.95; ctx.strokeStyle = warnings[w].color
@@ -102,6 +132,14 @@ Item {
         function onPlacefilesChanged() { canvas.requestPaint() }
         function onWarningsVisibleChanged() { canvas.requestPaint() }
         function onPlacefilesVisibleChanged() { canvas.requestPaint() }
+        function onNearbyWarningsOnlyChanged() { canvas.requestPaint() }
+    }
+    Connections {
+        target: root.paneController
+        function onWarningsFilterOverrideChanged() { canvas.requestPaint() }
+        // homeLatitude/homeLongitude ride productChanged (§4.6) - a site change must re-filter
+        // "nearby" warnings even though it isn't itself a camera or data event.
+        function onProductChanged() { canvas.requestPaint() }
     }
     onCameraTickChanged: canvas.requestPaint()
     onWidthChanged: canvas.requestPaint()

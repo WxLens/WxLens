@@ -131,6 +131,23 @@ Popup {
         }
         Row {
             spacing: 10
+            OverlayCheckBox {
+                text: "Only show warnings near each pane's site"
+                enabled: overlayManager.warningsVisible
+                checked: overlayManager.nearbyWarningsOnly
+                onToggled: overlayManager.nearbyWarningsOnly = checked
+            }
+        }
+        Text {
+            width: parent.width
+            text: "This is the default for every pane - right-click a pane to show all warnings " +
+                  "or nearby-only just for that one, regardless of this setting."
+            color: themeManager.textSecondary
+            font.pixelSize: 11
+            wrapMode: Text.Wrap
+        }
+        Row {
+            spacing: 10
             OverlayCheckBox { text: "Radar sites"; checked: appSettings.radarSitesVisible; onToggled: appSettings.radarSitesVisible = checked }
             OverlayCheckBox { text: "Include TDWR"; enabled: appSettings.radarSitesVisible; checked: appSettings.tdwrSitesVisible; onToggled: appSettings.tdwrSitesVisible = checked }
         }

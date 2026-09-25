@@ -130,8 +130,13 @@ jobs:
 
       - name: Build and test
         run: |
-          cmake --build build --target wxlens-app wxlens-wxdata-test
-          ctest --test-dir build --output-on-failure -R wxlens-wxdata-test
+          # -L selects by label; the previous -R matched no tests and still exited 0.
+          # IemApiProviderTest (live third-party API) and NtpClient.Poll (public NTP over
+          # UDP/123, blocked on GitHub's macOS runners) reach the internet and hard-fail
+          # rather than skipping like wxdata's other network tests. Both are in read-only
+          # external/, so the fix belongs upstream.
+          cmake --build build --target wxlens-app wxlens-wxdata-test wxlens-app-test wxlens-qml-test
+          ctest --test-dir build --output-on-failure --no-tests=error -L wxlens -E 'IemApiProviderTest|NtpClient\.Poll'
 
       - name: Package AppImage
         env:

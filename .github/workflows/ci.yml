@@ -166,11 +166,28 @@ jobs:
             -DCONAN_BUILD_PROFILE=${{ matrix.conan_profile }}
 
       - name: Build
-        run: cmake --build build --target wxlens-app wxlens-wxdata-test
+        run: cmake --build build --target wxlens-app wxlens-wxdata-test wxlens-app-test wxlens-qml-test
 
-      - name: Test (wxdata suite)
+      # -L selects by label, not -R by name: gtest_discover_tests registers each case under its
+      # GoogleTest name, so the previous `-R wxlens-wxdata-test` matched nothing and, without
+      # --no-tests=error, exited 0. This step reported success while running zero tests.
+      # --no-tests=error makes that failure mode impossible to repeat. The `wxlens` label covers
+      # the wxdata, app and QML suites and excludes the vendored MapLibre test target.
+      # The QML suite runs headless - the target carries QT_QPA_PLATFORM=offscreen and the Qt
+      # plugin/library paths as CTest properties, so no display setup is needed here.
+      # Two exclusions, both for the same reason: they reach the public internet and hard-fail
+      # when it does not answer, instead of skipping themselves the way wxdata's other
+      # network-dependent tests do. Both live in external/, which is read-only here, so the fix
+      # belongs upstream rather than in a local edit.
+      #   IemApiProviderTest - drives a live third-party API (mesonet.agron.iastate.edu).
+      #   NtpClient.Poll     - polls public NTP servers over UDP/123, which GitHub's macOS
+      #                        runners block; it passes on Linux and Windows, so excluding it
+      #                        everywhere keeps one filter rather than a per-platform one.
+      # Both still run in a normal local `ctest` without -E. Drop each once it skips like its
+      # neighbours upstream.
+      - name: Test
         working-directory: build
-        run: ctest --output-on-failure -R wxlens-wxdata-test
+        run: ctest --output-on-failure --no-tests=error -L wxlens -E 'IemApiProviderTest|NtpClient\.Poll'
 
   linux:
     uses: ./.github/workflows/linux.yml

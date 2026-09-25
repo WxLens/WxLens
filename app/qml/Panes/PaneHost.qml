@@ -42,6 +42,24 @@ Rectangle {
     // notification from being reported back as user input. See the Connections block below.
     property bool applyingSync: false
 
+    // Coalesces the three independent signals below (coordinateChanged, zoomLevelChanged,
+    // projectionChanged) into at most one re-projection per event-loop turn. One interactive
+    // pan/zoom step now fires more than one of them for the same camera update - PaneController's
+    // mapChanged handler ticks on every core-map RegionIsChanging notification in addition to the
+    // direct QML property-change path, closing a gap where a gesture had no reprojection trigger
+    // of its own (docs/ROADMAP.md, 2026-09-09). Qt.callLater deduplicates repeated calls to the
+    // same function within one turn, so bumping cameraTick straight from each handler would
+    // double the native pixelForCoordinate() calls and binding re-evaluations every geo-anchored
+    // layer does per gesture step; routing every bump through this instead restores one
+    // reprojection per step regardless of how many signals asked for it.
+    function requestCameraTick() {
+        Qt.callLater(root.applyCameraTick)
+    }
+    function applyCameraTick() {
+        objectsLayer.cameraTick++
+        level3Layer.cameraTick++
+    }
+
     // A control inside this pane asked to open Settings at a specific section (§4.5). Forwarded
     // rather than handled here: a pane does not own the settings surface, and several panes exist.
     signal configureRequested(string sectionId)
@@ -124,16 +142,14 @@ Rectangle {
         onCoordinateChanged: {
             // Tick first and unconditionally: geo-anchored objects must re-project on every map
             // movement, including one applied by sync (when the write-back below is suppressed).
-            objectsLayer.cameraTick++
-            level3Layer.cameraTick++
+            root.requestCameraTick()
             if (!root.hasController || root.applyingSync) {
                 return
             }
             root.paneController.setCenter(map.coordinate[0], map.coordinate[1])
         }
         onZoomLevelChanged: {
-            objectsLayer.cameraTick++
-            level3Layer.cameraTick++
+            root.requestCameraTick()
             if (root.hasController && !root.applyingSync) {
                 root.paneController.zoom = map.zoomLevel
             }
@@ -162,12 +178,13 @@ Rectangle {
                 root.applyingSync = false
             }
 
-            // MapLibre applies imperative QML camera assignments during its next render sync,
-            // after the property-change handlers above have already fired. Re-project once the
-            // core map confirms that camera so overlays cannot remain at stale pixel positions.
+            // Fires for every core-map camera confirmation now, not just the deferred
+            // imperative-write case (docs/ROADMAP.md, 2026-09-09) - including once per step of an
+            // ordinary interactive gesture, which the property-change handlers above already tick
+            // for. Routed through requestCameraTick() so that overlap coalesces into one
+            // reprojection instead of visibly doubling per-gesture-step cost.
             function onProjectionChanged() {
-                objectsLayer.cameraTick++
-                level3Layer.cameraTick++
+                root.requestCameraTick()
             }
         }
 
@@ -622,9 +639,10 @@ Rectangle {
                 }
             }
 
-            // Nothing to act on - don't flash an empty menu at the user.
+            // Nothing to act on - don't flash an empty menu at the user. The warnings-filter entry
+            // is always available once a pane has a controller, so it alone is enough to open.
             if (contextMenu.targetObjectId < 0 && contextMenu.visibleObjectCount === 0 &&
-                !root.showLabel) {
+                !root.showLabel && !root.hasController) {
                 return
             }
 
@@ -643,10 +661,24 @@ Rectangle {
             objectsLayer.highlightedObjectId = -1
         }
 
+        // wxlens::panes::PaneController::warningsFilterOverride: 0 follow the global default, 1
+        // force all warnings, 2 force nearby-only for this pane.
+        function warningsFilterLabel(override) {
+            switch (override) {
+            case 1: return "Warnings: all (this pane)"
+            case 2: return "Warnings: nearby only (this pane)"
+            default: return "Warnings: default (all panes)"
+            }
+        }
+
         readonly property var entries: {
             var items = []
             if (contextMenu.targetObjectId >= 0) {
                 items.push({ label: "Delete " + contextMenu.targetName, action: "delete" })
+            }
+            if (root.hasController) {
+                items.push({ label: contextMenu.warningsFilterLabel(root.paneController.warningsFilterOverride),
+                             action: "cycleWarningsFilter" })
             }
             if (contextMenu.visibleObjectCount > 0) {
                 items.push({ label: contextMenu.visibleObjectCount === 1
@@ -696,6 +728,9 @@ Rectangle {
                         onClicked: {
                             if (parent.modelData.action === "delete") {
                                 contextMenu.store.removeObject(contextMenu.targetObjectId)
+                            } else if (parent.modelData.action === "cycleWarningsFilter") {
+                                root.paneController.warningsFilterOverride =
+                                    (root.paneController.warningsFilterOverride + 1) % 3
                             } else if (parent.modelData.action === "clearPane") {
                                 contextMenu.store.removeObjectsInPane(root.paneController)
                             } else if (parent.modelData.action === "matchFirst") {

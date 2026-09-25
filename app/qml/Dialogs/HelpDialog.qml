@@ -111,7 +111,7 @@ Rectangle {
             ScrollView {
                 id: helpScroll
                 width: parent.width
-                height: parent.height - 85
+                height: parent.height - 130
                 clip: true
                 contentWidth: availableWidth
 
@@ -155,6 +155,11 @@ Rectangle {
                           "point to highlight that storm. NST will not be listed when the live " +
                           "provider has no current NST file for that site."
                 }
+            }
+
+            WxButton {
+                text: "Crash reports…"
+                onClicked: { root.close(); crashReports.open() }
             }
         }
     }

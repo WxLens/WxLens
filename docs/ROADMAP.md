@@ -503,6 +503,22 @@ Replicate this repo's proven two-file pattern:
 
 ### 3.4 Audit-friendly logging (Phase 0 deliverable)
 
+**Crash reporting added (2026-09-09, user-requested):**
+`util::CrashReportManager` reads native macOS `.ips` reports or the existing Windows
+exception log on restart. It selects diagnostic fields, presents the exact event
+for review/save, and sends only on an explicit user action to the maintainer's
+Sentry project (free Developer plan). No SDK dependency or background telemetry.
+`--crash-report` opens a software-rendered report window without initializing the
+map/data pipeline, for repeated map startup crashes. Dismissal and successful-send
+hashes use `SettingsStore`'s `crash_reporting.toml`. See
+[`crash-reporting.md`](crash-reporting.md) for privacy, service configuration,
+limits and recovery commands. Linux capture and automatic native symbolication
+remain unimplemented. Native macOS crash/relaunch and notification receipt still
+need verification; a synthetic event was accepted by the configured Sentry endpoint.
+Verified locally: Windows Release app/model-test builds, all eight `CrashReport.*`
+tests, clang-format checks on the new C++ files, and an eight-second offscreen
+`--crash-report` launch. The earlier macOS startup crash itself remains unresolved.
+
 Reuse `wxdata`'s `util::Logger` (`Initialize()`, `AddFileSink(baseFilename)`,
 `Create(name)` → named `spdlog::logger` per subsystem) as-is. Concrete additions for the new
 app, to satisfy the user's stated wish for other AI agents to easily audit work:
@@ -1477,6 +1493,120 @@ sequence, and none of them is a tail-end nice-to-have:
     and the armed-tool case, remains part of the next acceptance rerun rather than being claimed
     from compilation.
 
+
+**Added 2026-09-22 from the 2026-09-09 user-feedback checklist.** Slice 11 shipped archive/time
+controls; these two deliver the scrubber and playback that §5.4 anticipated and that the
+checklist's fifth item specifies. Sequenced as a pair: **19 exists to make 20 testable**, and is
+not to be built speculatively ahead of it.
+
+19. **`wxlens-app-lib` split + headless QML harness** — infrastructure whose only user-visible
+    change is none.
+    - Split `wxlens-app` into a static `wxlens-app-lib` plus a thin `main.cpp`, moving
+      `qt_add_qml_module` onto the library with the URI unchanged (`WxLens.App`) so no QML import
+      moves. **This is owed regardless:** `test/test.cmake` already names it ("the app should be
+      split into a static library plus a thin main()") and currently recompiles ~35 app sources
+      into `wxlens-app-test`.
+    - Add a `wxlens-qml-test` target on `Qt6::QuickTest`, which is **already present in the pinned
+      Qt 6.11.1** — no new dependency, so no §0 license review. Run it under
+      `QT_QPA_PLATFORM=offscreen`; Linux CI already proves the full Qt/QML/MapLibre stack survives
+      `xvfb` with `LIBGL_ALWAYS_SOFTWARE=1`, so the hard part is solved and in use.
+    - Introduce a map seam. `PaneHost.qml` binds directly to `MapLibre.MapView`/`MapQuickItem`;
+      tests need a stub exposing only `coordinate`/`zoomLevel`. **Scope discipline: this tests
+      WxLens's QML logic, not MapLibre.** Pixel-level render verification is explicitly out of
+      scope — llvmpipe is not the user's GPU, and that comparison would be permanently flaky.
+    - **The gap this closes:** §0.2 requires feedback-loop guards be proven "with tests, not just
+      care". `pane_sync.test.cpp` does that thoroughly for the C++ half, but the other half of the
+      same guard is `applyingSync` in `PaneHost.qml`, which has no tests at all — the loop guard is
+      currently split across a tested language and an untested one.
+    - **Known risk:** `qt_add_qml_module` on a static library needs correct plugin import
+      (`qt_import_qml_plugins` / `Q_IMPORT_QML_PLUGIN`) and can interact badly with the AOT
+      qmlcachegen pass. If it does, document the exact limitation per §0.2 rather than inventing an
+      architectural workaround.
+    - **Honest limit:** this would **not** have caught `2610acb`'s floating markers, which were the
+      native map's GPU frame lagging QML's synchronous property update. That class of bug still
+      needs a live window. What this covers is logic-level regression around it.
+    - **Acceptance:** every existing model test still passes unchanged, the packaged app launches
+      with no new QML warnings, and at least one QML test asserts an applied sync does not echo
+      back as local user input.
+
+    **IMPLEMENTED (2026-09-22), with one acceptance item outstanding.** `wxlens-app-lib` carries
+    the sources and the QML module; `wxlens-app` is main.cpp plus the Windows `.rc`;
+    `wxlens-app-test` links the library instead of recompiling ~35 sources and drops four
+    duplicated resource blocks. `wxlens-qml-test` runs `tst_*.qml` under `Qt6::QuickTest` on the
+    offscreen platform, is wired into CTest with its own environment, and runs in `ci.yml`. First
+    coverage is `WeatherOverlaysLayer`'s nearby-warnings filter - the QML shipped untested in
+    `90037ef` - at 9 assertions, proven to fail under a deliberate mutation rather than merely
+    reported green. 189 model tests still pass.
+
+    **Outstanding:** the `applyingSync` echo-suppression test named in the acceptance criteria is
+    **not** written. `PaneHost.qml` is the only QML file importing `MapLibre`, so instantiating it
+    needs either the real map or the injected-map seam this slice listed; that seam was not built.
+    The filter test is real coverage but it is not the §0.2 loop-guard gap, which stays open.
+
+    **Four findings worth not rediscovering:**
+    - `qt_add_qml_module` on a STATIC library generates a separate `<target>plugin` carrying type
+      registration and compiled QML. Linking only the library builds and links cleanly, then fails
+      at runtime with `No module named "WxLens.App" found`.
+    - `qt_add_executable` defaults `WIN32_EXECUTABLE` ON, producing a GUI-subsystem test binary
+      that reports to nowhere and exits 0 - indistinguishable from a pass.
+    - Even as a console binary, the suite prints nothing to an inherited console on Windows. Use
+      `-o <file>,txt`, or run it through ctest.
+    - `windeployqt` deploys only the `windows` platform plugin, and never `Qt6QuickTest`/`Qt6Test`,
+      so the target needs Qt's own plugin directory and `bin` on its CTest environment. The
+      failure names an unrelated DLL.
+
+    **Unverified:** Linux and macOS. The split changes PUBLIC compile options those platforms
+    consume (`QT_NO_EMIT`) and static-plugin linking, and the QML suite has only ever run on
+    Windows; CI is where both get their first run.
+
+20. **Timeline scrubber + playback** — the 2026-09-09 checklist's fifth item.
+    - **Scan discovery needs no new provider code and no `wxdata` change.**
+      `NexradDataProvider::GetTimePointsByDate(date, update)` already returns real scan times, and
+      `update=false` reads the provider's existing cache without touching the network. Expose it
+      through `RadarSiteDataService` as a real availability list. **Never synthesize evenly spaced
+      scan times** — the checklist says so explicitly, and §4.7 forbids fabricated metadata.
+    - **State lives in C++, not QML** (§0.2): available scans, selected index, play/pause, loop
+      bounds, prefetch policy. `SyncChannel::Time` is already real state from slice 11;
+      `SyncChannel::Animation` is declared but stateless, and `ChangeOrigin::DataDriven` already
+      carries the comment "e.g. an animation timer advancing Time". **This slice is what those
+      were declared for** — do not add a second time concept beside them.
+    - **Coalesce seeks.** A drag emits a position per frame; collapse them so one in-flight load
+      survives and a stale completion can never replace a newer selection. `FrameCache`'s in-flight
+      deduplication (`149bcf1`) handles concurrent *identical* keys but not supersession — that is
+      this slice's job, not something already solved.
+    - **Prefetch bounded adjacent frames** through that same cache, honouring its byte budget.
+    - **The GUI-thread geometry cost is the real risk, and playback is what exposes it.** `149bcf1`
+      measured ~355 ms of synchronous GUI-thread geometry rebuild per frame and explicitly did not
+      move it. Caching lets a *repeat* frame skip it, so a replayed loop is fine — but the first
+      pass through a cold loop stalls the UI roughly a third of a second per frame. Either move
+      geometry preparation off the GUI thread, or pre-build it ahead of the playhead during
+      prefetch. Shipping a scrubber on top of an unchanged synchronous rebuild would deliver a
+      feature that *demonstrates* the reported slowness instead of one that answers it.
+    - **UI belongs to the one bottom zone, not a second bar.** §5.4 warns specifically against
+      discovering this too late and ending up with two stacked bars eating a third of the window.
+      Slice 16 (control surface relocation) is marked "runs with slice 11"; it now overlaps **this**
+      slice instead, and the two must be laid out together before either ships. Deliver drag
+      scrubbing, previous/next frame, play/pause, return-to-live, and visibly distinct selected
+      versus actual scan time with honest loading/unavailable states.
+    - **Verification:** C++ tests for the availability list, prefetch bounds, seek coalescing and
+      stale-completion rejection; slice 19's harness for press-drag-release and keyboard stepping;
+      then a packaged pass covering sparse/missing scans, failed loads, and grouped versus
+      independent panes. Replaying a cached loop must not re-download — assert that against the
+      cache's own counters, not by eye.
+    - ~~**[OPEN QUESTION]** do grouped panes advance through `Time` or `Animation`?~~
+      **RESOLVED 2026-09-22 (project owner): one shared playhead.** Grouped panes advance together
+      through the existing `Time` channel; a frame advance is an ordinary `Time` change carrying
+      `ChangeOrigin::DataDriven`. **The owner expects per-pane animation to be wanted later**, so
+      this is a decision about what ships now, not about what the architecture may express.
+      Consequence to honour: leave `SyncChannel::Animation` declared and unused rather than
+      deleting it as dead, and do **not** fold playback state into the `Time` channel's meaning.
+      §0.2 already forbids collapsing per-channel sync for implementation convenience; keeping the
+      two separate is exactly what makes the later feature a wiring change instead of a rewrite.
+    - ~~**[OPEN QUESTION]** Level 2 only for the first cut, or Level 3 playback too?~~
+      **RESOLVED 2026-09-22 (project owner): Level 2 only to start.** Level 3's per-AWIPS-ID
+      provider and catalog stay out of this slice. Build the availability list, prefetch and
+      coalescing against the `RadarSiteDataService` interface rather than against Level 2
+      specifics, so adding Level 3 later is a second implementation of a settled seam.
 
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
 structure, not a rigid contract — but keep the principle: each slice buildable and testable on
@@ -2619,6 +2749,25 @@ ADR 0004), which emits `#version 330 core` on Apple in both the drawable and leg
 - **Not verified:** patch 0009 is unrun on hardware - it compiles the same shader bodies against a
   different version directive, so a second wave of GLSL incompatibilities is possible.
 
+**macOS startup smoke test (2026-09-09), crash investigation superseded.** Actions run
+`34351147658` built commit `376c8d5` with the core-profile request; both architectures built,
+tested and packaged, but neither job launched the app, so this added a launch check. **The
+"continued startup crash remains unresolved" conclusion recorded here at the time has since been
+answered** - the root cause was a stale GL error surfacing as `std::bad_alloc` (patches 0011-0013,
+see ADR 0004), not a signing or context problem. The `macdeployqt` signing messages noted here were
+correctly judged not to indicate a signature failure in the shipped app.
+
+What remains current is the check itself:
+
+- **Implemented:** native macOS CI mounts the finished DMG, copies and verifies the bundle, and
+  checks 30-second startup survival without development Qt/QML or loader overrides. Early exits
+  fail packaging; diagnostics are uploaded even on failure.
+- **Tested locally:** Python syntax and simulated process checks for early successful exit,
+  failure, SIGABRT, environment isolation, and terminate/kill timeout cleanup. These do not
+  substitute for a native Mac launch.
+- **Not verified:** native execution from a Windows workspace, correct rendering, and
+  downloaded-app Gatekeeper behavior.
+
 #### User feedback follow-up — rendering, playback, caching, and Canadian radar (2026-09-09)
 
 Captured at the user's request after reviewing external feedback against the current source.
@@ -2635,6 +2784,12 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   rendering time; record request counts, cache hits, memory, and frame-time stalls. Record the
   tested build and graphics driver/backend. Do not attribute every delay to NWS/AWS without
   measuring it.
+  **2026-09-09 continuation:** added opt-in frame/swap CSV capture, listing and combined
+  download/decode logs, geometry/upload timing, and reproducible scenario/summary/synthetic
+  placefile helpers. The initial visible capture was invalid (dialog still open), and later
+  attempts aborted on displaced cursor. At the owner's request, desktop automation is now
+  paused while background builds/CI/nonvisual verification continue. No valid camera comparison
+  or performance-gate closure is claimed; see `docs/performance-baseline.md`.
 - [ ] **Fix camera-movement cost in warning/placefile overlays.**
   `app/qml/Panes/WeatherOverlaysLayer.qml` currently requests Canvas painting on camera changes
   and reprojects/redraws warning polygons. This confirms repeated work, not its measured share of
@@ -2659,6 +2814,87 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   Preserve per-source sharing and per-pane product/time independence (§4.6). Verify repeated
   selection and multiple consumers reuse one load, stale completions cannot replace a newer
   selection, and eviction keeps memory bounded on the 8 GB floor.
+
+  **IMPLEMENTED (2026-09-09), pending measured verification on the target machine.**
+  `data/frame_cache.hpp` adds a bounded LRU cache with in-flight request deduplication, kept
+  free of Qt, wxdata and provider dependencies so its eviction and deduplication behaviour is
+  testable without a network or a running application. `radar_site_data_service.cpp` now routes
+  all three load paths through it: the live Level 2 path, the archive Level 2 path, and the
+  Level 3 path, which replaces its previous unbounded `std::unordered_map` while keeping the
+  AWIPS-id-qualified key so products cannot collide. Level 2 frames are retained for the first
+  time — that path previously called the provider's downloading `LoadObjectByKey` on every
+  request, which `docs/performance-baseline.md` measured re-downloading and re-decoding an
+  identical key for ~3.6 s. A periodic refresh that rediscovers the same latest key now stops
+  before both the download and the republish, so unchanged volumes no longer make every product
+  rebuild identical geometry on the GUI thread once a minute; an explicit request still
+  publishes from cache, so a newly opened pane is not starved. The load-metrics log lines report
+  measured cache origin, retained bytes and frame count in place of the previous hard-coded
+  `decoded_cache_hit=false`.
+
+  Budgets are per site (256 MB Level 2, 64 MB Level 3) with a per-frame size floor, so the byte
+  budget also bounds entry count. They are **provisional**: no decoded-frame size has been
+  measured on the modest-laptop target, which is why every load now logs its estimated size.
+  wxdata reports decoded payload sizes rather than allocation footprints, so retention accounting
+  is an estimate that excludes container overhead.
+
+  Verified by 13 headless tests in `test/source/wxlens/data/frame_cache.test.cpp` (188 app tests
+  pass): repeated selection reuses one load and preserves object identity; concurrent callers for
+  one key share a single loader invocation; LRU eviction holds the byte budget and evicts by use
+  rather than insertion order; an oversized frame is returned but not retained; failed and
+  throwing loads are not cached as negative results and leave the cache usable. Stale completions
+  were already guarded consumer-side by request id (`pane_controller.cpp`,
+  `radar_sweep_product.cpp`); that is unchanged, not newly added.
+
+  **Not closed by this work:** no runtime timing was measured, so the reported slowness is not
+  demonstrated fixed; the 8 GB-floor eviction claim rests on unit tests, not on the target
+  machine; and per-frame geometry rebuild still runs synchronously on the GUI thread (~355 ms
+  measured), which caching lets callers skip for a repeat frame but does not itself move off that
+  thread.
+- [ ] **Geo-anchored overlays never re-projected during an interactive gesture, only at its
+  end.** Not part of the original checklist above; found and fixed 2026-09-09 while investigating
+  a user report that markers placed on the map ("the User Analysis Layer", §4.3) appeared to float
+  free of the basemap while panning/zooming and only snapped to their correct position once the
+  gesture stopped. `pane_controller.cpp`'s `QMapLibre::Map::mapChanged` handler only emitted
+  `projectionChanged()` - the signal every geo-anchored overlay layer (`MapObjectsLayer`,
+  `WeatherOverlaysLayer`, `RadarSiteLayer`, `MeasurementLayer`, `Level3ProductLayer`) re-projects
+  off - after `MapChangeRegionDidChange`/`RegionDidChangeAnimated`, and only when
+  `projectionRefreshPending_` had been armed by a *programmatic* camera write (site selection,
+  pane sync). An interactive drag/pinch/wheel gesture never armed that flag, so it had no path
+  back into this signal at all during the gesture itself; those layers relied entirely on QML's
+  own `coordinateChanged`/`zoomLevelChanged` emissions from `MapQuickItem::pan()`/`scale()`, with
+  no correction against the camera the native map renderer actually has on screen mid-gesture.
+
+  **FIXED (2026-09-09):** the handler now emits `projectionChanged()` unconditionally on
+  `MapChangeRegionIsChanging` (fired continuously by the core map while an interactive gesture is
+  live) as well as the two `RegionDidChange` variants, for every cause rather than only
+  programmatic ones. `projectionRefreshPending_` is now redundant with that and was removed along
+  with both call sites that armed it. Verified: full release build of `wxlens-app` and
+  `wxlens-app-test`, all 188 existing tests still pass (this is signal-wiring in a Qt/QML gesture
+  path, not something a headless unit test can newly cover).
+
+  **Not closed by this fix, and not claimed to be:** this repairs a confirmed missing trigger, but
+  a competing explanation - the native map's GPU-rendered frame lagging a render cycle or more
+  behind the synchronous QML property update during a busy gesture, worsened by the radar sweep
+  layer's own per-frame shader work competing for render time - was not ruled out and cannot be
+  from source reading alone; only watching a live gesture settles which explanation (if either)
+  accounts for what was reported.
+
+  **Follow-up (same day):** the first version of this fix made the still-open "Fix
+  camera-movement cost in warning/placefile overlays" item above worse rather than neutral -
+  `WeatherOverlaysLayer`'s `cameraTick` already incremented once per gesture step through the
+  direct QML `pan()`/`scale()` -> `coordinateChanged`/`zoomLevelChanged` path, and
+  `RegionIsChanging` added a second, roughly coincident tick for that same step through
+  `projectionChanged()`, close to doubling per-step Canvas redraws and every other geo-anchored
+  layer's native `pixelForCoordinate()`/binding-reevaluation cost during an ordinary drag/pinch.
+  `PaneHost.qml` now routes every `cameraTick` bump (`coordinateChanged`, `zoomLevelChanged`,
+  `projectionChanged`) through a `requestCameraTick()` helper that defers the actual increment via
+  `Qt.callLater`, which coalesces repeated calls within one event-loop turn into a single
+  reprojection - restoring one tick per gesture step regardless of how many signals asked for it,
+  while keeping the correctness fix above intact. Verified: `wxlens-app` release build succeeds
+  and PaneHost.qml compiles through the AOT `qmlcachegen` pass with no errors; there is no headless
+  harness in this repo for QML gesture behavior, so the actual redraw-count and no-added-lag claims
+  are unverified until watched live. That item's real fix (retained GPU geometry, not a
+  redraw-count reduction here) remains unaffected in substance.
 - [ ] **Deliver a draggable timeline and playback backed by the cache.** The existing
   Live/Archive selector and UTC field do not satisfy quick scrubbing. Implement real available
   scan discovery, bounded adjacent-frame prefetch, drag scrubbing, previous/next frame,
@@ -2668,6 +2904,11 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   evenly spaced available scans. Test primary press-drag-release, keyboard stepping, playback,
   sparse/missing scans, failed loads, and synchronized/independent panes. Replaying cached frames
   must not redownload them; verify responsiveness and memory against the baseline.
+
+  **Planned 2026-09-22 as slices 19-20** in the Phase 1 slice list above: 19 splits the app
+  into a library so a headless `Qt6::QuickTest` harness can exercise the drag, and 20 is this
+  item. Scan discovery resolved to an existing API - `GetTimePointsByDate` - so no `wxdata`
+  change is needed. Close both together with this box.
 - [ ] **Add bounded on-device disk persistence after memory-cache/playback foundations.**
   Define stable source/object identity, capacity/eviction, corruption recovery, and cache-clear
   behavior. Verify reuse after restart and honest offline/cache status; keep live discovery fresh.

@@ -134,8 +134,13 @@ jobs:
             -DCONAN_HOST_PROFILE="$PROFILE" -DCONAN_BUILD_PROFILE="$PROFILE"
       - name: Build and test
         run: |
-          cmake --build build --target wxlens-app wxlens-wxdata-test
-          ctest --test-dir build --output-on-failure -R wxlens-wxdata-test
+          # -L selects by label; the previous -R matched no tests and still exited 0.
+          # IemApiProviderTest (live third-party API) and NtpClient.Poll (public NTP over
+          # UDP/123, blocked on GitHub's macOS runners) reach the internet and hard-fail
+          # rather than skipping like wxdata's other network tests. Both are in read-only
+          # external/, so the fix belongs upstream.
+          cmake --build build --target wxlens-app wxlens-wxdata-test wxlens-app-test wxlens-qml-test
+          ctest --test-dir build --output-on-failure --no-tests=error -L wxlens -E 'IemApiProviderTest|NtpClient\.Poll'
       # macOS keeps DWARF in the .o files and only references them from the linked binary, so debug
       # info does not travel with a copied .app. dsymutil pulls it into a .dSYM bundle that lldb and
       # the crash reporter match by UUID - the difference between a backtrace naming functions and
@@ -176,6 +181,17 @@ jobs:
             PACKAGE_VERSION=$(sed -n 's/^set(WXLENS_VERSION "\([^"]*\)").*/\1/p' CMakeLists.txt)
           fi
           bash tools/installer/macos/package.sh build "$PACKAGE_VERSION" "$PACKAGE_ARCH" "$PACKAGE_CONFIG"
+      - name: Launch the packaged app
+        run: |
+          python tools/installer/macos/smoke-test.py dist/*.dmg \
+            --output build/macos-startup --seconds 30
+      - name: Upload macOS startup diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-startup-${{ matrix.arch }}
+          path: build/macos-startup/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: release-macos-${{ matrix.arch }}
