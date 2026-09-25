@@ -8,6 +8,8 @@
 #include <memory>
 #include <chrono>
 #include <cstdint>
+#include <functional>
+#include <optional>
 #include <string>
 
 #include <QObject>
@@ -62,6 +64,17 @@ public:
    /// id lets independently-timed panes share this service without consuming
    /// one another's result.
    std::uint64_t LoadLevel2DataAt(std::chrono::system_clock::time_point time);
+
+   /**
+    * Resolves, off the GUI thread, the volume actually available at or before `time` - a listing
+    * call only, never the volume download LoadLevel2DataAt pays for. Lets a caller (RadarSweepProduct's
+    * archive path) check a disk-backed product cache before deciding a fetch is even necessary.
+    * `callback` runs on the GUI thread and receives nullopt if nothing is available at or before
+    * `time` or the listing itself fails - the caller falls back to LoadLevel2DataAt either way.
+    */
+   void ResolveLevel2Time(
+      std::chrono::system_clock::time_point time,
+      std::function<void(std::optional<std::chrono::system_clock::time_point>)> callback);
 
    /// Discovers the Level 3 AWIPS IDs actually advertised for this site and
    /// publishes a canonical, categorized catalog. The provider request runs off

@@ -84,6 +84,8 @@ qt_add_library(wxlens-app-lib STATIC
     source/wxlens/products/radar_product_status.hpp
     source/wxlens/products/radar_sweep_product.cpp
     source/wxlens/products/radar_sweep_product.hpp
+    source/wxlens/products/sweep_disk_cache.cpp
+    source/wxlens/products/sweep_disk_cache.hpp
     source/wxlens/render/radar_sweep_layer.cpp
     source/wxlens/render/radar_sweep_layer.hpp
     source/wxlens/settings/app_settings.cpp

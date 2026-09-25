@@ -2998,14 +2998,45 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   If raw-download caching requires changes in reused `wxdata`, make those upstream and advance
   the pin; never hand-edit the read-only dependency tree.
 
-  **Half delivered 2026-09-25: the basemap, not the radar.** The map's tiles, style, glyphs and
-  sprites now persist in MapLibre's own SQLite cache (`external/patches/0014-...`, 256 MB at
-  `<CacheLocation>/maps/basemap.db`), which is what removed the blank map at startup. Radar
-  frames remain memory-only and are re-downloaded on every launch, because `wxdata`'s provider
-  hands back a decoded `Ar2vFile` rather than the compressed bytes - caching ~5-8 MB of raw
-  download instead of ~56 MB of decoded volume is the upstream change this box is really about.
-  Still open here: identity/eviction/corruption-recovery for radar objects, and a cache-clear
-  control for both caches.
+  **Basemap delivered 2026-09-25.** The map's tiles, style, glyphs and sprites now persist in
+  MapLibre's own SQLite cache (`external/patches/0014-...`, 256 MB at
+  `<CacheLocation>/maps/basemap.db`), which is what removed the blank map at startup.
+
+  **Radar object persistence: scoped around the ADR 0002 constraint, 2026-09-25.** `wxdata`'s
+  provider hands back a decoded `Ar2vFile`, never the compressed download bytes, so genuine
+  raw-download caching still needs the upstream `wxdata` change this box always said it would -
+  that stays open and unscheduled (no PR filed; it needs the project owner's GitHub identity).
+  What shipped instead, without touching `wxdata`: `products::SweepDiskCache`
+  (`app/source/wxlens/products/sweep_disk_cache.{hpp,cpp}`) persists the *computed* sweep
+  geometry (`SweepData`, plus the resolved elevation angle and the tilt picker's available-cuts
+  list) that `RadarSweepProduct`'s in-memory `GeometryCache` was already building - a WxLens-owned
+  plain struct, fully serializable without reaching into `wxdata` at all. A new
+  `RadarSiteDataService::ResolveLevel2Time` does a listing-only lookup (no volume download) so the
+  archive/playback path can check the disk cache *before* deciding a fetch is even necessary -
+  without that, a disk cache checked only after the volume was already downloaded would save
+  nothing a restart couldn't already avoid by scrubbing within one running process. A
+  (site, product, elevation, time) combination never viewed before still pays the normal network
+  fetch the first time, in this run or any other; only revisits are free, and only for archive
+  time (the live/latest path is deliberately excluded, since "keep live discovery fresh" above
+  means live must never show a stale disk hit instead of what is actually current).
+
+  Identity/eviction/corruption-recovery: each entry is a self-describing file (magic/version,
+  the original key, a checksum), written to a temp file and renamed into place so a crash mid-write
+  never leaves a truncated entry; a corrupt, truncated or hash-collided read is deleted and treated
+  as a miss rather than ever handed to the renderer. Capacity (512 MB) evicts least-recently-*read*
+  files once over budget. Cache-clear control: Settings' new "Storage" section can clear either
+  cache on demand (`AppSettings::clearMapCache`/`clearRadarSweepCache`) and shows each one's
+  current size. The radar cache clears immediately (nothing holds its files open outside one
+  Find/Store call); the basemap cache is MapLibre's own live SQLite connection, so a clear while
+  panes are open defers to the next launch via a marker file, applied before anything reopens it.
+
+  **Not verified:** live behavior (a real restart-and-scrub session watched end to end), and
+  whether "same requested elevation resolves to the same actual tilt" - the approximation
+  `BuildDiskCacheKey` uses to probe the cache before the volume is decoded - holds up against a
+  real VCP-mode change between visits (a miss there is safe by construction, never a wrong sweep,
+  but unverified live). C++ tests (`test/source/wxlens/products/sweep_disk_cache.test.cpp`) cover
+  round-tripping, corruption recovery, a fresh instance over the same directory (the actual
+  restart-persistence property), and eviction.
 - [ ] **Scope Canadian radar against a verified data source before accepting implementation.**
   Request the contributor's exact endpoint, sample file, available products/history, and
   redistribution terms or documented public-safety exemption. ECCC's published

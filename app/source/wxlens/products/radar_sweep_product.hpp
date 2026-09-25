@@ -64,6 +64,19 @@ struct SweepSnapshot
 [[nodiscard]] std::shared_ptr<const ColorTableLut>
 BuildColorTableLut(const SweepData& sweep, const QString& paletteText);
 
+/// Directory backing the disk-persisted sweep-geometry cache (see sweep_disk_cache.hpp),
+/// exposed for the settings UI's storage section - mirrors AppSettings::mapCachePath's role for
+/// the basemap cache.
+[[nodiscard]] QString SweepDiskCacheDirectory();
+
+/// Total bytes currently retained on disk across every cached sweep, for the same settings UI.
+[[nodiscard]] std::size_t SweepDiskCacheSizeBytes();
+
+/// Deletes every disk-cached sweep. Unlike the basemap cache (owned by MapLibre's own SQLite
+/// connection, which can have the file open for the life of the process), no file here is held
+/// open outside of one Find/Store call, so this is safe to run immediately while panes are live.
+void ClearSweepDiskCache();
+
 /**
  * The Data Product layer (docs/ROADMAP.md §0.1 principle #4, §4.6) for one radar site's
  * reflectivity sweep. Listens for LevelTwoDataLoaded on that site's RadarSiteDataService (the

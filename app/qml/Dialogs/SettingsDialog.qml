@@ -216,10 +216,130 @@ Item {
                     visible: root.currentSection === "playback"
                     width: contentColumn.width
                     label: "Recent history"
-                    explanation: "Download recent Level 2 scans in the background so playback and the last few minutes replay without downloading again. Scans older than the window are dropped. A longer window holds more in memory - roughly 56 MB per scan, about one scan every five minutes - and past the cache ceiling the oldest frames load on demand instead. Radar scans are never saved between launches."
+                    explanation: "Download recent Level 2 scans in the background so playback and the last few minutes replay without downloading again. Scans older than the window are dropped. A longer window holds more in memory - roughly 56 MB per scan, about one scan every five minutes - and past the cache ceiling the oldest frames load on demand instead. The full scan itself is never saved between launches; the computed imagery for a scan you've actually viewed is (see Storage) - so scrubbing back to somewhere you already looked can skip the download even after a restart."
                     options: ["15 minutes", "30 minutes", "60 minutes", "120 minutes"]
                     currentIndex: [15, 30, 60, 120].indexOf(appSettings.playbackMinutes)
                     onSelected: index => appSettings.playbackMinutes = [15, 30, 60, 120][index]
+                }
+
+                // -- Storage --------------------------------------------------------------------
+                Column {
+                    id: storageSection
+                    visible: root.currentSection === "storage"
+                    width: contentColumn.width
+                    spacing: 16
+
+                    // Bumped after a clear so the size readouts below re-query rather than show a
+                    // number that stopped being true the moment the button was clicked.
+                    property int cacheTick: 0
+
+                    function formatBytes(bytes) {
+                        return bytes >= 1024 * 1024
+                            ? (bytes / (1024 * 1024)).toFixed(1) + " MB"
+                            : (bytes / 1024).toFixed(0) + " KB"
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 4
+
+                        Text {
+                            text: "Basemap cache"
+                            color: themeManager.textPrimary
+                            font.pixelSize: 12
+                        }
+                        Text {
+                            width: parent.width
+                            text: "Map tiles, style and glyphs, reused across launches so the map " +
+                                  "doesn't redraw from a blank screen every time. " +
+                                  (storageSection.cacheTick >= 0
+                                      ? storageSection.formatBytes(appSettings.mapCacheSizeBytes()) + " on disk."
+                                      : "")
+                            color: themeManager.textMuted
+                            font.pixelSize: 11
+                            wrapMode: Text.WordWrap
+                        }
+                        Row {
+                            spacing: 8
+                            Rectangle {
+                                width: 140
+                                height: 24
+                                radius: themeManager.cornerRadius
+                                color: clearMapArea.containsMouse ? themeManager.controlHover : themeManager.control
+                                border.color: themeManager.border
+                                border.width: 1
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Clear map cache"
+                                    color: themeManager.textMuted
+                                    font.pixelSize: 10
+                                }
+                                MouseArea {
+                                    id: clearMapArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        mapClearNote.text = appSettings.clearMapCache()
+                                            ? "Cleared." : "In use - will finish clearing on next launch."
+                                        storageSection.cacheTick++
+                                    }
+                                }
+                            }
+                            Text {
+                                id: mapClearNote
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: themeManager.textMuted
+                                font.pixelSize: 10
+                            }
+                        }
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 4
+
+                        Text {
+                            text: "Radar imagery cache"
+                            color: themeManager.textPrimary
+                            font.pixelSize: 12
+                        }
+                        Text {
+                            width: parent.width
+                            text: "Computed imagery for scans you've viewed, reused if you scrub back " +
+                                  "to the same site, product, tilt and time after a restart. " +
+                                  (storageSection.cacheTick >= 0
+                                      ? storageSection.formatBytes(appSettings.radarSweepCacheSizeBytes()) + " on disk."
+                                      : "")
+                            color: themeManager.textMuted
+                            font.pixelSize: 11
+                            wrapMode: Text.WordWrap
+                        }
+                        Rectangle {
+                            width: 140
+                            height: 24
+                            radius: themeManager.cornerRadius
+                            color: clearRadarArea.containsMouse ? themeManager.controlHover : themeManager.control
+                            border.color: themeManager.border
+                            border.width: 1
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Clear radar cache"
+                                color: themeManager.textMuted
+                                font.pixelSize: 10
+                            }
+                            MouseArea {
+                                id: clearRadarArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    appSettings.clearRadarSweepCache()
+                                    storageSection.cacheTick++
+                                }
+                            }
+                        }
+                    }
                 }
 
                 SettingsChoice {

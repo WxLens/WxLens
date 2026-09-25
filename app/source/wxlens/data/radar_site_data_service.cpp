@@ -613,6 +613,41 @@ std::uint64_t RadarSiteDataService::LoadLevel2DataAt(
    return requestId;
 }
 
+void RadarSiteDataService::ResolveLevel2Time(
+   std::chrono::system_clock::time_point                                     time,
+   std::function<void(std::optional<std::chrono::system_clock::time_point>)> callback)
+{
+   scwx::util::async(
+      [this, time, callback = std::move(callback)]()
+      {
+         std::optional<std::chrono::system_clock::time_point> result;
+         try
+         {
+            const auto [success, newObjects, totalObjects] =
+               p->level2Provider_->IsDateCached(time)
+                  ? std::make_tuple(true, std::size_t {0}, p->level2Provider_->cache_size())
+                  : p->level2Provider_->ListObjects(time);
+            if (success)
+            {
+               const std::string key = p->level2Provider_->FindKey(time);
+               if (!key.empty())
+               {
+                  result = p->level2Provider_->GetTimePointByKey(key);
+               }
+            }
+         }
+         catch (const std::exception& ex)
+         {
+            logger_->error(
+               "Resolve Level 2 time for {} failed: {}", p->radarSite_, ex.what());
+         }
+         QMetaObject::invokeMethod(
+            this,
+            [callback = std::move(callback), result]() { callback(result); },
+            Qt::QueuedConnection);
+      });
+}
+
 void RadarSiteDataService::RefreshLevel3Catalog()
 {
    if (p->catalogLoadInProgress_.exchange(true))

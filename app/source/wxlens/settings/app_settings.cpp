@@ -1,6 +1,7 @@
 #include <wxlens/settings/app_settings.hpp>
 #include <wxlens/log/logger.hpp>
 #include <wxlens/objects/map_object.hpp>
+#include <wxlens/products/radar_sweep_product.hpp>
 #include <wxlens/settings/settings_store.hpp>
 #include <wxlens/util/unit_format.hpp>
 
@@ -10,6 +11,9 @@
 #include <QVariantMap>
 #include <QStandardPaths>
 #include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QStringList>
 
 namespace wxlens
 {
@@ -18,6 +22,52 @@ namespace settings
 
 static const std::string logPrefix_ = "settings.app_settings";
 static const auto        logger_    = wxlens::log::Create(logPrefix_);
+
+namespace
+{
+// MapLibre's SQLite connection can hold basemap.db open for the whole process, and Windows'
+// default SQLite VFS does not request FILE_SHARE_DELETE, so a live clear can fail with a sharing
+// violation. When that happens, clearMapCache() leaves this marker instead, and the very first
+// mapCachePath() call in the *next* process - guaranteed to run before any pane creates a
+// MapQuickItem and opens the file - finishes the deferred delete while nothing has it open.
+const QString kMapCacheClearMarker = QStringLiteral(".clear-pending");
+
+QStringList MapCacheFilePaths(const QString& directory)
+{
+   // SQLite's WAL mode can leave -wal/-shm siblings, and a crash mid-checkpoint can leave a
+   // -journal; a real "clear" removes all of them, not just the .db a partial clear would leave
+   // looking cleared while a stale journal replays stale pages back into it.
+   QStringList paths;
+   for (const char* suffix : {"", "-wal", "-shm", "-journal"})
+   {
+      paths << QDir(directory).filePath(QStringLiteral("basemap.db") + suffix);
+   }
+   return paths;
+}
+
+void ApplyPendingMapCacheClear(const QString& directory)
+{
+   static bool checked = false;
+   if (checked)
+   {
+      return;
+   }
+   checked = true;
+
+   const QString marker = QDir(directory).filePath(kMapCacheClearMarker);
+   if (!QFile::exists(marker))
+   {
+      return;
+   }
+
+   for (const auto& path : MapCacheFilePaths(directory))
+   {
+      QFile::remove(path);
+   }
+   QFile::remove(marker);
+   logger_->info("Cleared basemap cache deferred from a previous session");
+}
+} // namespace
 
 QString AppSettings::mapCachePath() const
 {
@@ -28,7 +78,70 @@ QString AppSettings::mapCachePath() const
       logger_->error("Cannot create map cache directory {}", directory.toStdString());
       return QStringLiteral(":memory:");
    }
+   ApplyPendingMapCacheClear(directory);
    return QDir(directory).filePath(QStringLiteral("basemap.db"));
+}
+
+QString AppSettings::radarSweepCachePath() const
+{
+   return products::SweepDiskCacheDirectory();
+}
+
+bool AppSettings::clearMapCache()
+{
+   const QString directory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                             + QStringLiteral("/maps");
+   bool allRemoved = true;
+   for (const auto& path : MapCacheFilePaths(directory))
+   {
+      if (QFile::exists(path) && !QFile::remove(path))
+      {
+         allRemoved = false;
+      }
+   }
+
+   if (allRemoved)
+   {
+      logger_->info("Cleared basemap cache");
+      return true;
+   }
+
+   // Still open by a live pane - defer to the next launch instead of leaving a half-cleared,
+   // still-in-use database on disk.
+   QFile marker(QDir(directory).filePath(kMapCacheClearMarker));
+   if (!marker.open(QIODevice::WriteOnly))
+   {
+      logger_->error("Cannot write pending-clear marker {}", marker.fileName().toStdString());
+   }
+   logger_->info("Basemap cache still open; clearing deferred to next launch");
+   return false;
+}
+
+void AppSettings::clearRadarSweepCache()
+{
+   products::ClearSweepDiskCache();
+   logger_->info("Cleared radar sweep disk cache");
+}
+
+qint64 AppSettings::mapCacheSizeBytes() const
+{
+   const QString directory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                             + QStringLiteral("/maps");
+   qint64 total = 0;
+   for (const auto& path : MapCacheFilePaths(directory))
+   {
+      const QFileInfo info(path);
+      if (info.exists())
+      {
+         total += info.size();
+      }
+   }
+   return total;
+}
+
+qint64 AppSettings::radarSweepCacheSizeBytes() const
+{
+   return static_cast<qint64>(products::SweepDiskCacheSizeBytes());
 }
 
 namespace
@@ -110,11 +223,12 @@ struct Section
 
 /// Stable ids (§4.5). Changing one breaks every deep-link that points at it, so treat these as
 /// part of the app's contract rather than as labels.
-constexpr std::array<Section, 9> kSections {{
+constexpr std::array<Section, 10> kSections {{
    {"appearance", "Appearance", "Choose the chrome theme used throughout WxLens."},
    {"toolbar", "Toolbar", "Choose optional shortcuts shown beside the complete Tools menu."},
    {"map-details", "Map details", "Choose which geographic context appears beneath data."},
    {"playback", "Playback", "Recent radar history and rolling cache duration."},
+   {"storage", "Storage", "Clear the on-disk basemap and radar caches."},
    {"radar-sites", "Radar sites", "Choose how pane cameras respond when a radar site changes."},
    {"measurement", "Measurement", "How measurements are started and finished."},
    {"objects", "Map objects", "Defaults for markers, range rings and pinned measurements."},

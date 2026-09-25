@@ -33,6 +33,7 @@ class AppSettings : public QObject
    Q_OBJECT
    Q_PROPERTY(int playbackMinutes READ playbackMinutes WRITE setPlaybackMinutes NOTIFY playbackMinutesChanged)
    Q_PROPERTY(QString mapCachePath READ mapCachePath CONSTANT)
+   Q_PROPERTY(QString radarSweepCachePath READ radarSweepCachePath CONSTANT)
 
    /// Which gesture starts a measurement (§4.4). See MeasurementGesture for why this is a
    /// preference rather than a fixed behaviour.
@@ -88,6 +89,25 @@ public:
    int playbackMinutes() const;
    void setPlaybackMinutes(int minutes);
    [[nodiscard]] QString mapCachePath() const;
+   [[nodiscard]] QString radarSweepCachePath() const;
+
+   /**
+    * Deletes the basemap's on-disk tile/style cache. Returns true if it cleared immediately,
+    * false if a live pane still has it open (Windows cannot delete an in-use file without
+    * FILE_SHARE_DELETE, which the SQLite VFS does not request) - in which case the clear is
+    * deferred to the next launch, before anything has a chance to reopen it.
+    */
+   Q_INVOKABLE bool clearMapCache();
+
+   /// Deletes every disk-persisted radar sweep. Safe to call immediately - see
+   /// products::ClearSweepDiskCache.
+   Q_INVOKABLE void clearRadarSweepCache();
+
+   /// Current on-disk size of each cache, for the Storage settings section - queried on demand
+   /// rather than kept as a live property, since the UI only needs a fresh number when it opens
+   /// or just cleared one.
+   [[nodiscard]] Q_INVOKABLE qint64 mapCacheSizeBytes() const;
+   [[nodiscard]] Q_INVOKABLE qint64 radarSweepCacheSizeBytes() const;
    /**
     * Slice 7 shipped press-drag-release and click-then-click-again together, so neither habit is
     * punished. That is a good default and a bad mandate: with both live, a click that does not
