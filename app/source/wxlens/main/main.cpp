@@ -1,3 +1,4 @@
+#include <wxlens/data/radar_site_data_service.hpp>
 #include <wxlens/data/radar_site_marker_source.hpp>
 #include <wxlens/log/logger.hpp>
 #include <wxlens/objects/map_object_store.hpp>
@@ -6,7 +7,10 @@
 #include <wxlens/objects/saved_place_manager.hpp>
 #include <wxlens/objects/object_tool_controller.hpp>
 #include <wxlens/overlays/overlay_manager.hpp>
+#include <wxlens/panes/pane_controller.hpp>
 #include <wxlens/panes/pane_grid_model.hpp>
+#include <wxlens/panes/playback_binding.hpp>
+#include <wxlens/panes/playback_controller.hpp>
 #include <wxlens/palettes/palette_manager.hpp>
 #include <wxlens/settings/app_settings.hpp>
 #include <wxlens/settings/settings_store.hpp>
@@ -29,6 +33,7 @@
 #include <QQuickWindow>
 #include <QScreen>
 #include <QSurfaceFormat>
+#include <QThreadPool>
 
 #include <algorithm>
 #include <cstring>
@@ -272,7 +277,7 @@ int main(int argc, char* argv[])
    static const std::string kDefaultRadarSite = "KEAX";
 
    wxlens::panes::PaneGridModel paneGridModel;
-   paneGridModel.setDefaultSourceKey(QString::fromStdString(kDefaultRadarSite));
+
    engine.rootContext()->setContextProperty("appVersion", QStringLiteral(WXLENS_VERSION_STRING));
    engine.rootContext()->setContextProperty("appBuildCommit",
                                             QStringLiteral(WXLENS_BUILD_COMMIT_STRING));
@@ -298,6 +303,11 @@ int main(int argc, char* argv[])
    paneGridModel.setAdvancedPaneLinking(appSettings.advancedPaneLinking());
    QObject::connect(&appSettings, &wxlens::settings::AppSettings::advancedPaneLinkingChanged,
                     &paneGridModel, [&]() { paneGridModel.setAdvancedPaneLinking(appSettings.advancedPaneLinking()); });
+   wxlens::data::RadarSiteDataService::SetHistoryMinutes(appSettings.playbackMinutes());
+   paneGridModel.restoreWorkspace(wxlens::settings::SettingsStore::Instance(),
+                                  QString::fromStdString(kDefaultRadarSite));
+   QObject::connect(&app, &QCoreApplication::aboutToQuit, &paneGridModel,
+                    [&]() { paneGridModel.saveWorkspace(); });
    paneGridModel.setCenterMapOnSiteChange(appSettings.centerMapOnSiteChange());
    paneGridModel.setRadarSiteScope(appSettings.radarSiteScope());
    QObject::connect(&appSettings, &wxlens::settings::AppSettings::centerMapOnSiteChangeChanged,
@@ -306,6 +316,22 @@ int main(int argc, char* argv[])
    QObject::connect(&appSettings, &wxlens::settings::AppSettings::radarSiteScopeChanged,
                     &paneGridModel, [&]() { paneGridModel.setRadarSiteScope(
                                              appSettings.radarSiteScope()); });
+   wxlens::panes::PlaybackController playback;
+   wxlens::panes::PlaybackBinding playbackBinding(playback);
+   auto bindPlayback = [&]() {
+      playbackBinding.setPane(qobject_cast<wxlens::panes::PaneController*>(paneGridModel.activePane()));
+   };
+   QObject::connect(&paneGridModel, &wxlens::panes::PaneGridModel::activePaneChanged,
+                    &playbackBinding, bindPlayback);
+   QObject::connect(&playback, &wxlens::panes::PlaybackController::liveRequested,
+                    &playbackBinding, &wxlens::panes::PlaybackBinding::live);
+   QObject::connect(&appSettings, &wxlens::settings::AppSettings::playbackMinutesChanged,
+                    &playbackBinding, [&]() {
+      wxlens::data::RadarSiteDataService::SetHistoryMinutes(appSettings.playbackMinutes());
+      playbackBinding.refresh();
+   });
+   bindPlayback();
+   engine.rootContext()->setContextProperty("playback", &playback);
    wxlens::data::RadarSiteMarkerSource radarSiteMarkers;
    engine.rootContext()->setContextProperty("radarSiteMarkers", &radarSiteMarkers);
    wxlens::theme::ThemeManager themeManager {wxlens::settings::SettingsStore::Instance()};
@@ -387,6 +413,7 @@ int main(int argc, char* argv[])
    ioContextWork.reset();
    ioThreadPool.join();
 
+   QThreadPool::globalInstance()->waitForDone();
    Aws::ShutdownAPI(awsSdkOptions);
 
    return result;

@@ -11,6 +11,7 @@
 #include <string>
 
 #include <QObject>
+#include <QList>
 #include <QString>
 
 namespace wxlens
@@ -78,7 +79,13 @@ public:
    [[nodiscard]] std::vector<products::Level3ProductDescriptor>
    level3_catalog() const;
 
+   static void SetHistoryMinutes(int minutes);
+   static int HistoryMinutes();
+   void RequestRecentHistory();
+   [[nodiscard]] QList<qint64> recentFrames() const;
+
 signals:
+   void RecentFramesChanged(QList<qint64> frames, QString error);
    void LevelTwoDataLoaded(std::shared_ptr<scwx::wsr88d::Ar2vFile> file);
    void LevelTwoDataLoadedForRequest(
       std::uint64_t                           requestId,

@@ -22,7 +22,7 @@ namespace products
  * pairs, one per gate corner - docs/ROADMAP.md §7 Phase 1 slice 3, ported from the legacy app's
  * view::Level2ProductView::ComputeSweep), the raw data moment value per vertex, and the color
  * table lookup texture data. Immutable once published by RadarSweepProduct, so a
- * std::shared_ptr<const SweepData> can be handed across threads (GUI thread computes it, the
+ * std::shared_ptr<const SweepData> can be handed across threads (a worker computes it, the
  * render thread reads it) without locking beyond the pointer handoff itself.
  */
 struct SweepData

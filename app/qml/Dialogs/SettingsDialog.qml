@@ -213,6 +213,16 @@ Item {
                 }
 
                 SettingsChoice {
+                    visible: root.currentSection === "playback"
+                    width: contentColumn.width
+                    label: "Recent history"
+                    explanation: "Download recent Level 2 scans in the background so playback and the last few minutes replay without downloading again. Scans older than the window are dropped. A longer window holds more in memory - roughly 56 MB per scan, about one scan every five minutes - and past the cache ceiling the oldest frames load on demand instead. Radar scans are never saved between launches."
+                    options: ["15 minutes", "30 minutes", "60 minutes", "120 minutes"]
+                    currentIndex: [15, 30, 60, 120].indexOf(appSettings.playbackMinutes)
+                    onSelected: index => appSettings.playbackMinutes = [15, 30, 60, 120][index]
+                }
+
+                SettingsChoice {
                     visible: root.currentSection === "radar-sites"
                     width: contentColumn.width
                     label: "When a radar site changes"

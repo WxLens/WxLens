@@ -167,6 +167,12 @@ rule.
   because only click-then-hover was driven, never press-drag-release. Both paths call the same
   update function, so exercising one feels like exercising both — but only one holds a button
   down, and a held button is the only state in which a grab can be stolen.
+- **A `TestCase` is invisible by default, and an invisible item is never hit-tested.** A QML test
+  that presses or drags without `visible: true` on the `TestCase` sends events that land nowhere,
+  and every `mousePress`/`mouseClick` still returns normally - so the failure looks like a broken
+  component, not a broken test. Pair it with the other half: `mouseMove`'s `buttons` argument
+  defaults to `Qt.NoButton`, which a `MouseArea` reads as a hover and ignores, so a press-drag
+  test has to pass the held button on every move. Both bit `tst_PlaybackScrubber.qml` in slice 20.
 - **Radar site altitudes in `res/config/radar_sites.json` are feet.** Nothing in the file says so.
   `data::FindRadarSite` converts them and hands back `altitudeMslMeters`; use that, and don't
   reintroduce a raw read of the `elevation` field. See `radar_site_database.hpp` for how the unit

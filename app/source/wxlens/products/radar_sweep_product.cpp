@@ -24,6 +24,11 @@
 #include <units/length.h>
 #include <QFile>
 #include <QElapsedTimer>
+#include <QCoreApplication>
+#include <QPointer>
+#include <QThreadPool>
+#include <QTimer>
+#include <wxlens/data/frame_cache.hpp>
 
 namespace wxlens
 {
@@ -37,6 +42,11 @@ namespace
 {
 using scwx::wsr88d::rda::DataBlockType;
 using scwx::wsr88d::rda::ElevationScan;
+data::FrameCache<SweepData>& GeometryCache()
+{
+   static data::FrameCache<SweepData> cache {256U * 1024U * 1024U};
+   return cache;
+}
 
 DataBlockType ProductBlockType(const std::string& name)
 {
@@ -561,56 +571,75 @@ public:
    std::optional<std::chrono::system_clock::time_point> archiveTime_;
    std::chrono::system_clock::time_point selectedTime_ {};
    std::uint64_t requestId_ {0};
+   std::uint64_t buildGeneration_ {0};
 };
 
 void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
    const std::shared_ptr<scwx::wsr88d::Ar2vFile>& file)
 {
-   logger_->debug("Computing sweep for {}", radarSite_);
-
-   // Lowest elevation cut, latest available scan in this volume (an empty time_point means "no
-   // constraint, take the newest" - see Ar2vFile::GetElevationScan). Which cut is *selected* is
-   // still fixed here; the volume's full list of cuts is what elevation selection (slice 4+) will
-   // need. `elevationCut` is the tilt this volume actually answered with, and slice 8's beam
-   // geometry reports it rather than assuming the nominal 0.5°: a VCP's lowest cut is not always
-   // 0.5°, and §4.7 forbids presenting a guessed angle as the radar's own.
-   auto [elevationScan, elevationCut, elevationCuts] = file->GetElevationScan(
-      dataBlockType_, selectedElevation_, std::chrono::system_clock::time_point {});
-
-   if (elevationScan == nullptr)
+   const auto generation = ++buildGeneration_;
+   const QPointer<RadarSweepProduct> guard(self_);
+   const auto site = radarSite_;
+   const auto product = productName_;
+   const auto block = dataBlockType_;
+   const auto elevation = selectedElevation_;
+   const auto latitude = siteLatitude_;
+   const auto longitude = siteLongitude_;
+   const auto table = colorTable_;
+   Q_EMIT self_->LoadStateChanged(true, {}, 0);
+   QThreadPool::globalInstance()->start([guard, generation, file, site, product, block,
+                                       elevation, latitude, longitude, table]()
    {
-      logger_->warn("No {} elevation scan available for {}", productName_, radarSite_);
-      return;
-   }
-
-   QElapsedTimer geometryTimer;
-   geometryTimer.start();
-   std::shared_ptr<SweepData> sweepData =
-      ComputeSweep(*elevationScan, dataBlockType_, siteLatitude_, siteLongitude_);
-
-   if (sweepData == nullptr)
-   {
-      return;
-   }
-
-   logger_->info(
-      "Computed sweep for {}: {} vertices, product={}, elevation={}, "
-      "geometry_ms={:.3f}",
-      radarSite_,
-      sweepData->vertices.size() / 2,
-      productName_,
-      elevationCut,
-      geometryTimer.nsecsElapsed() / 1.0e6);
-
-   {
-      std::scoped_lock lock {dataMutex_};
-      data_                  = std::move(sweepData);
-      colorTableLut_         = BuildColorTableLutFromTable(*data_, colorTable_);
-      elevationAngleDegrees_ = elevationCut;
-      elevationCuts_         = std::move(elevationCuts);
-   }
-
-   Q_EMIT self_->SweepUpdated();
+      std::shared_ptr<SweepData> sweep;
+      std::shared_ptr<const ColorTableLut> lut;
+      float cut = 0;
+      std::vector<float> cuts;
+      QString error;
+      try
+      {
+         auto [scan, actualCut, availableCuts] = file->GetElevationScan(block, elevation, {});
+         cut = actualCut;
+         cuts = std::move(availableCuts);
+         if (scan)
+         {
+            const auto stamp = std::chrono::duration_cast<std::chrono::milliseconds>(file->start_time().time_since_epoch()).count();
+            const auto key = site + ":" + product + ":" + std::to_string(cut) + ":" + std::to_string(stamp);
+            QElapsedTimer timer;
+            timer.start();
+            const auto result = GeometryCache().Load(key,
+               [&]() { return ComputeSweep(*scan, block, latitude, longitude); },
+               [](const SweepData& value)
+               { return value.vertices.size() * sizeof(float) + value.dataMoments8.size() +
+                        value.dataMoments16.size() * sizeof(std::uint16_t); }, file->start_time());
+            sweep = result.value;
+            if (sweep) lut = BuildColorTableLutFromTable(*sweep, table);
+            logger_->info("Sweep geometry: site={} product={} geometry_ms={:.3f} cache_hit={}",
+                          site, product, timer.nsecsElapsed() / 1.0e6, result.cache_hit());
+         }
+         if (!sweep) error = QStringLiteral("No sweep available for this product and elevation");
+      }
+      catch (const std::exception& ex) { error = QString::fromStdString(ex.what()); }
+      const auto actualTime = file->start_time();
+      QMetaObject::invokeMethod(QCoreApplication::instance(),
+         [guard, generation, sweep, lut, cut, cuts = std::move(cuts), error, actualTime]() mutable
+         {
+            if (!guard || guard->p->buildGeneration_ != generation) return;
+            if (sweep)
+            {
+               {
+                  std::scoped_lock lock {guard->p->dataMutex_};
+                  guard->p->data_ = sweep;
+                  guard->p->colorTableLut_ = lut;
+                  guard->p->elevationAngleDegrees_ = cut;
+                  guard->p->elevationCuts_ = std::move(cuts);
+                  guard->p->selectedTime_ = actualTime;
+               }
+               Q_EMIT guard->SweepUpdated();
+            }
+            Q_EMIT guard->LoadStateChanged(false, error,
+               sweep ? std::chrono::duration_cast<std::chrono::milliseconds>(actualTime.time_since_epoch()).count() : 0);
+         }, Qt::QueuedConnection);
+   });
 }
 
 RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
@@ -626,6 +655,16 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
        this, radarSite, siteLatitude, siteLongitude, siteAltitudeMslMeters, productName,
        selectedElevation, archiveTime)}
 {
+   static const auto retentionTimer = []()
+   {
+      auto* timer = new QTimer(QCoreApplication::instance());
+      QObject::connect(timer, &QTimer::timeout, timer, []()
+      { GeometryCache().PruneBefore(std::chrono::system_clock::now() -
+           std::chrono::minutes {data::RadarSiteDataService::HistoryMinutes()}); });
+      timer->start(1000);
+      return timer;
+   }();
+   Q_UNUSED(retentionTimer)
    auto service = wxlens::data::RadarSiteDataService::Instance(radarSite);
 
    if (archiveTime.has_value())
@@ -640,8 +679,7 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
                  if (requestId != p->requestId_) return;
                  p->selectedTime_ = actualTime;
                  p->OnLevelTwoDataLoaded(file);
-                 Q_EMIT LoadStateChanged(false, {},
-                    std::chrono::duration_cast<std::chrono::milliseconds>(actualTime.time_since_epoch()).count());
+
               });
       connect(service.get(),
               &wxlens::data::RadarSiteDataService::RequestFailed,
@@ -661,8 +699,10 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
               [this](std::shared_ptr<scwx::wsr88d::Ar2vFile> file)
               {
                  p->OnLevelTwoDataLoaded(file);
-                 Q_EMIT LoadStateChanged(false, {}, 0);
+
               });
+      connect(service.get(), &data::RadarSiteDataService::LoadFailed, this,
+              [this](const QString& reason) { Q_EMIT LoadStateChanged(false, reason, 0); });
       service->LoadLatestLevel2Data();
    }
 
@@ -688,12 +728,12 @@ std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
 {
    static std::shared_mutex                                         instanceMutex;
    static std::map<std::string, std::weak_ptr<RadarSweepProduct>>   instances;
-   const auto minute = archiveTime.has_value()
-      ? std::chrono::duration_cast<std::chrono::minutes>(archiveTime->time_since_epoch()).count()
+   const auto timestamp = archiveTime.has_value()
+      ? std::chrono::duration_cast<std::chrono::milliseconds>(archiveTime->time_since_epoch()).count()
       : -1;
    const std::string instanceKey = radarSite + ":" + productName + ":" +
                                    std::to_string(selectedElevation) + ":" +
-                                   std::to_string(minute);
+                                   std::to_string(timestamp);
 
    std::shared_lock readLock {instanceMutex};
    if (auto it = instances.find(instanceKey); it != instances.end())
@@ -710,6 +750,7 @@ std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
    }
 
    std::unique_lock writeLock {instanceMutex};
+   std::erase_if(instances, [](const auto& entry) { return entry.second.expired(); });
    auto& weak = instances[instanceKey];
    if (auto existing = weak.lock()) return existing;
    auto created = std::make_shared<RadarSweepProduct>(

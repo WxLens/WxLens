@@ -8,6 +8,8 @@
 #include <map>
 
 #include <QVariantMap>
+#include <QStandardPaths>
+#include <QDir>
 
 namespace wxlens
 {
@@ -16,6 +18,18 @@ namespace settings
 
 static const std::string logPrefix_ = "settings.app_settings";
 static const auto        logger_    = wxlens::log::Create(logPrefix_);
+
+QString AppSettings::mapCachePath() const
+{
+   const QString directory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                             + QStringLiteral("/maps");
+   if (!QDir().mkpath(directory))
+   {
+      logger_->error("Cannot create map cache directory {}", directory.toStdString());
+      return QStringLiteral(":memory:");
+   }
+   return QDir(directory).filePath(QStringLiteral("basemap.db"));
+}
 
 namespace
 {
@@ -96,10 +110,11 @@ struct Section
 
 /// Stable ids (§4.5). Changing one breaks every deep-link that points at it, so treat these as
 /// part of the app's contract rather than as labels.
-constexpr std::array<Section, 8> kSections {{
+constexpr std::array<Section, 9> kSections {{
    {"appearance", "Appearance", "Choose the chrome theme used throughout WxLens."},
    {"toolbar", "Toolbar", "Choose optional shortcuts shown beside the complete Tools menu."},
    {"map-details", "Map details", "Choose which geographic context appears beneath data."},
+   {"playback", "Playback", "Recent radar history and rolling cache duration."},
    {"radar-sites", "Radar sites", "Choose how pane cameras respond when a radar site changes."},
    {"measurement", "Measurement", "How measurements are started and finished."},
    {"objects", "Map objects", "Defaults for markers, range rings and pinned measurements."},
@@ -149,6 +164,7 @@ public:
 
    SettingsStore& store_;
 
+   int playbackMinutes_ {30};
    int measurementGesture_ {static_cast<int>(MeasurementGesture::Both)};
    int preferredMeasurementTool_ {1};
    int snapStrength_ {static_cast<int>(SnapStrength::Subtle)};
@@ -171,6 +187,7 @@ public:
 
 void AppSettings::Impl::Load()
 {
+   playbackMinutes_ = store_.GetInt(kRadarCategory, "playback_minutes", 30, 5, 120);
    measurementGesture_ = store_.GetInt(kMeasurementCategory,
                                        QStringLiteral("gesture"),
                                        static_cast<int>(MeasurementGesture::Both),
@@ -258,6 +275,17 @@ AppSettings::AppSettings(SettingsStore& store, QObject* parent) :
 }
 
 AppSettings::~AppSettings() = default;
+
+int AppSettings::playbackMinutes() const { return p->playbackMinutes_; }
+void AppSettings::setPlaybackMinutes(int minutes)
+{
+   if (minutes < 5 || minutes > 120 || minutes == p->playbackMinutes_) return;
+   p->playbackMinutes_ = minutes;
+   p->store_.SetInt(kRadarCategory, "playback_minutes", minutes);
+   p->store_.Save();
+   logger_->info("Playback window changed to {} minutes", minutes);
+   Q_EMIT playbackMinutesChanged();
+}
 
 int AppSettings::measurementGesture() const
 {
@@ -650,6 +678,7 @@ bool AppSettings::hasSection(const QString& sectionId) const
 
 void AppSettings::resetToDefaults()
 {
+   p->store_.SetInt(kRadarCategory, "playback_minutes", 30);
    p->store_.SetInt(
       kMeasurementCategory, QStringLiteral("gesture"), static_cast<int>(MeasurementGesture::Both));
    p->store_.SetInt(kRadarCategory, QStringLiteral("site_scope"),
@@ -711,6 +740,7 @@ void AppSettings::resetToDefaults()
    Q_EMIT toolbarActionsChanged();
    Q_EMIT geometryRowsChanged();
    Q_EMIT advancedPaneLinkingChanged();
+   Q_EMIT playbackMinutesChanged();
    Q_EMIT defaultsReset();
 }
 

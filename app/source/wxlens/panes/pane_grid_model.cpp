@@ -4,6 +4,11 @@
 #include <wxlens/log/logger.hpp>
 #include <wxlens/products/product_descriptor.hpp>
 
+#include <wxlens/settings/settings_store.hpp>
+#include <scwx/common/products.hpp>
+#include <QTimer>
+#include <QRegularExpression>
+
 #include <algorithm>
 #include <array>
 #include <vector>
@@ -77,6 +82,10 @@ QString CountryName(const std::string& country)
 class PaneGridModel::Impl
 {
 public:
+   settings::SettingsStore* store_ {nullptr};
+   QTimer saveTimer_;
+   bool restoring_ {false};
+   int restoreCount_ {0};
    int gridWidth_ {1};
    int gridHeight_ {1};
 
@@ -97,6 +106,62 @@ PaneGridModel::PaneGridModel(QObject* parent) :
 }
 
 PaneGridModel::~PaneGridModel() = default;
+
+void PaneGridModel::restoreWorkspace(settings::SettingsStore& store, const QString& defaultSource)
+{
+   if (!p->panes_.empty()) return;
+   p->store_ = &store;
+   p->restoring_ = true;
+   p->defaultSourceKey_ = defaultSource;
+   p->saveTimer_.setSingleShot(true);
+   p->saveTimer_.setInterval(500);
+   connect(&p->saveTimer_, &QTimer::timeout, this, [this]() { saveWorkspace(); });
+   const int width = store.GetInt("workspace", "width", 1, 1, 4);
+   const int height = store.GetInt("workspace", "height", 1, 1, 4);
+   const int retained = store.GetInt("workspace", "pane_count", width * height, width * height, 16);
+   // Restore inactive panes too, without discarding their selections when a layout is collapsed.
+   p->restoreCount_ = retained;
+   setGridSize(width, height);
+   p->restoreCount_ = 0;
+   setActivePaneIndex(store.GetInt("workspace", "active_pane", 0, 0, width * height - 1));
+   p->restoring_ = false;
+   connect(this, &PaneGridModel::gridSizeChanged, this, [this]() { p->saveTimer_.start(); });
+   connect(this, &PaneGridModel::activePaneChanged, this, [this]() { p->saveTimer_.start(); });
+   logger_->info("Restored workspace: {}x{}", width, height);
+}
+
+bool PaneGridModel::saveWorkspace()
+{
+   if (p->store_ == nullptr || p->restoring_ || p->panes_.empty()) return true;
+   auto& store = *p->store_;
+   if (store.CategoryFailedToParse("workspace")) return false;
+   store.SetInt("workspace", "width", p->gridWidth_);
+   store.SetInt("workspace", "height", p->gridHeight_);
+   store.SetInt("workspace", "pane_count", static_cast<int>(p->panes_.size()));
+   store.SetInt("workspace", "active_pane", p->activePaneIndex_);
+   for (std::size_t i = 0; i < p->panes_.size(); ++i)
+   {
+      const QString prefix = QStringLiteral("pane_%1_").arg(i);
+      const auto& pane = p->panes_[i];
+      store.SetString("workspace", prefix + "source", pane->sourceKey());
+      store.SetString("workspace", prefix + "identity", pane->productIdentity());
+      store.SetString("workspace", prefix + "product", pane->productName());
+      store.SetBool("workspace", prefix + "level3", pane->level3Product());
+      store.SetString("workspace", prefix + "palette", pane->paletteName());
+      store.SetDouble("workspace", prefix + "elevation", pane->selectedElevation());
+      store.SetDouble("workspace", prefix + "latitude", pane->centerLatitude());
+      store.SetDouble("workspace", prefix + "longitude", pane->centerLongitude());
+      store.SetDouble("workspace", prefix + "zoom", pane->zoom());
+      store.SetDouble("workspace", prefix + "bearing", pane->bearing());
+      store.SetDouble("workspace", prefix + "pitch", pane->pitch());
+      for (const auto channel : kUserLinkChannels)
+         store.SetInt("workspace", prefix + "group_" + QString::number(static_cast<int>(channel)),
+                      pane->syncGroup(channel));
+   }
+   const bool saved = store.Save();
+   if (!saved) logger_->error("Workspace could not be saved");
+   return saved;
+}
 
 int PaneGridModel::gridWidth() const
 {
@@ -231,7 +296,7 @@ void PaneGridModel::setGridSize(int width, int height)
    width  = std::clamp(width, 1, kMaxGridDimension);
    height = std::clamp(height, 1, kMaxGridDimension);
 
-   const auto desired = static_cast<std::size_t>(width * height);
+   const auto desired = static_cast<std::size_t>(std::max(width * height, p->restoreCount_));
    const auto current = p->panes_.size();
 
    if (width != p->gridWidth_ || height != p->gridHeight_)
@@ -252,12 +317,61 @@ void PaneGridModel::setGridSize(int width, int height)
       {
          products::ProductDescriptor descriptor {};
          descriptor.sourceKey = p->defaultSourceKey_;
+         const QString prefix = QStringLiteral("pane_%1_").arg(i);
+         if (p->restoring_)
+         {
+            auto& store = *p->store_;
+            const QString source = store.GetString("workspace", prefix + "source", descriptor.sourceKey);
+            if (source.isEmpty() || data::FindRadarSite(source.toStdString()).has_value())
+               descriptor.sourceKey = source;
+            const QString identity = store.GetString("workspace", prefix + "identity", "REF");
+            if (store.GetBool("workspace", prefix + "level3", false))
+            {
+               if (QRegularExpression(QStringLiteral("^[A-Z0-9]{3,6}$")).match(identity).hasMatch())
+               {
+                  descriptor.identityKind = products::ProductDescriptor::IdentityKind::Level3Awips;
+                  descriptor.identity = identity;
+                  descriptor.product = store.GetString("workspace", prefix + "product", identity).left(128);
+               }
+            }
+            else
+            {
+               const auto product = scwx::common::GetLevel2Product(identity.toStdString());
+               if (product != scwx::common::Level2Product::Unknown)
+               {
+                  descriptor.identity = identity;
+                  descriptor.product = QString::fromStdString(scwx::common::GetLevel2Description(product));
+               }
+            }
+            descriptor.elevation = static_cast<float>(store.GetDouble("workspace", prefix + "elevation", 0, 0, 90));
+            descriptor.palette = store.GetString("workspace", prefix + "palette", {});
+         }
 
          // No QObject parent: the unique_ptr owns this. Setting a parent too would give Qt's
          // parent-child cleanup a second claim on the same object.
          p->panes_.push_back(std::make_unique<PaneController>(p->nextPaneId_++, descriptor));
 
          PaneController* pane = p->panes_.back().get();
+         if (p->restoring_)
+         {
+            auto& store = *p->store_;
+            pane->setCenter(store.GetDouble("workspace", prefix + "latitude", pane->homeLatitude(), -90, 90),
+                            store.GetDouble("workspace", prefix + "longitude", pane->homeLongitude(), -180, 180));
+            pane->setZoom(store.GetDouble("workspace", prefix + "zoom", 6, 0, 20));
+            pane->setBearing(store.GetDouble("workspace", prefix + "bearing", 0, -360, 360));
+            pane->setPitch(store.GetDouble("workspace", prefix + "pitch", 0, 0, 85));
+            for (const auto channel : kUserLinkChannels)
+               pane->setSyncGroup(channel, store.GetInt("workspace", prefix + "group_" +
+                  QString::number(static_cast<int>(channel)), 0, 0, 1000000));
+         }
+         if (p->store_ != nullptr)
+         {
+            auto schedule = [this]() { if (!p->restoring_) p->saveTimer_.start(); };
+            connect(pane, &PaneController::productChanged, this, schedule);
+            connect(pane, &PaneController::paletteChanged, this, schedule);
+            connect(pane, &PaneController::cameraChanged, this, schedule);
+            connect(pane, &PaneController::syncGroupsChanged, this, schedule);
+         }
          connect(pane,
                  &PaneController::channelChanged,
                  this,
@@ -273,7 +387,7 @@ void PaneGridModel::setGridSize(int width, int height)
             auto* pane = p->panes_[i].get();
             for (const auto channel : kCameraChannels)
                pane->setSyncGroup(channel, 1);
-            if (reference != nullptr && reference != pane)
+            if (!p->restoring_ && reference != nullptr && reference != pane)
                copyCamera(reference->paneId(), pane->paneId());
          }
          ++p->syncRevision_;
@@ -327,7 +441,8 @@ void PaneGridModel::PropagateChannel(PaneController* source,
    // §4.2: only a genuine user interaction fans out. An incoming sync re-emits with
    // ProgrammaticSync, which lands here and stops - that is what prevents two grouped panes from
    // bouncing a value between them forever.
-   if (origin != ChangeOrigin::UserInput)
+   if (origin != ChangeOrigin::UserInput &&
+       !(origin == ChangeOrigin::DataDriven && channel == SyncChannel::Time))
    {
       return;
    }

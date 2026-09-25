@@ -38,8 +38,32 @@ namespace
  * target yet, so every load logs its estimated size to let the next measurement
  * session calibrate these rather than guess again.
  */
+std::atomic_int historyMinutes_ {30};
+
 constexpr std::size_t kLevel2CapacityBytes = 256U * 1024U * 1024U;
 constexpr std::size_t kLevel3CapacityBytes = 64U * 1024U * 1024U;
+
+/**
+ * Measured 2026-09-25 against live KEAX: ~56 MB of decoded moments per volume,
+ * a new volume every ~5 minutes. That retires the "no decoded-frame size has
+ * been measured" note above for Level 2 on this hardware.
+ *
+ * The playback window therefore decides the budget, not the other way round: at
+ * the fixed 256 MB above, a 30-minute window held four of its six volumes, so
+ * every one-minute refresh re-downloaded the two it had just evicted. 15 MB per
+ * minute covers a 4.5-minute VCP with headroom, and the ceiling keeps the
+ * 120-minute setting from asking for 1.8 GB - past it the window genuinely does
+ * not fit, which the status line says rather than silently thrashing.
+ */
+constexpr std::size_t kLevel2BytesPerMinute  = 15U * 1024U * 1024U;
+constexpr std::size_t kLevel2MaxCapacityBytes = 1024U * 1024U * 1024U;
+
+std::size_t Level2CapacityBytes(int minutes)
+{
+   return std::clamp(static_cast<std::size_t>(minutes) * kLevel2BytesPerMinute,
+                     kLevel2CapacityBytes,
+                     kLevel2MaxCapacityBytes);
+}
 
 /**
  * Floor applied to every size estimate. wxdata reports decoded payload sizes,
@@ -147,6 +171,10 @@ public:
    std::atomic_uint64_t nextRequestId_ {1};
    std::atomic_bool     liveLoadInProgress_ {false};
    QTimer               refreshTimer_;
+   QTimer retentionTimer_;
+   std::atomic_bool historyInProgress_ {false};
+   bool historyRequested_ {false};
+   QList<qint64> recentFrames_;
 
    /// Latest-volume key most recently published to consumers. A periodic
    /// refresh that rediscovers this same key has nothing new to say, so it
@@ -180,6 +208,109 @@ RadarSiteDataService::RadarSiteDataService(const std::string& radarSite) :
            this,
            [this]() { LoadLatestLevel2DataInternal(false); });
    p->refreshTimer_.start();
+   connect(&p->refreshTimer_, &QTimer::timeout, this, [this]()
+   { if (p->historyRequested_) RequestRecentHistory(); });
+   // The window is minutes wide, so a coarse sweep keeps an idle app from waking every second.
+   p->retentionTimer_.setInterval(15000);
+   connect(&p->retentionTimer_, &QTimer::timeout, this, [this]()
+   {
+      const auto cutoff = std::chrono::system_clock::now() - std::chrono::minutes {HistoryMinutes()};
+      p->level2Cache_.SetCapacityBytes(Level2CapacityBytes(HistoryMinutes()));
+      p->level2Cache_.PruneBefore(cutoff);
+      p->level3Cache_.PruneBefore(cutoff);
+      const auto cutoffMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+         cutoff.time_since_epoch()).count();
+      // QList has no std::erase_if overload; removeIf is Qt's own equivalent.
+      if (p->recentFrames_.removeIf([cutoffMs](qint64 time) { return time <= cutoffMs; }) > 0)
+      {
+         Q_EMIT RecentFramesChanged(p->recentFrames_, {});
+      }
+   });
+   p->retentionTimer_.start();
+}
+
+void RadarSiteDataService::SetHistoryMinutes(int minutes)
+{
+   historyMinutes_.store(std::clamp(minutes, 5, 120));
+}
+int RadarSiteDataService::HistoryMinutes() { return historyMinutes_.load(); }
+QList<qint64> RadarSiteDataService::recentFrames() const { return p->recentFrames_; }
+
+void RadarSiteDataService::RequestRecentHistory()
+{
+   p->historyRequested_ = true;
+   if (p->liveLoadInProgress_)
+   {
+      QTimer::singleShot(1000, this, [this]() { RequestRecentHistory(); });
+      return;
+   }
+   if (p->historyInProgress_.exchange(true)) return;
+   scwx::util::async([this]()
+   {
+      QList<qint64> frames;
+      QString error;
+      try
+      {
+         const auto now = std::chrono::system_clock::now();
+         const auto start = now - std::chrono::minutes {HistoryMinutes()};
+         const auto capacityBytes = Level2CapacityBytes(HistoryMinutes());
+         p->level2Cache_.SetCapacityBytes(capacityBytes);
+         p->level2Cache_.PruneBefore(start);
+         for (auto day = std::chrono::floor<std::chrono::days>(start);
+              day <= std::chrono::floor<std::chrono::days>(now); day += std::chrono::days {1})
+         {
+            const auto [success, added, total] = p->level2Provider_->ListObjects(day);
+            if (!success) { error = QStringLiteral("Recent scan listing failed"); continue; }
+            for (const auto time : p->level2Provider_->GetTimePointsByDate(day, false))
+               if (time > start && time <= now)
+                  frames.append(std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch()).count());
+         }
+         std::sort(frames.begin(), frames.end());
+         frames.erase(std::unique(frames.begin(), frames.end()), frames.end());
+         QMetaObject::invokeMethod(this, [this, frames, error]()
+         { p->recentFrames_ = frames; Q_EMIT RecentFramesChanged(frames, error); }, Qt::QueuedConnection);
+         // Sequential newest-first warming uses the same cache/deduplication as foreground loads.
+         // Stopping *before* the budget is exceeded rather than after is what keeps this idempotent:
+         // one frame too many evicts the oldest, which the next refresh then downloads again.
+         std::size_t retainedBytes = 0;
+         std::size_t largestFrameBytes = 0;
+         int loaded = 0;
+         bool truncated = false;
+         for (auto it = frames.crbegin(); it != frames.crend(); ++it)
+         {
+            const auto time = std::chrono::system_clock::time_point {std::chrono::milliseconds {*it}};
+            if (time <= std::chrono::system_clock::now() - std::chrono::minutes {HistoryMinutes()}) break;
+            if (retainedBytes + largestFrameBytes > capacityBytes) { truncated = true; break; }
+            const auto key = p->level2Provider_->FindKey(time);
+            if (key.empty()) continue;
+            auto file = p->level2Cache_.Find(key);
+            if (!file)
+            {
+               file = p->level2Cache_.Load(key, [this, key]()
+               { return std::dynamic_pointer_cast<scwx::wsr88d::Ar2vFile>(p->level2Provider_->LoadObjectByKey(key));
+               }, EstimateLevel2Bytes, time).value;
+               if (file) ++loaded;
+               else error = QStringLiteral("Some recent scans could not be downloaded");
+            }
+            if (file)
+            {
+               const auto bytes = EstimateLevel2Bytes(*file);
+               largestFrameBytes = std::max(largestFrameBytes, bytes);
+               retainedBytes += bytes;
+            }
+         }
+         logger_->info("History cache: site={} minutes={} scans={} downloads={} cache_frames={} "
+                       "cache_bytes={} capacity_bytes={} truncated={}",
+                       p->radarSite_, HistoryMinutes(), frames.size(), loaded,
+                       p->level2Cache_.count(), p->level2Cache_.size_bytes(), capacityBytes,
+                       truncated);
+         if (truncated)
+            error = QStringLiteral("History exceeds memory cache; older frames load on demand");
+      }
+      catch (const std::exception& ex) { error = QString::fromStdString(ex.what()); }
+      QMetaObject::invokeMethod(this, [this, error]()
+      { p->historyInProgress_ = false; Q_EMIT RecentFramesChanged(p->recentFrames_, error); }, Qt::QueuedConnection);
+   });
 }
 
 RadarSiteDataService::~RadarSiteDataService()
@@ -276,7 +407,7 @@ void RadarSiteDataService::LoadLatestLevel2DataInternal(bool publishUnchanged)
                   return std::dynamic_pointer_cast<scwx::wsr88d::Ar2vFile>(
                      p->level2Provider_->LoadObjectByKey(key));
                },
-               EstimateLevel2Bytes);
+               EstimateLevel2Bytes, p->level2Provider_->GetTimePointByKey(key));
             auto ar2vFile = load.value;
             logger_->info(
                "Level 2 load metrics: site={} key={} listing_ms={:.3f} "
@@ -349,8 +480,9 @@ std::uint64_t RadarSiteDataService::LoadLevel2DataAt(
          {
             QElapsedTimer stageTimer;
             stageTimer.start();
-            const auto [success, newObjects, totalObjects] =
-               p->level2Provider_->ListObjects(time);
+            const auto [success, newObjects, totalObjects] = p->level2Provider_->IsDateCached(time)
+               ? std::make_tuple(true, std::size_t {0}, p->level2Provider_->cache_size())
+               : p->level2Provider_->ListObjects(time);
             if (!success)
             {
                QMetaObject::invokeMethod(
@@ -388,7 +520,7 @@ std::uint64_t RadarSiteDataService::LoadLevel2DataAt(
                   return std::dynamic_pointer_cast<scwx::wsr88d::Ar2vFile>(
                      p->level2Provider_->LoadObjectByKey(key));
                },
-               EstimateLevel2Bytes);
+               EstimateLevel2Bytes, p->level2Provider_->GetTimePointByKey(key));
             auto file = load.value;
             logger_->info(
                "Level 2 archive metrics: site={} request={} key={} "
@@ -583,7 +715,7 @@ std::uint64_t RadarSiteDataService::LoadLevel3DataAt(
                   return std::dynamic_pointer_cast<scwx::wsr88d::Level3File>(
                      provider->LoadObjectByKey(key));
                },
-               EstimateLevel3Bytes);
+               EstimateLevel3Bytes, provider->GetTimePointByKey(key));
             auto file = load.value;
             logger_->info(
                "Level 3 load metrics: site={} awips={} request={} key={} "

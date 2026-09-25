@@ -57,6 +57,10 @@ qt_add_library(wxlens-app-lib STATIC
     source/wxlens/overlays/overlay_manager.hpp
     source/wxlens/panes/pane_controller.cpp
     source/wxlens/panes/pane_controller.hpp
+    source/wxlens/panes/playback_controller.cpp
+    source/wxlens/panes/playback_controller.hpp
+    source/wxlens/panes/playback_binding.cpp
+    source/wxlens/panes/playback_binding.hpp
     source/wxlens/panes/pane_grid_model.cpp
     source/wxlens/panes/pane_grid_model.hpp
     source/wxlens/panes/sync_types.hpp
@@ -117,6 +121,7 @@ qt_add_qml_module(wxlens-app-lib
         qml/CrashReporter.qml
         qml/Chrome/TopBar.qml
         qml/Chrome/BottomControlBar.qml
+        qml/Chrome/PlaybackScrubber.qml
         qml/Chrome/TimeControls.qml
         qml/Dialogs/SettingsChoice.qml
         qml/Dialogs/SettingsDialog.qml

@@ -316,6 +316,8 @@ void PaneController::Impl::ConnectProductSignals(PaneController* self)
       return;
    }
 
+   timeLoading_ = radarProduct_->sweep_data() == nullptr;
+   if (!timeLoading_) actualTime_ = radarProduct_->selected_time();
    // Re-bake this pane's LUT for every published sweep whether or not a map is attached yet: the
    // binding holds a pane-baked snapshot, so a sweep that arrived while no map existed would
    // otherwise be rendered with the previous sweep's geometry once one does.

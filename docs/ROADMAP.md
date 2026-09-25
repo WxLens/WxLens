@@ -1608,6 +1608,58 @@ not to be built speculatively ahead of it.
       coalescing against the `RadarSiteDataService` interface rather than against Level 2
       specifics, so adding Level 3 later is a second implementation of a settled seam.
 
+    **Status as of 2026-09-25 — slice 20 implemented, plus the two caching items the owner asked
+    for alongside it (persistent basemap, restored workspace).**
+
+    - **Persistent basemap cache.** `MapQuickItem` hard-coded `:memory:`; patch 0014 exposes
+      `cacheDatabasePath`/`cacheDatabaseMaximumSize`, and `PaneHost.qml` points every pane at one
+      256 MB SQLite cache under `QStandardPaths::CacheLocation`. MapLibre's own freshness rules
+      still govern each resource, so this is reuse, not a stale snapshot.
+    - **Restored workspace.** Layout, retained hidden panes, and each pane's site, product
+      identity, elevation, palette, camera and per-channel sync groups persist to
+      `workspace.toml` (debounced 500 ms, flushed on quit). Restoration always reopens *live*:
+      an archive time is deliberately not restored, and no radar data is persisted.
+    - **Playback.** `PlaybackController` holds the frames, the playhead, seek coalescing (80 ms
+      debounce, one in-flight load, stale completions rejected by generation), play/pause and
+      follow-live; `PlaybackBinding` drives the active pane through the existing `Time` channel
+      with `ChangeOrigin::DataDriven`, so grouped panes advance together and
+      `SyncChannel::Animation` stays declared and unused as resolved above. Availability comes
+      from `GetTimePointsByDate`; no scan time is synthesized. Level 3 panes say playback is
+      Level 2 only rather than pretending.
+    - **Rolling retention by observation time.** `FrameCache` entries now carry the scan's
+      observation time, `PruneBefore` drops what has aged out (including a load that finishes
+      after its window expires), and the budget is resizable at runtime. The service prunes every
+      15 s to the configured window (Settings → Playback: 15/30/60/120 minutes).
+    - **The GUI-thread geometry cost this slice was warned about is gone.** Sweep geometry is
+      built on a worker and cached by observation time; measured 260 ms per frame, previously
+      synchronous on the GUI thread. The product singleton key also carries the full timestamp
+      instead of the archive *minute*, so two scans inside one minute can no longer collide.
+    - **Measured on live KEAX, 2026-09-25.** ~56 MB decoded per volume, a volume every ~5 minutes.
+      A 30-minute window is 6 scans / ~340 MB. At the old fixed 256 MB budget it held four of
+      them and the one-minute refresh re-downloaded the other two *every pass* - the exact
+      opposite of what the cache is for. The budget now follows the window (15 MB/minute, 256 MB
+      floor, 1 GB ceiling) and the warm loop stops before exceeding it rather than after, which
+      is what makes a refresh idempotent: repeat passes log `downloads=0`, and the next live
+      volume was already warm (`decoded_cache_hit=true`, `download_decode_ms=0.005`).
+    - **Cold vs warm start, same machine, captures 1.2 s apart:** cold (deleted `basemap.db`) the
+      map area was still empty at ~1.5 s and ~3 s and drew at ~6 s; warm, the basemap was already
+      drawn in the first capture. That is the reported "white screen at startup", and it is the
+      basemap, not the radar: radar still arrives a few seconds later because nothing about the
+      volume download is cached across launches (see the disk-persistence box below).
+    - **Verified:** 201 C++ model tests and 13 QML tests pass, including seek coalescing, stale
+      completion, follow-live, observation-time pruning, budget resize, a two-process map-cache
+      test that kills the tile server before the second launch, and workspace restore of a
+      collapsed layout's hidden panes. Live: product restored across a restart, `downloads=0` on
+      repeat history passes, playback controls laid out in the one bottom zone.
+    - **Not verified:** Linux and macOS (Windows only so far); the 120-minute window's memory
+      behaviour over a long session; grouped-pane playback with more than one pane on screen;
+      Level 3 playback, which is deliberately out of scope.
+    - **Pre-existing and untouched:** the app still crashes on exit inside MapLibre's map teardown
+      (`QOpenGLContext::functions` → `mbgl::gl::Context::~Context`), which is why a crash-report
+      dialog greets the next launch. Identical stacks date from 2026-09-02; nothing in this slice
+      causes or fixes it. The workspace survives it because saves are debounced during the
+      session rather than deferred to `aboutToQuit`.
+
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
 structure, not a rigid contract — but keep the principle: each slice buildable and testable on
 its own before the next begins.
@@ -2895,7 +2947,7 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   harness in this repo for QML gesture behavior, so the actual redraw-count and no-added-lag claims
   are unverified until watched live. That item's real fix (retained GPU geometry, not a
   redraw-count reduction here) remains unaffected in substance.
-- [ ] **Deliver a draggable timeline and playback backed by the cache.** The existing
+- [x] **Deliver a draggable timeline and playback backed by the cache.** The existing
   Live/Archive selector and UTC field do not satisfy quick scrubbing. Implement real available
   scan discovery, bounded adjacent-frame prefetch, drag scrubbing, previous/next frame,
   play/pause, return-to-live, and visible selected/actual time plus loading/unavailable states.
@@ -2909,11 +2961,26 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   into a library so a headless `Qt6::QuickTest` harness can exercise the drag, and 20 is this
   item. Scan discovery resolved to an existing API - `GetTimePointsByDate` - so no `wxdata`
   change is needed. Close both together with this box.
+
+  **DONE 2026-09-25 (slice 20).** See that slice's status block above for what shipped, what
+  was measured, and what is still unverified. The one requirement this box states that slice 20
+  does *not* satisfy in full is "verify memory against the baseline": the retention budget now
+  scales with the window (a 30-minute window holds ~340 MB of decoded volumes), which is a
+  deliberate memory-for-network trade, not a neutral one.
 - [ ] **Add bounded on-device disk persistence after memory-cache/playback foundations.**
   Define stable source/object identity, capacity/eviction, corruption recovery, and cache-clear
   behavior. Verify reuse after restart and honest offline/cache status; keep live discovery fresh.
   If raw-download caching requires changes in reused `wxdata`, make those upstream and advance
   the pin; never hand-edit the read-only dependency tree.
+
+  **Half delivered 2026-09-25: the basemap, not the radar.** The map's tiles, style, glyphs and
+  sprites now persist in MapLibre's own SQLite cache (`external/patches/0014-...`, 256 MB at
+  `<CacheLocation>/maps/basemap.db`), which is what removed the blank map at startup. Radar
+  frames remain memory-only and are re-downloaded on every launch, because `wxdata`'s provider
+  hands back a decoded `Ar2vFile` rather than the compressed bytes - caching ~5-8 MB of raw
+  download instead of ~56 MB of decoded volume is the upstream change this box is really about.
+  Still open here: identity/eviction/corruption-recovery for radar objects, and a cache-clear
+  control for both caches.
 - [ ] **Scope Canadian radar against a verified data source before accepting implementation.**
   Request the contributor's exact endpoint, sample file, available products/history, and
   redistribution terms or documented public-safety exemption. ECCC's published

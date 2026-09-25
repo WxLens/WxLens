@@ -31,6 +31,8 @@ class SettingsStore;
 class AppSettings : public QObject
 {
    Q_OBJECT
+   Q_PROPERTY(int playbackMinutes READ playbackMinutes WRITE setPlaybackMinutes NOTIFY playbackMinutesChanged)
+   Q_PROPERTY(QString mapCachePath READ mapCachePath CONSTANT)
 
    /// Which gesture starts a measurement (§4.4). See MeasurementGesture for why this is a
    /// preference rather than a fixed behaviour.
@@ -83,6 +85,9 @@ class AppSettings : public QObject
    Q_PROPERTY(QVariantList geometryRows READ geometryRows NOTIFY geometryRowsChanged)
 
 public:
+   int playbackMinutes() const;
+   void setPlaybackMinutes(int minutes);
+   [[nodiscard]] QString mapCachePath() const;
    /**
     * Slice 7 shipped press-drag-release and click-then-click-again together, so neither habit is
     * punished. That is a good default and a bad mandate: with both live, a click that does not
@@ -221,6 +226,7 @@ public:
    [[nodiscard]] Q_INVOKABLE QString configDirectory() const;
 
 signals:
+   void playbackMinutesChanged();
    void measurementGestureChanged();
    void preferredMeasurementToolChanged();
    void snapStrengthChanged();
