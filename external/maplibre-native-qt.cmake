@@ -74,9 +74,11 @@ set(MLN_CORE_PATCHES
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0013-mln-core-profile-texture-formats.patch")
 
 wxlens_apply_patch_series("MapLibre Native Qt" "${MLN_QT_SOURCE_DIR}" ${MLN_QT_PATCHES})
-# Independent patch: keep the existing series completion marker valid for older checkouts.
+# Independent patches: keep the existing series completion marker valid for older checkouts.
 wxlens_apply_patch_series("MapLibre Quick cache" "${MLN_QT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0014-mln-qt-configurable-disk-cache.patch")
+wxlens_apply_patch_series("MapLibre Quick teardown" "${MLN_QT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/patches/0015-mln-qt-destroy-renderer-on-node-teardown.patch")
 wxlens_apply_patch_series("MapLibre Native core" "${MLN_CORE_SOURCE_DIR}" ${MLN_CORE_PATCHES})
 
 # `import MapLibre` QML module registration target uses CMAKE_SOURCE_DIR instead of

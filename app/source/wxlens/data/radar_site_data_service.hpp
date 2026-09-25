@@ -80,6 +80,9 @@ public:
    level3_catalog() const;
 
    static void SetHistoryMinutes(int minutes);
+   /// Stands down background history warming. Called once the application is quitting, because
+   /// main() joins the io_context those downloads run on.
+   static void CancelBackgroundWork();
    static int HistoryMinutes();
    void RequestRecentHistory();
    [[nodiscard]] QList<qint64> recentFrames() const;

@@ -40,6 +40,20 @@ namespace
  */
 std::atomic_int historyMinutes_ {30};
 
+/**
+ * Background warming posts to the shared `scwx::util::io_context()`, which main() joins on the way
+ * out. Without a way to stand down, quitting part-way through a window's history made the process
+ * linger for the rest of those downloads - long enough to look like a hang rather than a slow exit.
+ * A download already in flight still has to finish; wxdata's provider has no cancellation, so this
+ * bounds the wait at one object instead of the whole window.
+ */
+std::atomic_bool backgroundCancelled_ {false};
+
+/// Unwinds the warming task from wherever it happens to be when the application quits.
+struct CancelledException
+{
+};
+
 constexpr std::size_t kLevel2CapacityBytes = 256U * 1024U * 1024U;
 constexpr std::size_t kLevel3CapacityBytes = 64U * 1024U * 1024U;
 
@@ -236,8 +250,14 @@ void RadarSiteDataService::SetHistoryMinutes(int minutes)
 int RadarSiteDataService::HistoryMinutes() { return historyMinutes_.load(); }
 QList<qint64> RadarSiteDataService::recentFrames() const { return p->recentFrames_; }
 
+void RadarSiteDataService::CancelBackgroundWork()
+{
+   backgroundCancelled_.store(true);
+}
+
 void RadarSiteDataService::RequestRecentHistory()
 {
+   if (backgroundCancelled_.load()) return;
    p->historyRequested_ = true;
    if (p->liveLoadInProgress_)
    {
@@ -251,6 +271,7 @@ void RadarSiteDataService::RequestRecentHistory()
       QString error;
       try
       {
+         if (backgroundCancelled_.load()) throw CancelledException {};
          const auto now = std::chrono::system_clock::now();
          const auto start = now - std::chrono::minutes {HistoryMinutes()};
          const auto capacityBytes = Level2CapacityBytes(HistoryMinutes());
@@ -259,6 +280,7 @@ void RadarSiteDataService::RequestRecentHistory()
          for (auto day = std::chrono::floor<std::chrono::days>(start);
               day <= std::chrono::floor<std::chrono::days>(now); day += std::chrono::days {1})
          {
+            if (backgroundCancelled_.load()) throw CancelledException {};
             const auto [success, added, total] = p->level2Provider_->ListObjects(day);
             if (!success) { error = QStringLiteral("Recent scan listing failed"); continue; }
             for (const auto time : p->level2Provider_->GetTimePointsByDate(day, false))
@@ -280,6 +302,7 @@ void RadarSiteDataService::RequestRecentHistory()
          {
             const auto time = std::chrono::system_clock::time_point {std::chrono::milliseconds {*it}};
             if (time <= std::chrono::system_clock::now() - std::chrono::minutes {HistoryMinutes()}) break;
+            if (backgroundCancelled_.load()) throw CancelledException {};
             if (retainedBytes + largestFrameBytes > capacityBytes) { truncated = true; break; }
             const auto key = p->level2Provider_->FindKey(time);
             if (key.empty()) continue;
@@ -306,6 +329,13 @@ void RadarSiteDataService::RequestRecentHistory()
                        truncated);
          if (truncated)
             error = QStringLiteral("History exceeds memory cache; older frames load on demand");
+      }
+      catch (const CancelledException&)
+      {
+         // Quitting is not an error the user needs told about, and the queued reply below would
+         // touch a service that is on its way out.
+         p->historyInProgress_ = false;
+         return;
       }
       catch (const std::exception& ex) { error = QString::fromStdString(ex.what()); }
       QMetaObject::invokeMethod(this, [this, error]()

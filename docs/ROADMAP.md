@@ -1654,11 +1654,11 @@ not to be built speculatively ahead of it.
     - **Not verified:** Linux and macOS (Windows only so far); the 120-minute window's memory
       behaviour over a long session; grouped-pane playback with more than one pane on screen;
       Level 3 playback, which is deliberately out of scope.
-    - **Pre-existing and untouched:** the app still crashes on exit inside MapLibre's map teardown
-      (`QOpenGLContext::functions` → `mbgl::gl::Context::~Context`), which is why a crash-report
-      dialog greets the next launch. Identical stacks date from 2026-09-02; nothing in this slice
-      causes or fixes it. The workspace survives it because saves are debounced during the
-      session rather than deferred to `aboutToQuit`.
+    - **Follow-up, same day: the exit crash is fixed too** (patch 0015 plus a deliberate exit; see
+      the CLOSED note under slice 4's open-defect block). It is recorded here because this slice
+      is what exposed the other half of it: background history warming posts to the io_context
+      `main()` joins on the way out, so quitting mid-download held the process open for the rest
+      of the window's downloads. Warming now stands down on quit.
 
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
 structure, not a rigid contract — but keep the principle: each slice buildable and testable on
@@ -2033,6 +2033,31 @@ special case.
 > tears the window down itself. **Net behaviour is unchanged** - still a fault after the window
 > closes, with nothing left to lose - but it is now auto-logged with a full stack instead of
 > opaque. A real fix belongs upstream.
+
+> **CLOSED (2026-09-25).** Both halves, by keeping the fix that was reverted above and removing the
+> reason it was reverted. `destroyRenderer()` from `TextureNodeOpenGL`'s destructor is now patch
+> 0015, and on its own it reproduces exactly what was recorded here: no crash, and a teardown that
+> takes 25-45 s instead of ending. That wait is #285, and it is not ours to fix - so the
+> application stops waiting for it. Once the event loop returns, `main()` stands background
+> warming down, flushes the logger and calls `std::_Exit`. Nothing durable is lost: settings and
+> the workspace are written as they change and again on `aboutToQuit`, and the basemap cache is
+> transactional SQLite that survived every one of the 19 hard faults logged before this.
+>
+> Two things this session added that the earlier attempt did not have, and which are why the
+> outcome differs:
+> - The revert was measured against a build where the renderer teardown *did* run. It never ran
+>   here at first: the process was still inside `ioThreadPool.join()`, waiting out an in-flight
+>   history download, so the node destructor was never reached. Warming now cancels on quit, which
+>   is a fix in its own right - background downloads must not decide when the app may close.
+> - `std::_Exit` after the flush, rather than leaking the engine. Leaking was tried before and
+>   correctly rejected; not running teardown at all is a different thing from trying to skip it.
+>
+> **Measured:** closing at 10 s, 25 s and 70 s of uptime (mid-download, after the live volume, and
+> after a full 30-minute warm) exits in 0.0-0.3 s, with no new entry in `wxlens-crash.log` and no
+> crash dialog on the next launch. Workspace and basemap cache both reused afterwards.
+>
+> **What this is not:** a fix for #285 or #302 upstream. Both stay filed and both stay in ADR
+> 0004's table. If either is fixed upstream, drop patch 0015 and reconsider the `_Exit`.
 
 **Status as of 2026-08-23 — Slice 5 complete: per-channel synchronization.** The sync model from
 §4.1-4.2, layered onto slice 4's grid. There is deliberately no global "linked" flag anywhere.

@@ -33,9 +33,9 @@
 #include <QQuickWindow>
 #include <QScreen>
 #include <QSurfaceFormat>
-#include <QThreadPool>
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 
 // Defined by app/CMakeLists.txt from WXLENS_VERSION. Defaulted so the file still compiles if it
@@ -403,18 +403,23 @@ int main(int argc, char* argv[])
 
    const int result = QGuiApplication::exec();
 
-   // NOTE: the process still faults during teardown, after this point, inside MapLibre. It is
-   // fully diagnosed rather than mysterious - the crash handler installed above writes the stack
-   // to logs/wxlens-crash.log on every occurrence, and docs/ROADMAP.md records the analysis. It
-   // is an exit-path fault only: the window is already gone and nothing is left to lose.
+   // Everything of the user's that has to outlive the process is already on disk by this point:
+   // settings and the workspace save as they change and again on aboutToQuit, and the basemap
+   // cache is MapLibre's own transactional SQLite file. What is left is library teardown, and
+   // measured end to end it took 25-45 s: ~12 s joining wxdata's io_context behind one in-flight
+   // S3 object (the provider has no cancellation), then Aws::ShutdownAPI, then the Qt/QML teardown,
+   // in which ~Thread<MainResourceLoaderThread> blocks on a worker parked in QEventLoop::exec
+   // (upstream maplibre-native-qt#285, diagnosed in ADR 0004's upstream table).
+   // Patch 0015 fixed the fault that used to end that teardown early - see it and ROADMAP slice
+   // 20 - but a window that vanishes while the process lingers for half a minute is not an exit.
    //
-   // Gracefully stop the io_context main loop before shutting down the AWS SDK, so no posted
-   // work tries to make an S3 call after Aws::ShutdownAPI runs.
+   // So the application stands its background work down, flushes its logs and quits deliberately
+   // rather than waiting on destructors whose only remaining job is handing memory back to a
+   // process that is ending anyway. Two consequences if this is ever revisited: nothing after
+   // this line runs, and anything durable must be written before it rather than in a destructor.
+   wxlens::data::RadarSiteDataService::CancelBackgroundWork();
    ioContextWork.reset();
-   ioThreadPool.join();
-
-   QThreadPool::globalInstance()->waitForDone();
-   Aws::ShutdownAPI(awsSdkOptions);
-
-   return result;
+   logger->info("Shutdown: quitting without waiting on library teardown");
+   logger->flush(); // Shares the file sink with every subsystem logger, so this flushes them all.
+   std::_Exit(result);
 }
