@@ -239,6 +239,17 @@ Item {
                             : (bytes / 1024).toFixed(0) + " KB"
                     }
 
+                    SettingsChoice {
+                        width: storageSection.width
+                        label: "Keep radar imagery between launches"
+                        explanation: "On reuses computed imagery for scans you have already viewed, " +
+                                     "which can avoid downloading and rebuilding them after a restart. " +
+                                     "Turning this off clears the existing radar imagery cache."
+                        options: ["Off", "On"]
+                        currentIndex: appSettings.persistRadarCache ? 1 : 0
+                        onSelected: (index) => appSettings.persistRadarCache = index === 1
+                    }
+
                     Column {
                         width: parent.width
                         spacing: 4
@@ -546,6 +557,20 @@ Item {
                     currentIndex: (typeof appSettings !== "undefined" && appSettings !== null)
                         ? appSettings.velocityUnits : 0
                     onSelected: (index) => appSettings.velocityUnits = index
+                }
+
+                // -- Radar products ----------------------------------------------------------
+                SettingsChoice {
+                    visible: root.currentSection === "radar-products"
+                    width: contentColumn.width
+                    label: "Tilt and variant labels"
+                    explanation: "Choose how Level 3 variants appear in the product picker. " +
+                                 "When an angle is not available yet, the product description " +
+                                 "keeps the choice identifiable."
+                    options: ["Both", "Angle", "AWIPS code"]
+                    currentIndex: (typeof appSettings !== "undefined" && appSettings !== null)
+                        ? appSettings.productTiltLabelStyle : 0
+                    onSelected: (index) => appSettings.productTiltLabelStyle = index
                 }
 
                 // -- Radar geometry -----------------------------------------------------------
