@@ -37,6 +37,8 @@ qt_add_library(wxlens-app-lib STATIC
     source/wxlens/log/frame_timing.hpp
     source/wxlens/data/frame_cache.hpp
     source/wxlens/data/radar_site_data_service.cpp
+    source/wxlens/data/radar_task_queue.cpp
+    source/wxlens/data/radar_task_queue.hpp
     source/wxlens/data/radar_site_data_service.hpp
     source/wxlens/data/radar_site_database.cpp
     source/wxlens/data/radar_site_database.hpp
@@ -70,6 +72,8 @@ qt_add_library(wxlens-app-lib STATIC
     source/wxlens/palettes/palette_model.cpp
     source/wxlens/palettes/palette_model.hpp
     source/wxlens/products/product_descriptor.hpp
+    source/wxlens/products/radar_product_status.cpp
+    source/wxlens/products/radar_product_status.hpp
     source/wxlens/products/level3_product_catalog.cpp
     source/wxlens/products/level3_product_catalog.hpp
     source/wxlens/products/level3_radial_product.cpp
@@ -80,8 +84,6 @@ qt_add_library(wxlens-app-lib STATIC
     source/wxlens/products/level3_graphic_overlay.hpp
     source/wxlens/products/level3_text_product.cpp
     source/wxlens/products/level3_text_product.hpp
-    source/wxlens/products/radar_product_status.cpp
-    source/wxlens/products/radar_product_status.hpp
     source/wxlens/products/radar_sweep_product.cpp
     source/wxlens/products/radar_sweep_product.hpp
     source/wxlens/products/sweep_disk_cache.cpp
