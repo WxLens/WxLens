@@ -37,6 +37,19 @@ list in §4.1), never via one global linked flag. See §4.1-§4.2 before touchin
 `namespace wxlens { namespace X { ... } }`, nested, with closing comments. Fully qualified
 namespaces in headers; no `using namespace` in headers.
 
+## Parallel agent workflow
+When a backend agent (C++) and a frontend agent (QML) work in this repo at the same time, in the
+same working directory, on the same branch: split by the existing `app/qml/` (presentation) vs.
+`app/source/wxlens/` (state/business logic) boundary from the section above - neither agent edits
+the other's files. Interface-first: the backend agent adds new `Q_PROPERTY`/`Q_INVOKABLE`/signals
+(even with placeholder/stub values, clearly commented as such) before the corresponding QML lands,
+so the frontend agent has a stable, real contract to bind against instead of guessing at property
+names. Use separate CMake build directories per agent (e.g. `build-release-vs2026` vs.
+`build-qml`) - they aren't tracked by git, but two `ninja`/`cmake --build` runs against the same
+build tree at once will corrupt each other's build. Before building or committing, check
+`git status`/timestamps for changes you didn't make; if you find any, leave them alone and ask
+rather than folding them into your own commit or build.
+
 ## Build system
 
 ### Conan + CMake workflow

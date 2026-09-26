@@ -2,6 +2,7 @@
 #include <wxlens/log/logger.hpp>
 #include <wxlens/products/radar_sweep_product.hpp>
 #include <wxlens/products/level3_graphic_overlay.hpp>
+#include <wxlens/products/level3_product_catalog.hpp>
 #include <wxlens/products/level3_radial_product.hpp>
 #include <wxlens/products/level3_raster_product.hpp>
 #include <wxlens/products/level3_text_product.hpp>
@@ -429,18 +430,32 @@ QStringList PaneController::availableProducts() const
 QVariantList PaneController::productCatalog() const
 {
    QVariantList catalog;
-   const std::array<std::pair<const char*, const char*>, 7> level2 {{
-      {"REF", "Reflectivity"}, {"VEL", "Velocity"}, {"SW", "Spectrum Width"},
-      {"ZDR", "Differential Reflectivity"}, {"PHI", "Differential Phase"},
-      {"RHO", "Correlation Coefficient"}, {"CFP", "Clutter Filter Power Removed"}}};
-   for (const auto& [identity, name] : level2)
+   using products::ProductSectionId;
+   struct Level2Entry { const char* identity; const char* name; ProductSectionId section; };
+   const std::array<Level2Entry, 7> level2 {{
+      {"REF", "Reflectivity", ProductSectionId::Reflectivity},
+      {"VEL", "Velocity", ProductSectionId::Velocity},
+      {"SW", "Spectrum Width", ProductSectionId::Velocity},
+      {"ZDR", "Differential Reflectivity", ProductSectionId::DualPolarization},
+      {"PHI", "Differential Phase", ProductSectionId::DualPolarization},
+      {"RHO", "Correlation Coefficient", ProductSectionId::DualPolarization},
+      {"CFP", "Clutter Filter Power Removed", ProductSectionId::Other}}};
+   for (const auto& [identity, name, section] : level2)
    {
-      catalog.append(QVariantMap {{QStringLiteral("category"), QStringLiteral("Level 2 moments")},
+      catalog.append(QVariantMap {{QStringLiteral("category"),
+                                   products::ProductSectionName(section)},
                                   {QStringLiteral("description"), QString::fromLatin1(name)},
                                   {QStringLiteral("identityKind"), QStringLiteral("level2")},
                                   {QStringLiteral("identity"), QString::fromLatin1(identity)},
                                   {QStringLiteral("awipsId"), QString {}},
-                                  {QStringLiteral("available"), true}});
+                                  {QStringLiteral("available"), true},
+                                  // A Level 2 moment has no tilt/source variants to collapse, so
+                                  // it is trivially and permanently its own recommended family
+                                  // entry - unlike the Level 3 fields below, this is not a stub.
+                                  {QStringLiteral("family"), QString::fromLatin1(name)},
+                                  {QStringLiteral("recommended"), true},
+                                  {QStringLiteral("elevationAngleText"), QString {}},
+                                  {QStringLiteral("elevationIsExact"), false}});
    }
    for (const auto& item : p->level3Catalog_)
    {
@@ -449,7 +464,13 @@ QVariantList PaneController::productCatalog() const
                                   {QStringLiteral("identityKind"), QStringLiteral("level3")},
                                   {QStringLiteral("identity"), item.awipsId},
                                   {QStringLiteral("awipsId"), item.awipsId},
-                                  {QStringLiteral("available"), true}});
+                                  {QStringLiteral("available"), true},
+                                  // See Level3ProductDescriptor's doc comment: honest stubs, not
+                                  // final family-grouping/recommendation logic yet.
+                                  {QStringLiteral("family"), item.family},
+                                  {QStringLiteral("recommended"), item.recommended},
+                                  {QStringLiteral("elevationAngleText"), item.elevationAngleText},
+                                  {QStringLiteral("elevationIsExact"), item.elevationIsExact}});
    }
    return catalog;
 }

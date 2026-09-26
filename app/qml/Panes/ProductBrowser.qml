@@ -20,6 +20,7 @@ Rectangle {
 
     property string query: ""
     property var expandedExperts: ({})
+    property var expandedVariants: ({})
     property int tiltLabelStyle: (typeof appSettings !== "undefined" && appSettings !== null)
         ? appSettings.productTiltLabelStyle : 0
 
@@ -30,17 +31,34 @@ Rectangle {
                                       product.elevationAngleText, product.awipsId,
                                       product.identity].join(" ").toLowerCase().indexOf(needle) >= 0
         })
-        const families = []
-        const byName = ({})
+        const sections = ({})
+        const sectionOrder = ["Reflectivity Products", "Velocity Products",
+                              "Dual-Polarization", "Precipitation Accumulation",
+                              "Other Products"]
         products.forEach(function(product) {
             // The backend guarantees family for new catalogs. The fallback keeps an older or
             // partially populated catalog useful rather than creating a blank family row.
             const name = String(product.family || product.description || product.category)
-            if (!byName[name]) {
-                byName[name] = { family: name, products: [] }
-                families.push(byName[name])
+            const section = String(product.category || "Other Products")
+            if (!sections[section])
+                sections[section] = { order: [], byName: ({}) }
+            if (!sections[section].byName[name]) {
+                sections[section].byName[name] = { family: name, section: section, products: [] }
+                sections[section].order.push(name)
             }
-            byName[name].products.push(product)
+            sections[section].byName[name].products.push(product)
+        })
+        const families = []
+        const remainingSections = Object.keys(sections).filter(function(section) {
+            return sectionOrder.indexOf(section) < 0
+        })
+        sectionOrder.concat(remainingSections).forEach(function(section) {
+            if (!sections[section]) return
+            sections[section].order.forEach(function(name, index) {
+                const family = sections[section].byName[name]
+                family.firstInSection = index === 0
+                families.push(family)
+            })
         })
         return families
     }
@@ -49,6 +67,12 @@ Rectangle {
         const next = Object.assign({}, expandedExperts)
         next[family] = !next[family]
         expandedExperts = next
+    }
+
+    function toggleVariants(family) {
+        const next = Object.assign({}, expandedVariants)
+        next[family] = !next[family]
+        expandedVariants = next
     }
 
     function variantLabel(product) {
@@ -167,7 +191,7 @@ Rectangle {
                 required property var modelData
 
                 width: ListView.view.width
-                height: familyContent.height + 16
+                height: familyContent.height + 16 + (modelData.firstInSection ? 28 : 0)
                 radius: themeManager.cornerRadius
                 color: themeManager.control
                 border.color: themeManager.border
@@ -187,13 +211,29 @@ Rectangle {
                 }
                 readonly property bool expertExpanded:
                     root.expandedExperts[modelData.family] === true
+                readonly property bool variantsExpanded:
+                    root.expandedVariants[modelData.family] === true || root.query.trim() !== ""
+
+                Text {
+                    visible: familyCard.modelData.firstInSection
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.leftMargin: 4
+                    text: familyCard.modelData.section
+                    color: themeManager.textPrimary
+                    font.pixelSize: 12
+                    font.bold: true
+                }
 
                 Column {
                     id: familyContent
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    anchors.margins: 8
+                    anchors.topMargin: familyCard.modelData.firstInSection ? 28 : 8
+                    anchors.leftMargin: 8
+                    anchors.rightMargin: 8
                     spacing: 6
 
                     Row {
@@ -222,20 +262,50 @@ Rectangle {
                         }
                     }
 
+                    Row {
+                        width: parent.width
+                        spacing: 5
+
+                        WxButton {
+                            width: parent.width - (variantButton.visible ? variantButton.width + 5 : 0)
+                            text: root.variantLabel(familyCard.selectedProduct)
+                            name: familyCard.modelData.family + ", " + text
+                            highlighted: root.paneController.productIdentity ===
+                                         familyCard.selectedProduct.identity
+                            // Which product is displayed is the whole point of this row, and the
+                            // highlight colour is the only other thing that says so.
+                            selectable: true
+                            enabled: familyCard.selectedProduct.available
+                            height: 26
+                            onClicked: root.selectProduct(familyCard.selectedProduct)
+                        }
+                        WxButton {
+                            id: variantButton
+                            visible: familyCard.modelData.products.length > 1
+                            width: 74
+                            height: 26
+                            text: familyCard.variantsExpanded ? "Hide" : "Variants"
+                            name: (familyCard.variantsExpanded ? "Hide " : "Show ") +
+                                  familyCard.modelData.family + " variants"
+                            onClicked: root.toggleVariants(familyCard.modelData.family)
+                        }
+                    }
+
                     Flow {
+                        visible: familyCard.variantsExpanded &&
+                                 familyCard.modelData.products.length > 1
                         width: parent.width
                         spacing: 5
 
                         Repeater {
                             model: familyCard.modelData.products
-
                             delegate: WxButton {
                                 required property var modelData
-
                                 text: root.variantLabel(modelData)
                                 name: familyCard.modelData.family + ", " + text +
                                       (modelData.available ? "" : ", unavailable")
                                 highlighted: familyCard.selectedProduct.identity === modelData.identity
+                                selectable: true
                                 enabled: modelData.available
                                 height: 26
                                 onClicked: root.selectProduct(modelData)

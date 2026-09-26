@@ -223,7 +223,7 @@ struct Section
 
 /// Stable ids (§4.5). Changing one breaks every deep-link that points at it, so treat these as
 /// part of the app's contract rather than as labels.
-constexpr std::array<Section, 10> kSections {{
+constexpr std::array<Section, 11> kSections {{
    {"appearance", "Appearance", "Choose the chrome theme used throughout WxLens."},
    {"toolbar", "Toolbar", "Choose optional shortcuts shown beside the complete Tools menu."},
    {"map-details", "Map details", "Choose which geographic context appears beneath data."},
@@ -234,6 +234,7 @@ constexpr std::array<Section, 10> kSections {{
    {"objects", "Map objects", "Defaults for markers, range rings and pinned measurements."},
    {"units", "Units", "How distances and altitudes are displayed."},
    {"radar-geometry", "Radar geometry", "Which rows the beam-height readout shows."},
+   {"radar-products", "Radar products", "How Level 3 tilt variants are labeled in the product picker."},
 }};
 
 struct ToolbarAction { const char* id; const char* label; };
@@ -251,6 +252,8 @@ constexpr int kMapThemeMax           = static_cast<int>(AppSettings::MapTheme::L
 constexpr int kMapDetailsPresetMax = static_cast<int>(AppSettings::MapDetailsPreset::Custom);
 constexpr int kScopeKindMax = static_cast<int>(objects::MapObjectScopeKind::AllPanes);
 constexpr int kRadarSiteScopeMax = static_cast<int>(AppSettings::RadarSiteScope::ActivePaneOnly);
+constexpr int kProductTiltLabelStyleMax =
+   static_cast<int>(AppSettings::ProductTiltLabelStyle::AwipsCode);
 
 } // namespace
 
@@ -285,6 +288,7 @@ public:
    int defaultObjectScope_ {static_cast<int>(objects::MapObjectScopeKind::CurrentPaneOnly)};
    int distanceUnits_ {static_cast<int>(DistanceUnits::Both)};
    int velocityUnits_ {static_cast<int>(VelocityUnits::MilesPerHour)};
+   int productTiltLabelStyle_ {static_cast<int>(ProductTiltLabelStyle::Both)};
    int mapTheme_ {static_cast<int>(MapTheme::FollowChrome)};
    bool advancedPaneLinking_ {false};
    bool controlBarDocked_ {false};
@@ -333,6 +337,11 @@ void AppSettings::Impl::Load()
                                   static_cast<int>(DistanceUnits::Both),
                                   0,
                                   kDistanceUnitsMax);
+   productTiltLabelStyle_ = store_.GetInt(kRadarCategory,
+                                          QStringLiteral("tilt_label_style"),
+                                          static_cast<int>(ProductTiltLabelStyle::Both),
+                                          0,
+                                          kProductTiltLabelStyleMax);
 
    mapTheme_ = store_.GetInt(kAppearanceCategory,
                              QStringLiteral("map_theme"),
@@ -456,6 +465,23 @@ void AppSettings::setVelocityUnits(int units)
    p->store_.SetInt(kUnitsCategory, QStringLiteral("velocity"), units);
    p->store_.Save();
    Q_EMIT velocityUnitsChanged();
+}
+
+int AppSettings::productTiltLabelStyle() const
+{
+   return p->productTiltLabelStyle_;
+}
+
+void AppSettings::setProductTiltLabelStyle(int style)
+{
+   if (style < 0 || style > kProductTiltLabelStyleMax || style == p->productTiltLabelStyle_)
+   {
+      return;
+   }
+   p->productTiltLabelStyle_ = style;
+   p->store_.SetInt(kRadarCategory, QStringLiteral("tilt_label_style"), style);
+   p->store_.Save();
+   Q_EMIT productTiltLabelStyleChanged();
 }
 
 int AppSettings::mapTheme() const
@@ -854,6 +880,9 @@ void AppSettings::resetToDefaults()
    p->store_.SetInt(kUnitsCategory, QStringLiteral("distance"), static_cast<int>(DistanceUnits::Both));
    p->store_.SetInt(
       kUnitsCategory, QStringLiteral("velocity"), static_cast<int>(VelocityUnits::MilesPerHour));
+   p->store_.SetInt(kRadarCategory,
+                    QStringLiteral("tilt_label_style"),
+                    static_cast<int>(ProductTiltLabelStyle::Both));
 
    for (const GeometryRow& row : kGeometryRows)
    {
@@ -873,6 +902,7 @@ void AppSettings::resetToDefaults()
    Q_EMIT defaultObjectScopeChanged();
    Q_EMIT distanceUnitsChanged();
    Q_EMIT velocityUnitsChanged();
+   Q_EMIT productTiltLabelStyleChanged();
    Q_EMIT mapThemeChanged();
    Q_EMIT controlBarDockedChanged();
    Q_EMIT centerMapOnSiteChangeChanged();

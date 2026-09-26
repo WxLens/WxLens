@@ -72,6 +72,12 @@ class AppSettings : public QObject
    Q_PROPERTY(
       int velocityUnits READ velocityUnits WRITE setVelocityUnits NOTIFY velocityUnitsChanged)
 
+   /// How a Level 3 tilt variant is labeled in the product picker (§7 Phase 1 slice 3F's
+   /// near-term product/tilt presentation follow-up). Defaults to Both until usability testing
+   /// shows angle-only is clearer.
+   Q_PROPERTY(int productTiltLabelStyle READ productTiltLabelStyle WRITE
+                 setProductTiltLabelStyle NOTIFY productTiltLabelStyleChanged)
+
    /// Basemap appearance: follow the chrome by default, or force dark/light independently.
    Q_PROPERTY(int mapTheme READ mapTheme WRITE setMapTheme NOTIFY mapThemeChanged)
    Q_PROPERTY(bool advancedPaneLinking READ advancedPaneLinking WRITE setAdvancedPaneLinking NOTIFY advancedPaneLinkingChanged)
@@ -160,6 +166,16 @@ public:
    };
    Q_ENUM(VelocityUnits)
 
+   /// Mirrors ROADMAP §7 Phase 1 slice 3F: the normal picker shows one friendly family row plus
+   /// a tilt selector; this controls how that selector's label reads.
+   enum class ProductTiltLabelStyle
+   {
+      Both = 0, ///< the shipped default, e.g. "0.5°  ·  N0C"
+      Angle,    ///< elevation angle only, e.g. "0.5°"
+      AwipsCode ///< AWIPS identity only, e.g. "N0C"
+   };
+   Q_ENUM(ProductTiltLabelStyle)
+
    enum class SnapStrength
    {
       Off = 0,
@@ -203,6 +219,7 @@ public:
    [[nodiscard]] int defaultObjectScope() const;
    [[nodiscard]] int distanceUnits() const;
    [[nodiscard]] int velocityUnits() const;
+   [[nodiscard]] int productTiltLabelStyle() const;
    [[nodiscard]] int mapTheme() const;
    [[nodiscard]] bool advancedPaneLinking() const;
    [[nodiscard]] bool controlBarDocked() const;
@@ -218,6 +235,7 @@ public:
    void setDefaultObjectScope(int scopeKind);
    void setDistanceUnits(int units);
    void setVelocityUnits(int units);
+   void setProductTiltLabelStyle(int style);
    void setMapTheme(int theme);
    void setAdvancedPaneLinking(bool enabled);
    void setControlBarDocked(bool docked);
@@ -270,6 +288,7 @@ signals:
    void defaultObjectScopeChanged();
    void distanceUnitsChanged();
    void velocityUnitsChanged();
+   void productTiltLabelStyleChanged();
    void mapThemeChanged();
    void advancedPaneLinkingChanged();
    void controlBarDockedChanged();
