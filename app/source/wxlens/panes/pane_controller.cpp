@@ -601,6 +601,16 @@ void PaneController::setSourceKey(const QString& sourceKey)
       return;
    }
 
+   // Release this pane's hold on the outgoing site *before* acquiring the new one, so a site
+   // no other pane is using is torn down promptly rather than lingering across the switch.
+   //
+   // Deliberately a release, not a Deactivate() call on the shared service: another pane, the
+   // playback binding or a sweep product may still be showing that same site, and standing the
+   // service down from here would stop their timers and abort their downloads too. Whether the
+   // site actually deactivates is decided by whether anything else still holds a reference -
+   // see RadarSiteDataService::Instance.
+   p->dataService_.reset();
+
    p->descriptor_.sourceKey = sourceKey;
    p->RebindProduct();
    p->ConnectProductSignals(this);

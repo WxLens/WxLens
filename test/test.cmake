@@ -111,6 +111,7 @@ add_executable(wxlens-app-test
     source/wxlens/app_test_main.cpp
     source/wxlens/data/map_cache.test.cpp
     source/wxlens/data/frame_cache.test.cpp
+    source/wxlens/data/radar_site_data_service.test.cpp
     source/wxlens/data/radar_task_queue.test.cpp
     source/wxlens/data/radar_site_database.test.cpp
     source/wxlens/data/radar_site_marker_source.test.cpp

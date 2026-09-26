@@ -603,6 +603,18 @@ public:
    std::chrono::system_clock::time_point selectedTime_ {};
    std::uint64_t requestId_ {0};
    std::uint64_t buildGeneration_ {0};
+
+   /**
+    * Owning reference to this product's Data Source, held for the life of the product.
+    *
+    * Required, not tidiness. RadarSiteDataService::Instance() now returns the only strong
+    * reference a caller gets, and the constructor below connects signals to it - which does not
+    * own the sender. The one other owner in the pane path, PaneController::Impl::dataService_,
+    * is not acquired until refreshProductCatalog() runs 23 lines *after* RebindProduct() creates
+    * this product, so without this member the service would be constructed, asked for a volume,
+    * and destroyed before the constructor returned.
+    */
+   std::shared_ptr<wxlens::data::RadarSiteDataService> dataService_;
 };
 
 void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
@@ -717,7 +729,8 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
       return timer;
    }();
    Q_UNUSED(retentionTimer)
-   auto service = wxlens::data::RadarSiteDataService::Instance(radarSite);
+   p->dataService_ = wxlens::data::RadarSiteDataService::Instance(radarSite);
+   auto service    = p->dataService_;
 
    if (archiveTime.has_value())
    {
