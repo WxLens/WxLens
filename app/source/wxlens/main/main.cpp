@@ -22,6 +22,8 @@
 
 #include <scwx/util/threads.hpp>
 
+#include <wxlens/data/radar_task_queue.hpp>
+
 #include <aws/core/Aws.h>
 #include <boost/asio.hpp>
 #include <QGuiApplication>
@@ -231,23 +233,41 @@ int main(int argc, char* argv[])
    // exceptions escaping posted work.
    boost::asio::io_context& ioContext = scwx::util::io_context();
    auto                     ioContextWork = boost::asio::make_work_guard(ioContext);
-   boost::asio::thread_pool ioThreadPool {4};
-   boost::asio::post(ioThreadPool,
-                     [&]()
-                     {
-                        while (true)
+
+   // One runner per pool thread. The previous version created four threads and posted a single
+   // run() task into them, so the whole application had exactly *one* radar worker and every
+   // provider call - live refresh, archive seek, Level 3 catalog, history warming, for every
+   // site - executed strictly in turn. Measured on 2026-09-26: 624 s spent inside 96 loads on
+   // one thread, with a worst single load of 59.5 s, which is what a site switch had to queue
+   // behind. Inherited from the legacy app's main.cpp, which compensates with a second thread
+   // pool inside RadarProductManager that this application does not have.
+   //
+   // Raising this is necessary but not sufficient, and on its own it is not even safe: two
+   // concurrent listing calls on one provider race in wxdata's Impl::UpdateMetadata. What makes
+   // the extra threads usable is RadarTaskQueue, which bounds total concurrency, keeps a slot
+   // free for foreground work, and serializes each site's listing calls against each other.
+   constexpr std::size_t    kIoRunners = 4;
+   boost::asio::thread_pool ioThreadPool {kIoRunners};
+   for (std::size_t runner = 0; runner < kIoRunners; ++runner)
+   {
+      boost::asio::post(ioThreadPool,
+                        [&]()
                         {
-                           try
+                           while (true)
                            {
-                              ioContext.run();
-                              break;
+                              try
+                              {
+                                 ioContext.run();
+                                 break;
+                              }
+                              catch (const std::exception& ex)
+                              {
+                                 logger->error(ex.what());
+                              }
                            }
-                           catch (const std::exception& ex)
-                           {
-                              logger->error(ex.what());
-                           }
-                        }
-                     });
+                        });
+   }
+   wxlens::data::RadarTaskQueue::Instance().SetMaxConcurrency(kIoRunners);
 
    // Required before any AWS S3 call (RadarSiteDataService's Level 2 provider uses one) - not
    // previously needed since nothing in the app made network requests through the AWS SDK yet.
