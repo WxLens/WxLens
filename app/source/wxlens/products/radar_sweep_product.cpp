@@ -661,13 +661,20 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
             // Only a sweep this call actually computed is worth a disk write - one already served
             // from GeometryCache (or shared with a deduplicated caller) was already persisted the
             // first time it was computed.
+            //
+            // Posted as its own task rather than called inline: this write (and the capacity check
+            // it can trigger) has nothing to do with getting the sweep on screen, and a disk write
+            // sitting between "geometry computed" and "published to the render thread" measurably
+            // delayed every pane update by however long that write took - worse the busier the
+            // cache. Fire-and-forget is safe here because the disk cache is only ever a "have we
+            // seen this before" accelerator, never a source of truth this worker depends on later.
             if (sweep && result.origin == data::FrameCache<SweepData>::Origin::Loaded)
             {
-               DiskCache().Store(BuildDiskCacheKey(site, product, elevation, stamp),
-                                 file->start_time(),
-                                 *sweep,
-                                 cut,
-                                 cuts);
+               const auto diskKey = BuildDiskCacheKey(site, product, elevation, stamp);
+               const auto startTime = file->start_time();
+               QThreadPool::globalInstance()->start(
+                  [diskKey, startTime, sweep, cut, cuts]()
+                  { DiskCache().Store(diskKey, startTime, *sweep, cut, cuts); });
             }
          }
          if (!sweep) error = QStringLiteral("No sweep available for this product and elevation");

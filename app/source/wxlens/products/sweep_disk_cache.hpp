@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <mutex>
@@ -79,9 +80,14 @@ public:
    /**
     * Persists `sweep`/`elevationAngleDegrees` under `key`/`observationTime`. Written to a
     * temporary file and renamed into place, so a crash or kill mid-write leaves either the
-    * previous entry or nothing behind - never a truncated one. Enforces the capacity budget
-    * afterward, evicting least-recently-read entries (this one included, if it is itself the
-    * single oversized outlier).
+    * previous entry or nothing behind - never a truncated one. Checks the capacity budget
+    * afterward, but only pays for the directory scan that enforces it (evicting
+    * least-recently-read entries, this one included if it is itself the single oversized outlier)
+    * when a running byte estimate says the budget might actually be exceeded - an unconditional
+    * scan on every Store measurably delayed publishing each sweep to the renderer, worse the
+    * larger the cache grew. One consequence: a `.tmp` file orphaned by a crash mid-write is only
+    * guaranteed to be swept on the next construction (see the constructor), not by the very next
+    * Store - it is inert in the meantime, never read as a valid entry.
     */
    void Store(const std::string&                     key,
              std::chrono::system_clock::time_point   observationTime,
@@ -99,11 +105,23 @@ public:
 
 private:
    [[nodiscard]] std::filesystem::path PathFor(const std::string& key) const;
-   void EnforceCapacityLocked() const;
+
+   /// Scans the directory, evicting least-recently-read entries until back under budget, and
+   /// refreshes totalBytesHint_ to the exact post-eviction total. O(entry count) - only called
+   /// when totalBytesHint_ actually indicates the budget is exceeded, not on every Store (see
+   /// that comment for why the naive "always scan" version was a real, measured slowdown).
+   void EnforceCapacityLocked();
 
    std::filesystem::path root_;
    std::size_t           capacityBytes_;
    mutable std::mutex    mutex_;
+
+   /// An upper-bound estimate of total on-disk bytes, kept so Store() can decide in O(1) whether
+   /// eviction is even necessary instead of scanning the whole directory on every write. Only
+   /// ever grows between EnforceCapacityLocked() calls (a Find()-triggered deletion of a corrupt
+   /// file is not subtracted), so it can drift high but never low - the worst case is one
+   /// avoidable scan sooner than strictly required, never a budget silently exceeded forever.
+   std::uint64_t totalBytesHint_ {0};
 };
 
 } // namespace products

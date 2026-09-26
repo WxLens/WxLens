@@ -232,6 +232,14 @@ SweepDiskCache::SweepDiskCache(std::filesystem::path root, std::size_t capacityB
                      root_.string(),
                      error.message());
    }
+
+   // One-time cost per process (this is a long-lived singleton, not something constructed per
+   // Store), so it can afford the full scan Store() itself now avoids: without it, totalBytesHint_
+   // would start at 0 regardless of what a previous session already left on disk, and an
+   // already-over-budget directory would stay over budget until enough *new* writes happened to
+   // make the hint itself cross capacityBytes_ again.
+   std::lock_guard lock {mutex_};
+   EnforceCapacityLocked();
 }
 
 std::filesystem::path SweepDiskCache::PathFor(const std::string& key) const
@@ -374,10 +382,19 @@ void SweepDiskCache::Store(const std::string&                   key,
       return;
    }
 
-   EnforceCapacityLocked();
+   // O(1) in the overwhelmingly common case (well under budget): only pay for a directory scan
+   // when the running estimate actually says the budget might be exceeded. The first version of
+   // this scanned unconditionally on every Store, which put an O(cache entry count) filesystem
+   // walk on the critical path between computing a sweep and publishing it to the renderer -
+   // measured as real, worsening-with-cache-size UI lag when browsing multiple sites/products.
+   totalBytesHint_ += header.buffer().size() + payload.size();
+   if (totalBytesHint_ > capacityBytes_)
+   {
+      EnforceCapacityLocked();
+   }
 }
 
-void SweepDiskCache::EnforceCapacityLocked() const
+void SweepDiskCache::EnforceCapacityLocked()
 {
    struct Entry
    {
@@ -416,21 +433,26 @@ void SweepDiskCache::EnforceCapacityLocked() const
       total += bytes;
    }
 
-   if (total <= capacityBytes_) return;
-
-   std::sort(entries.begin(),
-            entries.end(),
-            [](const Entry& a, const Entry& b) { return a.lastWrite < b.lastWrite; });
-
-   for (const auto& entry : entries)
+   if (total > capacityBytes_)
    {
-      if (total <= capacityBytes_) break;
-      std::error_code remove_error;
-      if (std::filesystem::remove(entry.path, remove_error))
+      std::sort(entries.begin(),
+               entries.end(),
+               [](const Entry& a, const Entry& b) { return a.lastWrite < b.lastWrite; });
+
+      for (const auto& entry : entries)
       {
-         total -= entry.bytes;
+         if (total <= capacityBytes_) break;
+         std::error_code remove_error;
+         if (std::filesystem::remove(entry.path, remove_error))
+         {
+            total -= entry.bytes;
+         }
       }
    }
+
+   // Refreshed from this scan's ground truth, not incremented - this is what keeps the hint from
+   // drifting further and further above reality over a long session.
+   totalBytesHint_ = total;
 }
 
 void SweepDiskCache::Clear()
@@ -447,6 +469,8 @@ void SweepDiskCache::Clear()
       std::error_code remove_error;
       std::filesystem::remove(dirEntry.path(), remove_error);
    }
+
+   totalBytesHint_ = 0;
 }
 
 std::size_t SweepDiskCache::size_bytes() const

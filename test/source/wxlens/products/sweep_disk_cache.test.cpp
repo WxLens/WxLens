@@ -106,20 +106,32 @@ TEST(SweepDiskCache, CorruptEntryIsRejectedAndRemovedRatherThanCrashing)
    EXPECT_EQ(cache.count(), 0U) << "the corrupt file must be removed, not left behind";
 }
 
-TEST(SweepDiskCache, TruncatedTempFileFromAnInterruptedStoreIsCleanedUpAsGarbage)
+TEST(SweepDiskCache, TruncatedTempFileFromAnInterruptedStoreIsCleanedUpAtNextConstruction)
 {
    QTemporaryDir dir;
-   SweepDiskCache cache {Root(dir), 1024U * 1024U};
-   cache.Store("k", kObservationTime, SampleSweep(), 0.5f, kSampleCuts);
 
-   // Simulate a Store that was killed before the rename that commits it.
-   std::ofstream leftover(Root(dir) / "stray.wxrd.tmp", std::ios::binary);
-   leftover << "partial write";
-   leftover.close();
+   {
+      SweepDiskCache cache {Root(dir), 1024U * 1024U};
+      cache.Store("k", kObservationTime, SampleSweep(), 0.5f, kSampleCuts);
 
-   // A second Store's EnforceCapacity pass sweeps stray temp files regardless of key.
-   cache.Store("other", kObservationTime, SampleSweep(), 0.5f, kSampleCuts);
+      // Simulate a Store that was killed before the rename that commits it. A live Store()
+      // no longer sweeps this away unconditionally - EnforceCapacityLocked only runs when the
+      // (O(1)) running byte estimate says the budget might actually be exceeded, which a couple
+      // of tiny entries well under a 1 MB budget never will. That trade is the whole point: the
+      // first version scanned the whole directory on every single Store, which was a real,
+      // measured, worsening-with-cache-size delay between computing a sweep and putting it on
+      // screen. A stray temp file is inert (never read as a valid entry) in the meantime.
+      cache.Store("other", kObservationTime, SampleSweep(), 0.5f, kSampleCuts);
+      std::ofstream leftover(Root(dir) / "stray.wxrd.tmp", std::ios::binary);
+      leftover << "partial write";
+      leftover.close();
+      EXPECT_TRUE(std::filesystem::exists(Root(dir) / "stray.wxrd.tmp"));
+   }
 
+   // The next construction (standing in for the next launch) always does one full scan, which is
+   // where an orphaned temp file actually gets swept.
+   SweepDiskCache reopened {Root(dir), 1024U * 1024U};
+   (void) reopened;
    for (const auto& entry : std::filesystem::directory_iterator {Root(dir)})
    {
       EXPECT_NE(entry.path().extension(), ".tmp");
