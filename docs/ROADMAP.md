@@ -3043,12 +3043,26 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   always misses, so "it built and the tests pass" could not have caught this - only watching a
   restart could.
 
-  Still unverified: whether the requested-elevation approximation holds across a real VCP-mode
-  change between visits (a miss there is safe by construction, never a wrong sweep). C++ tests
-  (`test/source/wxlens/products/sweep_disk_cache.test.cpp`) cover round-tripping, corruption
-  recovery, a fresh instance over the same directory, eviction, and - since 2026-09-26 - that
-  sub-second precision cannot change the key while genuinely different scans still get different
-  ones.
+  **The VCP-change caveat previously recorded here was wrong, 2026-09-26.** It worried that a
+  radar switching VCP between visits could make "requested elevation" resolve to a different cut
+  than the cached entry was built from. It cannot: the key pins `observationTime`, which names one
+  immutable volume, and `Ar2vFile::GetElevationScan` is a const method on that volume, so its
+  resolution is fixed for the life of the entry. A VCP change produces different scans at
+  different times, which get different keys. Nothing can retroactively invalidate an entry.
+
+  What is worth stating instead, and was checked live: the requested elevation is only an
+  *address*, never the answer. Measured against KDDC, an entry keyed `req0.000000` stored a
+  resolved angle of `0.4834°` (the radar's true reported tilt) along with all nine cuts, and two
+  tilts of the same scan produced two distinct keys carrying their own angles and geometry
+  (`req0.000000` at 0.4834°/12.1 MB, `req3.076150` at 3.0761°/1.9 MB). After a restart the 3.1°
+  tilt came back as 3.1° data with a 3.1° readout. So even where a request did resolve
+  differently, the angle served is always the one its sweep was built from - a stale key can cost
+  a miss, never a mismatched tilt.
+
+  C++ tests (`test/source/wxlens/products/sweep_disk_cache.test.cpp`) cover round-tripping,
+  corruption recovery, a fresh instance over the same directory, eviction, and - since 2026-09-26
+  - that sub-second precision cannot change the key while genuinely different scans, products,
+  sites and tilts still get distinct ones.
 - [ ] **Scope Canadian radar against a verified data source before accepting implementation.**
   Request the contributor's exact endpoint, sample file, available products/history, and
   redistribution terms or documented public-safety exemption. ECCC's published
