@@ -3030,13 +3030,25 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   Find/Store call); the basemap cache is MapLibre's own live SQLite connection, so a clear while
   panes are open defers to the next launch via a marker file, applied before anything reopens it.
 
-  **Not verified:** live behavior (a real restart-and-scrub session watched end to end), and
-  whether "same requested elevation resolves to the same actual tilt" - the approximation
-  `BuildDiskCacheKey` uses to probe the cache before the volume is decoded - holds up against a
-  real VCP-mode change between visits (a miss there is safe by construction, never a wrong sweep,
-  but unverified live). C++ tests (`test/source/wxlens/products/sweep_disk_cache.test.cpp`) cover
-  round-tripping, corruption recovery, a fresh instance over the same directory (the actual
-  restart-persistence property), and eviction.
+  **Verified live 2026-09-26, and it did not work when first written.** A real restart cycle
+  against KDDC (play the history window, quit, relaunch, play it again) found the feature had
+  never once hit: the writer keyed entries on the decoded volume's header start time, which
+  carries milliseconds (`11:47:49.395`), while the probe - which deliberately runs *before* any
+  download - had only the time parsed from the provider's object key, which names whole seconds
+  (`11:47:49.000`). Every entry written was therefore unreadable. Nothing surfaced it: the cache
+  filled, evicted, and reported healthy, and the in-memory caches made the app feel right. Both
+  sides now go through one `BuildSweepDiskCacheKey` that truncates to seconds; after the fix the
+  same restart cycle logs `disk_cache_hit=true` and re-renders the frames with no download or
+  decode. The lesson worth keeping: a cache that is never read looks exactly like a cache that
+  always misses, so "it built and the tests pass" could not have caught this - only watching a
+  restart could.
+
+  Still unverified: whether the requested-elevation approximation holds across a real VCP-mode
+  change between visits (a miss there is safe by construction, never a wrong sweep). C++ tests
+  (`test/source/wxlens/products/sweep_disk_cache.test.cpp`) cover round-tripping, corruption
+  recovery, a fresh instance over the same directory, eviction, and - since 2026-09-26 - that
+  sub-second precision cannot change the key while genuinely different scans still get different
+  ones.
 - [ ] **Scope Canadian radar against a verified data source before accepting implementation.**
   Request the contributor's exact endpoint, sample file, available products/history, and
   redistribution terms or documented public-safety exemption. ECCC's published

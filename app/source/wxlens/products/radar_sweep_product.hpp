@@ -64,6 +64,27 @@ struct SweepSnapshot
 [[nodiscard]] std::shared_ptr<const ColorTableLut>
 BuildColorTableLut(const SweepData& sweep, const QString& paletteText);
 
+/**
+ * Identity of one disk-cached sweep, from what was *asked for* rather than what a volume resolved
+ * to - the resolved tilt is only known once the volume has been decoded, which is exactly the cost
+ * the cache exists to avoid paying again.
+ *
+ * Public because the two sides that build this key cannot share a time source, and getting that
+ * wrong is invisible: the writer has the decoded volume, whose header start time carries
+ * milliseconds (11:47:49.395), while the reader deliberately runs before any download and has only
+ * the time parsed from the provider's object key, which names whole seconds (11:47:49.000). The
+ * first version of this used each side's own value directly, so the keys never matched and every
+ * entry written was unreadable - the cache appeared to work, filled up, and never once hit.
+ * Truncating to seconds here, in one place both sides call, is what makes them agree. A truncation
+ * that ever disagreed could only cost a cache miss, never a wrong sweep, because SweepDiskCache
+ * re-verifies the full key against the file it reads.
+ */
+[[nodiscard]] std::string
+BuildSweepDiskCacheKey(const std::string&                    radarSite,
+                       const std::string&                    productName,
+                       float                                 requestedElevation,
+                       std::chrono::system_clock::time_point observationTime);
+
 /// Directory backing the disk-persisted sweep-geometry cache (see sweep_disk_cache.hpp),
 /// exposed for the settings UI's storage section - mirrors AppSettings::mapCachePath's role for
 /// the basemap cache.

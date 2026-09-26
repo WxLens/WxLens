@@ -78,23 +78,6 @@ SweepDiskCache& DiskCache()
    return cache;
 }
 
-/**
- * Identifies one disk-cached sweep by what was *asked for*, not what a volume resolved to - the
- * resolved tilt is only known once the volume itself has been decoded, which is exactly the cost
- * this cache exists to avoid paying again. For a fixed site/VCP this is stable in practice (the
- * same requested elevation resolves to the same actual cut run to run), and a VCP change that
- * breaks that assumption just costs a cache miss, never a wrong answer - the true resolved angle
- * travels with the entry itself (CachedSweep::elevationAngleDegrees), so a stale key can never
- * produce a mismatched sweep/angle pairing, only fail to be found.
- */
-std::string BuildDiskCacheKey(const std::string& site,
-                              const std::string& product,
-                              float               requestedElevation,
-                              std::int64_t        observationTimeMs)
-{
-   return site + ":" + product + ":req" + std::to_string(requestedElevation) + ":" +
-         std::to_string(observationTimeMs);
-}
 
 DataBlockType ProductBlockType(const std::string& name)
 {
@@ -677,8 +660,9 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
             if (sweep && result.origin == data::FrameCache<SweepData>::Origin::Loaded &&
                SweepDiskCachePersistenceEnabled())
             {
-               const auto diskKey = BuildDiskCacheKey(site, product, elevation, stamp);
                const auto startTime = file->start_time();
+               const auto diskKey =
+                  BuildSweepDiskCacheKey(site, product, elevation, startTime);
                QThreadPool::globalInstance()->start(
                   [diskKey, startTime, sweep, cut, cuts]()
                   { DiskCache().Store(diskKey, startTime, *sweep, cut, cuts); });
@@ -786,8 +770,8 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
                const auto stampMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                                        actual->time_since_epoch())
                                        .count();
-               const auto diskKey =
-                  BuildDiskCacheKey(p->radarSite_, p->productName_, p->selectedElevation_, stampMs);
+               const auto diskKey = BuildSweepDiskCacheKey(
+                  p->radarSite_, p->productName_, p->selectedElevation_, *actual);
                if (auto cached = DiskCache().Find(diskKey); cached.sweep)
                {
                   const auto lut = BuildColorTableLutFromTable(*cached.sweep, p->colorTable_);
@@ -837,6 +821,24 @@ BuildColorTableLut(const SweepData& sweep, const QString& paletteText)
 {
    std::istringstream stream(paletteText.toStdString());
    return BuildColorTableLutFromTable(sweep, scwx::common::ColorTable::Load(stream));
+}
+
+std::string BuildSweepDiskCacheKey(const std::string&                    radarSite,
+                                   const std::string&                    productName,
+                                   float                                 requestedElevation,
+                                   std::chrono::system_clock::time_point observationTime)
+{
+   // See the header for why the truncation is the whole point of this function. Keying on the
+   // requested elevation rather than the resolved cut is what keeps the key computable before a
+   // download; for a fixed site/VCP the two correspond, and a VCP change that breaks that costs a
+   // miss, never a wrong answer - the true resolved angle travels inside the entry
+   // (CachedSweep::elevationAngleDegrees), so a stale key cannot pair a sweep with the wrong tilt.
+   const auto seconds =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+         std::chrono::floor<std::chrono::seconds>(observationTime).time_since_epoch())
+         .count();
+   return radarSite + ":" + productName + ":req" + std::to_string(requestedElevation) + ":" +
+         std::to_string(seconds);
 }
 
 QString SweepDiskCacheDirectory()

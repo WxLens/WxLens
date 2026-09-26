@@ -59,6 +59,38 @@ TEST(SweepDiskCache, RoundTripsGeometryElevationAngleAndCuts)
          "geometry";
 }
 
+// The bug this pins cost the feature everything and showed no symptom: the writer keyed entries on
+// the decoded volume's header time (millisecond precision, 11:47:49.395) while the reader probed
+// with the time parsed from the provider's object key (whole seconds, 11:47:49.000). Every entry
+// written was therefore unreadable - the cache filled up, evicted, and never once hit. Caught only
+// by watching a real restart; these two cases are what makes that cheap to catch next time.
+TEST(BuildSweepDiskCacheKey, SubSecondPrecisionDoesNotChangeTheKey)
+{
+   using namespace std::chrono;
+   const auto wholeSecond = sys_days {2026y / September / 26} + 11h + 47min + 49s;
+
+   const auto fromObjectKey = BuildSweepDiskCacheKey("KDDC", "Velocity", 0.0f, wholeSecond);
+   const auto fromVolumeHeader =
+      BuildSweepDiskCacheKey("KDDC", "Velocity", 0.0f, wholeSecond + milliseconds {395});
+
+   EXPECT_EQ(fromObjectKey, fromVolumeHeader)
+      << "the writer and the probe derive their timestamp from different sources and must still "
+         "agree on the key";
+}
+
+TEST(BuildSweepDiskCacheKey, DistinctScansAndProductsStillGetDistinctKeys)
+{
+   using namespace std::chrono;
+   const auto scan = sys_days {2026y / September / 26} + 11h + 47min + 49s;
+   const auto base = BuildSweepDiskCacheKey("KDDC", "Velocity", 0.0f, scan);
+
+   // Truncating to seconds must not blur genuinely different entries together.
+   EXPECT_NE(base, BuildSweepDiskCacheKey("KDDC", "Velocity", 0.0f, scan + seconds {1}));
+   EXPECT_NE(base, BuildSweepDiskCacheKey("KDDC", "Reflectivity", 0.0f, scan));
+   EXPECT_NE(base, BuildSweepDiskCacheKey("KTLX", "Velocity", 0.0f, scan));
+   EXPECT_NE(base, BuildSweepDiskCacheKey("KDDC", "Velocity", 0.5f, scan));
+}
+
 TEST(SweepDiskCache, MissReturnsNullSweepWithoutTouchingDisk)
 {
    QTemporaryDir dir;
