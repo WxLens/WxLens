@@ -289,6 +289,7 @@ public:
    bool advancedPaneLinking_ {false};
    bool controlBarDocked_ {false};
    bool centerMapOnSiteChange_ {true};
+   bool persistRadarCache_ {true};
    int radarSiteScope_ {static_cast<int>(RadarSiteScope::AllPanes)};
    bool radarSitesVisible_ {true};
    bool tdwrSitesVisible_ {true};
@@ -343,6 +344,8 @@ void AppSettings::Impl::Load()
       kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
    centerMapOnSiteChange_ =
       store_.GetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), true);
+   persistRadarCache_ =
+      store_.GetBool(kRadarCategory, QStringLiteral("persist_sweep_cache"), true);
    radarSiteScope_ = store_.GetInt(kRadarCategory, QStringLiteral("site_scope"),
                                    static_cast<int>(RadarSiteScope::AllPanes), 0,
                                    kRadarSiteScopeMax);
@@ -385,6 +388,12 @@ AppSettings::AppSettings(SettingsStore& store, QObject* parent) :
     QObject(parent), p {std::make_unique<Impl>(store)}
 {
    p->Load();
+   // Self-contained rather than wired from main.cpp (contrast
+   // RadarSiteDataService::SetHistoryMinutes): this file already depends on products:: for the
+   // cache path/clear/size accessors above, so there is no layering reason to push this one knob
+   // out to main.cpp instead - and doing it here means the runtime flag matches a saved "off"
+   // from a previous session immediately, not only after the user touches the setting again.
+   products::SetSweepDiskCachePersistenceEnabled(p->persistRadarCache_);
    logger_->info("Settings loaded from {}", store.ConfigDirectory().toStdString());
 }
 
@@ -456,6 +465,22 @@ int AppSettings::mapTheme() const
 
 bool AppSettings::controlBarDocked() const { return p->controlBarDocked_; }
 bool AppSettings::centerMapOnSiteChange() const { return p->centerMapOnSiteChange_; }
+bool AppSettings::persistRadarCache() const { return p->persistRadarCache_; }
+
+void AppSettings::setPersistRadarCache(bool enabled)
+{
+   if (enabled == p->persistRadarCache_) return;
+   p->persistRadarCache_ = enabled;
+   p->store_.SetBool(kRadarCategory, QStringLiteral("persist_sweep_cache"), enabled);
+   p->store_.Save();
+   // Takes effect immediately, including clearing whatever had already accumulated when turned
+   // off - see SetSweepDiskCachePersistenceEnabled's doc comment for why that clear is part of
+   // "off", not a separate step.
+   products::SetSweepDiskCachePersistenceEnabled(enabled);
+   logger_->info("Persist radar cache to disk set to {}", enabled);
+   Q_EMIT persistRadarCacheChanged();
+}
+
 int AppSettings::radarSiteScope() const { return p->radarSiteScope_; }
 bool AppSettings::advancedPaneLinking() const { return p->advancedPaneLinking_; }
 
@@ -812,6 +837,7 @@ void AppSettings::resetToDefaults()
    p->store_.SetBool(kAppearanceCategory, QStringLiteral("advanced_pane_linking"), false);
    p->store_.SetBool(kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
    p->store_.SetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), true);
+   p->store_.SetBool(kRadarCategory, QStringLiteral("persist_sweep_cache"), true);
    for (const ToolbarAction& action : kToolbarActions)
       p->store_.SetBool(kAppearanceCategory,
                         QStringLiteral("show_toolbar_") + QString::fromLatin1(action.id), false);
@@ -837,6 +863,9 @@ void AppSettings::resetToDefaults()
 
    p->store_.Save();
    p->Load();
+   // p->Load() only refreshes this object's own fields; the runtime flag it drives lives in
+   // products:: (see the constructor's identical call) and needs the same explicit push.
+   products::SetSweepDiskCachePersistenceEnabled(p->persistRadarCache_);
 
    Q_EMIT measurementGestureChanged();
    Q_EMIT preferredMeasurementToolChanged();
@@ -847,6 +876,7 @@ void AppSettings::resetToDefaults()
    Q_EMIT mapThemeChanged();
    Q_EMIT controlBarDockedChanged();
    Q_EMIT centerMapOnSiteChangeChanged();
+   Q_EMIT persistRadarCacheChanged();
    Q_EMIT radarSiteScopeChanged();
    Q_EMIT radarSitesVisibleChanged();
    Q_EMIT tdwrSitesVisibleChanged();

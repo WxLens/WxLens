@@ -78,6 +78,24 @@ BuildColorTableLut(const SweepData& sweep, const QString& paletteText);
 void ClearSweepDiskCache();
 
 /**
+ * Runtime on/off switch for disk persistence of the sweep-geometry cache
+ * (Settings' Storage section, AppSettings::persistRadarCache - "Persist radar cache to disk").
+ * A plain static setter, mirroring RadarSiteDataService::SetHistoryMinutes, so this layer never
+ * depends on `settings`; wired from main.cpp the same way.
+ *
+ * Off means genuinely off, not "clear then keep caching": RadarSweepProduct stops both reading
+ * and writing the disk cache while this is false, so a stale on-disk entry from before it was
+ * turned off is never served. It does not touch the always-on in-memory decode/geometry caches
+ * (FrameCache<Ar2vFile>, GeometryCache) - those are bounded by the existing "Recent history"
+ * playback-window setting and are freed automatically when the process exits regardless, so there
+ * is nothing for a persistence toggle to do there. Off is the common case this exists for: a
+ * resource-constrained machine where the point is to stop *accumulating disk state across
+ * restarts*, not to change what happens in RAM during a single run.
+ */
+void SetSweepDiskCachePersistenceEnabled(bool enabled);
+[[nodiscard]] bool SweepDiskCachePersistenceEnabled();
+
+/**
  * The Data Product layer (docs/ROADMAP.md §0.1 principle #4, §4.6) for one radar site's
  * reflectivity sweep. Listens for LevelTwoDataLoaded on that site's RadarSiteDataService (the
  * Data Source), and turns the raw Ar2vFile into renderable geometry a Visualization Layer

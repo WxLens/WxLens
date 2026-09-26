@@ -35,6 +35,20 @@ class AppSettings : public QObject
    Q_PROPERTY(QString mapCachePath READ mapCachePath CONSTANT)
    Q_PROPERTY(QString radarSweepCachePath READ radarSweepCachePath CONSTANT)
 
+   /**
+    * Whether the radar sweep cache is written to disk at all (Storage settings section).
+    * Defaults on - that is what makes an archive frame you already looked at skip the
+    * network on a later launch, the whole point of the disk cache. Off is for a
+    * storage-constrained machine: no new disk writes happen, nothing already on disk is read
+    * back either, and turning it off clears whatever had already accumulated. It does not
+    * touch the always-on in-memory decode/geometry caches - those are bounded by
+    * `playbackMinutes` above and vanish on their own when the process exits, so there is
+    * nothing for a *persistence* toggle to do there. See
+    * products::SetSweepDiskCachePersistenceEnabled for exactly what this gates.
+    */
+   Q_PROPERTY(bool persistRadarCache READ persistRadarCache WRITE setPersistRadarCache NOTIFY
+                 persistRadarCacheChanged)
+
    /// Which gesture starts a measurement (§4.4). See MeasurementGesture for why this is a
    /// preference rather than a fixed behaviour.
    Q_PROPERTY(int measurementGesture READ measurementGesture WRITE setMeasurementGesture NOTIFY
@@ -90,6 +104,8 @@ public:
    void setPlaybackMinutes(int minutes);
    [[nodiscard]] QString mapCachePath() const;
    [[nodiscard]] QString radarSweepCachePath() const;
+   [[nodiscard]] bool persistRadarCache() const;
+   void setPersistRadarCache(bool enabled);
 
    /**
     * Deletes the basemap's on-disk tile/style cache. Returns true if it cleared immediately,
@@ -247,6 +263,7 @@ public:
 
 signals:
    void playbackMinutesChanged();
+   void persistRadarCacheChanged();
    void measurementGestureChanged();
    void preferredMeasurementToolChanged();
    void snapStrengthChanged();

@@ -15,6 +15,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -47,6 +48,11 @@ namespace
 {
 using scwx::wsr88d::rda::DataBlockType;
 using scwx::wsr88d::rda::ElevationScan;
+
+// Defaults to on: this is what the checklist item this feature closes always wanted
+// ("verify reuse after restart"). See SetSweepDiskCachePersistenceEnabled's doc comment.
+std::atomic_bool sweepDiskCachePersistenceEnabled_ {true};
+
 data::FrameCache<SweepData>& GeometryCache()
 {
    static data::FrameCache<SweepData> cache {256U * 1024U * 1024U};
@@ -668,7 +674,8 @@ void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
             // delayed every pane update by however long that write took - worse the busier the
             // cache. Fire-and-forget is safe here because the disk cache is only ever a "have we
             // seen this before" accelerator, never a source of truth this worker depends on later.
-            if (sweep && result.origin == data::FrameCache<SweepData>::Origin::Loaded)
+            if (sweep && result.origin == data::FrameCache<SweepData>::Origin::Loaded &&
+               SweepDiskCachePersistenceEnabled())
             {
                const auto diskKey = BuildDiskCacheKey(site, product, elevation, stamp);
                const auto startTime = file->start_time();
@@ -750,6 +757,16 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
                  if (requestId == p->requestId_) Q_EMIT LoadStateChanged(false, reason, 0);
               });
       Q_EMIT LoadStateChanged(true, {}, 0);
+
+      if (!SweepDiskCachePersistenceEnabled())
+      {
+         // Off means off: skip the resolve-then-probe round trip entirely rather than pay for a
+         // listing call whose only purpose is checking a cache this run will neither read from
+         // nor write to. Falls straight through to the same path this used before disk
+         // persistence existed.
+         p->requestId_ = service->LoadLevel2DataAt(*archiveTime);
+         return;
+      }
 
       // Before paying for the volume fetch, check whether this exact (site, product, elevation,
       // resolved time) has already been viewed and disk-cached - resolving the time is a listing
@@ -836,6 +853,23 @@ std::size_t SweepDiskCacheSizeBytes()
 void ClearSweepDiskCache()
 {
    DiskCache().Clear();
+}
+
+void SetSweepDiskCachePersistenceEnabled(bool enabled)
+{
+   const bool wasEnabled = sweepDiskCachePersistenceEnabled_.exchange(enabled);
+   if (wasEnabled && !enabled)
+   {
+      // Turning this off is specifically about not accumulating disk state on a constrained
+      // machine, so leaving whatever had already built up sitting there defeats the point -
+      // clear it on the way out rather than just stopping future writes.
+      DiskCache().Clear();
+   }
+}
+
+bool SweepDiskCachePersistenceEnabled()
+{
+   return sweepDiskCachePersistenceEnabled_.load();
 }
 
 std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
