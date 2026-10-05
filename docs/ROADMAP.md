@@ -4,9 +4,8 @@
 
 The user loves what Supercell Wx already does but believes its UI/UX has hit a ceiling and
 wants a drastically more modern, more approachable, yet still power-user-capable weather radar
-app — something that reads as "open face" like RadarOmega, borrows layout ideas from
-RadarScope/other weather apps without copying them, and eventually rivals or beats paid
-closed-source tools on features while staying free and open source. The explicit decision
+app — something that reads as "open face" like the best modern radar apps, borrows layout ideas from
+other weather apps without copying them, and eventually rivals or beats closed-source tools on features while staying free and open source. The explicit decision
 (confirmed with the user) is a **full rewrite**: new UI framework, new app architecture, new
 name/brand, built either as a new folder or new repo — not an incremental evolution of the
 current `scwx-qt` QWidgets code. The one thing explicitly carried forward is `wxdata`, the
@@ -215,7 +214,7 @@ requested, fast for experienced users. Don't solve complexity by permanently hid
 use progressive disclosure.
 
 **Competitor references are inspiration only, never copied** (§5.2's trademark/trade-dress
-discipline) — RadarOmega/RadarScope/AWIPS may inform information hierarchy, density, and
+discipline) — other radar apps and AWIPS may inform information hierarchy, density, and
 interaction patterns, never logos, distinctive visual identity, exact layouts/color schemes, or
 proprietary implementation. The app needs its own visual identity.
 
@@ -276,8 +275,8 @@ MapLibre GL JS; Flutter):
 - **The actual gap-closer — real theming**: QML is a declarative, CSS-adjacent language with
   genuine property animation, states/transitions, and fully custom Qt Quick Controls 2 styling
   with zero native-widget leakage — unlike today's QWidget/QPalette/QStyle approach, which is
-  exactly the identified weakness. This is what makes a "drastically modern," RadarOmega-ish
-  open-face look actually achievable.
+  exactly the identified weakness. This is what makes a "drastically modern," open-face
+  look actually achievable.
 - **Future mobile companion** (Phase 5 stretch): Qt has a real, maintained mobile deployment
   story (Qt for Android/iOS) sharing the *same* QML codebase — the data layer and much of the
   chrome could carry over, unlike Electron (no mobile story) or a from-scratch Flutter app.
@@ -680,8 +679,8 @@ as an unrelated, globally-scoped system. The new app unifies both into one `MapO
   tier (1) is pure UI state local to whatever tool is active. This keeps the map from filling up
   with clutter every time someone probes a location, per the explicit ask.
 - **Default scope is a user setting, not a hardcoded constant.** The competing apps genuinely
-  disagree here, and both are right for their users: RadarOmega draws on the one pane you drew
-  in, while RadarScope shows the drawing across the group — which is the better default for the
+  disagree here, and both are right for their users: one draws on the pane you drew
+  in, while the other shows the drawing across the group — which is the better default for the
   common analysis case, because it puts the same annotation over reflectivity *and* velocity
   *and* whatever else the group is showing, so you can see how the feature you outlined looks in
   each product at once. Other users find objects crossing panes actively unwanted. So the default
@@ -1063,12 +1062,12 @@ Two distinct systems, kept distinct like the current app does:
   customize/fork it."
 - Style Qt Quick Controls 2 with a fully custom style (not `Fusion`/`Material`/native) driven by
   `ThemeManager` roles, so no native-widget look leaks through — this is what makes a
-  RadarOmega-ish "open face," dense-but-modern aesthetic achievable.
+  modern "open face," dense-but-modern aesthetic achievable.
 - Bundle at least two built-in themes at Phase 1 exit: a dark "operational" theme (low glare,
   radar-viewing-optimized) and a light theme, both using the same shareable format the user
   would use to build their own.
-- **Trademark/trade-dress discipline:** use RadarOmega's open-face layout density and
-  RadarScope/other weather apps as *layout/information-density* inspiration only — original
+- **Trademark/trade-dress discipline:** use the open-face layout density of other radar apps and
+  other weather apps as *layout/information-density* inspiration only — original
   iconography, color choices, and typography throughout. Do not copy any competitor's logo,
   exact color ramp, or distinctive UI chrome shape 1:1.
 
@@ -1093,7 +1092,7 @@ editing, pane sync configuration, settings). Never achieve "approachable" by rem
 professional capability; achieve it by not surfacing it until asked for.
 
 **Capability breadth must not become toolbar breadth** (reaffirmed by packaged-app feedback,
-2026-08-31). WxLens is intended to compete with paid radar applications on capability while
+2026-08-31). WxLens is intended to compete with established radar applications on capability while
 remaining cleaner and easier to approach; adding a feature therefore does not automatically earn
 it a permanent button. Treat persistent chrome as a constrained budget:
 
@@ -1338,7 +1337,7 @@ product switching, live + archived data. This is the phase meant to ship real us
 - Live data (site auto-refresh) + archived data browsing (site + time picker).
 - `.pal` palette editing + quick-picker (§5.1), bundled default palette set.
 - App chrome theme system (§5.2) with at least two bundled themes, applied throughout — this is
-  where the "drastically modernized, RadarOmega-ish open face" goal actually lands.
+  where the "drastically modernized, modern open face" goal actually lands.
 - Warnings/alerts overlay (reuse `wxdata/awips/` text-product parsing; port alert-layer
   *behavior*, not code).
 - Placefile overlay support (reuse `wxdata/gr/placefile.cpp` unmodified; port rendering
@@ -1381,7 +1380,7 @@ next starts:
 12. **Warnings/placefiles** — alert overlay (ported behavior from `alert_layer`) and placefile
     overlay (`wxdata/gr/placefile.cpp`, unmodified).
 13. **Multi-pane polish + acceptance validation** — quick sync/object controls in chrome (§4.5),
-    UI/UX pass checked against RadarOmega/RadarScope for layout-density inspiration only, then
+    UI/UX pass checked against other radar apps for layout-density inspiration only, then
     validate the whole phase against §4.8's acceptance criteria. Include a persisted **Map
     details** surface shared consistently across panes: built-in `Operational`, `Minimal`, and
     `Detailed` presets plus grouped visibility toggles for roads, city/town labels, boundaries,
@@ -3405,8 +3404,7 @@ unified "Layers" panel is the direction, not per-overlay dedicated dialogs.**
 ## 9. Open questions for the user / other planning agents
 
 1. ~~Final app/brand name~~ — **RESOLVED: the app is named `WxLens`.** (Before registering a
-   domain/GitHub org, do a basic trademark/name-collision check against RadarOmega, RadarScope,
-   GRLevelX/GR2Analyst, and any existing "WxLens" weather software, as a normal due-diligence
+   domain/GitHub org, do a basic trademark/name-collision check against established radar viewers and any existing "WxLens" weather software, as a normal due-diligence
    step — not expected to be a blocker, just unverified as of this roadmap.)
 2. **`wxdata` extraction timing** (§3.1): start with Option A and defer the live-repo extraction
    (Option B), or do the extraction against the current shipping app's repo immediately? This

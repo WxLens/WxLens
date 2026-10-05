@@ -60,8 +60,8 @@ class AppSettings : public QObject
 
    /**
     * Default scope for newly placed objects (§4.3). Explicitly a setting, not a constant: that
-    * section records that RadarOmega and RadarScope disagree here and both are right for their
-    * users, so the shipped default is `CurrentPaneOnly` but the value is read from config.
+    * section records that existing radar apps disagree here and both approaches are right for
+    * their users, so the shipped default is `CurrentPaneOnly` but the value is read from config.
     */
    Q_PROPERTY(int defaultObjectScope READ defaultObjectScope WRITE setDefaultObjectScope NOTIFY
                  defaultObjectScopeChanged)
