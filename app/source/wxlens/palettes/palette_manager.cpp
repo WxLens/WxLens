@@ -370,7 +370,7 @@ QVariantMap PaletteManager::inspectFile(const QUrl& source) const
    if (table == nullptr || !table->IsValid())
    {
       result[QStringLiteral("error")] =
-         QStringLiteral("Not a readable GRLevelX palette - no valid colour stops found");
+         QStringLiteral("Not a readable palette - no valid colour stops found");
       return result;
    }
 

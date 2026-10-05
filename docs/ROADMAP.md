@@ -4,9 +4,8 @@
 
 The user loves what Supercell Wx already does but believes its UI/UX has hit a ceiling and
 wants a drastically more modern, more approachable, yet still power-user-capable weather radar
-app — something that reads as "open face" like RadarOmega, borrows layout ideas from
-RadarScope/other weather apps without copying them, and eventually rivals or beats paid
-closed-source tools on features while staying free and open source. The explicit decision
+app — something that reads as "open face" like the best modern radar apps, borrows layout ideas from
+other weather apps without copying them, and eventually rivals or beats closed-source tools on features while staying free and open source. The explicit decision
 (confirmed with the user) is a **full rewrite**: new UI framework, new app architecture, new
 name/brand, built either as a new folder or new repo — not an incremental evolution of the
 current `scwx-qt` QWidgets code. The one thing explicitly carried forward is `wxdata`, the
@@ -215,7 +214,7 @@ requested, fast for experienced users. Don't solve complexity by permanently hid
 use progressive disclosure.
 
 **Competitor references are inspiration only, never copied** (§5.2's trademark/trade-dress
-discipline) — RadarOmega/RadarScope/AWIPS may inform information hierarchy, density, and
+discipline) — other radar apps and AWIPS may inform information hierarchy, density, and
 interaction patterns, never logos, distinctive visual identity, exact layouts/color schemes, or
 proprietary implementation. The app needs its own visual identity.
 
@@ -276,8 +275,8 @@ MapLibre GL JS; Flutter):
 - **The actual gap-closer — real theming**: QML is a declarative, CSS-adjacent language with
   genuine property animation, states/transitions, and fully custom Qt Quick Controls 2 styling
   with zero native-widget leakage — unlike today's QWidget/QPalette/QStyle approach, which is
-  exactly the identified weakness. This is what makes a "drastically modern," RadarOmega-ish
-  open-face look actually achievable.
+  exactly the identified weakness. This is what makes a "drastically modern," open-face
+  look actually achievable.
 - **Future mobile companion** (Phase 5 stretch): Qt has a real, maintained mobile deployment
   story (Qt for Android/iOS) sharing the *same* QML codebase — the data layer and much of the
   chrome could carry over, unlike Electron (no mobile story) or a from-scratch Flutter app.
@@ -680,8 +679,8 @@ as an unrelated, globally-scoped system. The new app unifies both into one `MapO
   tier (1) is pure UI state local to whatever tool is active. This keeps the map from filling up
   with clutter every time someone probes a location, per the explicit ask.
 - **Default scope is a user setting, not a hardcoded constant.** The competing apps genuinely
-  disagree here, and both are right for their users: RadarOmega draws on the one pane you drew
-  in, while RadarScope shows the drawing across the group — which is the better default for the
+  disagree here, and both are right for their users: one draws on the pane you drew
+  in, while the other shows the drawing across the group — which is the better default for the
   common analysis case, because it puts the same annotation over reflectivity *and* velocity
   *and* whatever else the group is showing, so you can see how the feature you outlined looks in
   each product at once. Other users find objects crossing panes actively unwanted. So the default
@@ -1063,12 +1062,12 @@ Two distinct systems, kept distinct like the current app does:
   customize/fork it."
 - Style Qt Quick Controls 2 with a fully custom style (not `Fusion`/`Material`/native) driven by
   `ThemeManager` roles, so no native-widget look leaks through — this is what makes a
-  RadarOmega-ish "open face," dense-but-modern aesthetic achievable.
+  modern "open face," dense-but-modern aesthetic achievable.
 - Bundle at least two built-in themes at Phase 1 exit: a dark "operational" theme (low glare,
   radar-viewing-optimized) and a light theme, both using the same shareable format the user
   would use to build their own.
-- **Trademark/trade-dress discipline:** use RadarOmega's open-face layout density and
-  RadarScope/other weather apps as *layout/information-density* inspiration only — original
+- **Trademark/trade-dress discipline:** use the open-face layout density of other radar apps and
+  other weather apps as *layout/information-density* inspiration only — original
   iconography, color choices, and typography throughout. Do not copy any competitor's logo,
   exact color ramp, or distinctive UI chrome shape 1:1.
 
@@ -1093,7 +1092,7 @@ editing, pane sync configuration, settings). Never achieve "approachable" by rem
 professional capability; achieve it by not surfacing it until asked for.
 
 **Capability breadth must not become toolbar breadth** (reaffirmed by packaged-app feedback,
-2026-08-31). WxLens is intended to compete with paid radar applications on capability while
+2026-08-31). WxLens is intended to compete with established radar applications on capability while
 remaining cleaner and easier to approach; adding a feature therefore does not automatically earn
 it a permanent button. Treat persistent chrome as a constrained budget:
 
@@ -1338,7 +1337,7 @@ product switching, live + archived data. This is the phase meant to ship real us
 - Live data (site auto-refresh) + archived data browsing (site + time picker).
 - `.pal` palette editing + quick-picker (§5.1), bundled default palette set.
 - App chrome theme system (§5.2) with at least two bundled themes, applied throughout — this is
-  where the "drastically modernized, RadarOmega-ish open face" goal actually lands.
+  where the "drastically modernized, modern open face" goal actually lands.
 - Warnings/alerts overlay (reuse `wxdata/awips/` text-product parsing; port alert-layer
   *behavior*, not code).
 - Placefile overlay support (reuse `wxdata/gr/placefile.cpp` unmodified; port rendering
@@ -1381,7 +1380,7 @@ next starts:
 12. **Warnings/placefiles** — alert overlay (ported behavior from `alert_layer`) and placefile
     overlay (`wxdata/gr/placefile.cpp`, unmodified).
 13. **Multi-pane polish + acceptance validation** — quick sync/object controls in chrome (§4.5),
-    UI/UX pass checked against RadarOmega/RadarScope for layout-density inspiration only, then
+    UI/UX pass checked against other radar apps for layout-density inspiration only, then
     validate the whole phase against §4.8's acceptance criteria. Include a persisted **Map
     details** surface shared consistently across panes: built-in `Operational`, `Minimal`, and
     `Detailed` presets plus grouped visibility toggles for roads, city/town labels, boundaries,
@@ -1607,6 +1606,58 @@ not to be built speculatively ahead of it.
       provider and catalog stay out of this slice. Build the availability list, prefetch and
       coalescing against the `RadarSiteDataService` interface rather than against Level 2
       specifics, so adding Level 3 later is a second implementation of a settled seam.
+
+    **Status as of 2026-09-25 — slice 20 implemented, plus the two caching items the owner asked
+    for alongside it (persistent basemap, restored workspace).**
+
+    - **Persistent basemap cache.** `MapQuickItem` hard-coded `:memory:`; patch 0014 exposes
+      `cacheDatabasePath`/`cacheDatabaseMaximumSize`, and `PaneHost.qml` points every pane at one
+      256 MB SQLite cache under `QStandardPaths::CacheLocation`. MapLibre's own freshness rules
+      still govern each resource, so this is reuse, not a stale snapshot.
+    - **Restored workspace.** Layout, retained hidden panes, and each pane's site, product
+      identity, elevation, palette, camera and per-channel sync groups persist to
+      `workspace.toml` (debounced 500 ms, flushed on quit). Restoration always reopens *live*:
+      an archive time is deliberately not restored, and no radar data is persisted.
+    - **Playback.** `PlaybackController` holds the frames, the playhead, seek coalescing (80 ms
+      debounce, one in-flight load, stale completions rejected by generation), play/pause and
+      follow-live; `PlaybackBinding` drives the active pane through the existing `Time` channel
+      with `ChangeOrigin::DataDriven`, so grouped panes advance together and
+      `SyncChannel::Animation` stays declared and unused as resolved above. Availability comes
+      from `GetTimePointsByDate`; no scan time is synthesized. Level 3 panes say playback is
+      Level 2 only rather than pretending.
+    - **Rolling retention by observation time.** `FrameCache` entries now carry the scan's
+      observation time, `PruneBefore` drops what has aged out (including a load that finishes
+      after its window expires), and the budget is resizable at runtime. The service prunes every
+      15 s to the configured window (Settings → Playback: 15/30/60/120 minutes).
+    - **The GUI-thread geometry cost this slice was warned about is gone.** Sweep geometry is
+      built on a worker and cached by observation time; measured 260 ms per frame, previously
+      synchronous on the GUI thread. The product singleton key also carries the full timestamp
+      instead of the archive *minute*, so two scans inside one minute can no longer collide.
+    - **Measured on live KEAX, 2026-09-25.** ~56 MB decoded per volume, a volume every ~5 minutes.
+      A 30-minute window is 6 scans / ~340 MB. At the old fixed 256 MB budget it held four of
+      them and the one-minute refresh re-downloaded the other two *every pass* - the exact
+      opposite of what the cache is for. The budget now follows the window (15 MB/minute, 256 MB
+      floor, 1 GB ceiling) and the warm loop stops before exceeding it rather than after, which
+      is what makes a refresh idempotent: repeat passes log `downloads=0`, and the next live
+      volume was already warm (`decoded_cache_hit=true`, `download_decode_ms=0.005`).
+    - **Cold vs warm start, same machine, captures 1.2 s apart:** cold (deleted `basemap.db`) the
+      map area was still empty at ~1.5 s and ~3 s and drew at ~6 s; warm, the basemap was already
+      drawn in the first capture. That is the reported "white screen at startup", and it is the
+      basemap, not the radar: radar still arrives a few seconds later because nothing about the
+      volume download is cached across launches (see the disk-persistence box below).
+    - **Verified:** 201 C++ model tests and 13 QML tests pass, including seek coalescing, stale
+      completion, follow-live, observation-time pruning, budget resize, a two-process map-cache
+      test that kills the tile server before the second launch, and workspace restore of a
+      collapsed layout's hidden panes. Live: product restored across a restart, `downloads=0` on
+      repeat history passes, playback controls laid out in the one bottom zone.
+    - **Not verified:** Linux and macOS (Windows only so far); the 120-minute window's memory
+      behaviour over a long session; grouped-pane playback with more than one pane on screen;
+      Level 3 playback, which is deliberately out of scope.
+    - **Follow-up, same day: the exit crash is fixed too** (patch 0015 plus a deliberate exit; see
+      the CLOSED note under slice 4's open-defect block). It is recorded here because this slice
+      is what exposed the other half of it: background history warming posts to the io_context
+      `main()` joins on the way out, so quitting mid-download held the process open for the rest
+      of the window's downloads. Warming now stands down on quit.
 
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
 structure, not a rigid contract — but keep the principle: each slice buildable and testable on
@@ -1981,6 +2032,31 @@ special case.
 > tears the window down itself. **Net behaviour is unchanged** - still a fault after the window
 > closes, with nothing left to lose - but it is now auto-logged with a full stack instead of
 > opaque. A real fix belongs upstream.
+
+> **CLOSED (2026-09-25).** Both halves, by keeping the fix that was reverted above and removing the
+> reason it was reverted. `destroyRenderer()` from `TextureNodeOpenGL`'s destructor is now patch
+> 0015, and on its own it reproduces exactly what was recorded here: no crash, and a teardown that
+> takes 25-45 s instead of ending. That wait is #285, and it is not ours to fix - so the
+> application stops waiting for it. Once the event loop returns, `main()` stands background
+> warming down, flushes the logger and calls `std::_Exit`. Nothing durable is lost: settings and
+> the workspace are written as they change and again on `aboutToQuit`, and the basemap cache is
+> transactional SQLite that survived every one of the 19 hard faults logged before this.
+>
+> Two things this session added that the earlier attempt did not have, and which are why the
+> outcome differs:
+> - The revert was measured against a build where the renderer teardown *did* run. It never ran
+>   here at first: the process was still inside `ioThreadPool.join()`, waiting out an in-flight
+>   history download, so the node destructor was never reached. Warming now cancels on quit, which
+>   is a fix in its own right - background downloads must not decide when the app may close.
+> - `std::_Exit` after the flush, rather than leaking the engine. Leaking was tried before and
+>   correctly rejected; not running teardown at all is a different thing from trying to skip it.
+>
+> **Measured:** closing at 10 s, 25 s and 70 s of uptime (mid-download, after the live volume, and
+> after a full 30-minute warm) exits in 0.0-0.3 s, with no new entry in `wxlens-crash.log` and no
+> crash dialog on the next launch. Workspace and basemap cache both reused afterwards.
+>
+> **What this is not:** a fix for #285 or #302 upstream. Both stay filed and both stay in ADR
+> 0004's table. If either is fixed upstream, drop patch 0015 and reconsider the `_Exit`.
 
 **Status as of 2026-08-23 — Slice 5 complete: per-channel synchronization.** The sync model from
 §4.1-4.2, layered onto slice 4's grid. There is deliberately no global "linked" flag anywhere.
@@ -2895,7 +2971,7 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   harness in this repo for QML gesture behavior, so the actual redraw-count and no-added-lag claims
   are unverified until watched live. That item's real fix (retained GPU geometry, not a
   redraw-count reduction here) remains unaffected in substance.
-- [ ] **Deliver a draggable timeline and playback backed by the cache.** The existing
+- [x] **Deliver a draggable timeline and playback backed by the cache.** The existing
   Live/Archive selector and UTC field do not satisfy quick scrubbing. Implement real available
   scan discovery, bounded adjacent-frame prefetch, drag scrubbing, previous/next frame,
   play/pause, return-to-live, and visible selected/actual time plus loading/unavailable states.
@@ -2909,11 +2985,83 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   into a library so a headless `Qt6::QuickTest` harness can exercise the drag, and 20 is this
   item. Scan discovery resolved to an existing API - `GetTimePointsByDate` - so no `wxdata`
   change is needed. Close both together with this box.
+
+  **DONE 2026-09-25 (slice 20).** See that slice's status block above for what shipped, what
+  was measured, and what is still unverified. The one requirement this box states that slice 20
+  does *not* satisfy in full is "verify memory against the baseline": the retention budget now
+  scales with the window (a 30-minute window holds ~340 MB of decoded volumes), which is a
+  deliberate memory-for-network trade, not a neutral one.
 - [ ] **Add bounded on-device disk persistence after memory-cache/playback foundations.**
   Define stable source/object identity, capacity/eviction, corruption recovery, and cache-clear
   behavior. Verify reuse after restart and honest offline/cache status; keep live discovery fresh.
   If raw-download caching requires changes in reused `wxdata`, make those upstream and advance
   the pin; never hand-edit the read-only dependency tree.
+
+  **Basemap delivered 2026-09-25.** The map's tiles, style, glyphs and sprites now persist in
+  MapLibre's own SQLite cache (`external/patches/0014-...`, 256 MB at
+  `<CacheLocation>/maps/basemap.db`), which is what removed the blank map at startup.
+
+  **Radar object persistence: scoped around the ADR 0002 constraint, 2026-09-25.** `wxdata`'s
+  provider hands back a decoded `Ar2vFile`, never the compressed download bytes, so genuine
+  raw-download caching still needs the upstream `wxdata` change this box always said it would -
+  that stays open and unscheduled (no PR filed; it needs the project owner's GitHub identity).
+  What shipped instead, without touching `wxdata`: `products::SweepDiskCache`
+  (`app/source/wxlens/products/sweep_disk_cache.{hpp,cpp}`) persists the *computed* sweep
+  geometry (`SweepData`, plus the resolved elevation angle and the tilt picker's available-cuts
+  list) that `RadarSweepProduct`'s in-memory `GeometryCache` was already building - a WxLens-owned
+  plain struct, fully serializable without reaching into `wxdata` at all. A new
+  `RadarSiteDataService::ResolveLevel2Time` does a listing-only lookup (no volume download) so the
+  archive/playback path can check the disk cache *before* deciding a fetch is even necessary -
+  without that, a disk cache checked only after the volume was already downloaded would save
+  nothing a restart couldn't already avoid by scrubbing within one running process. A
+  (site, product, elevation, time) combination never viewed before still pays the normal network
+  fetch the first time, in this run or any other; only revisits are free, and only for archive
+  time (the live/latest path is deliberately excluded, since "keep live discovery fresh" above
+  means live must never show a stale disk hit instead of what is actually current).
+
+  Identity/eviction/corruption-recovery: each entry is a self-describing file (magic/version,
+  the original key, a checksum), written to a temp file and renamed into place so a crash mid-write
+  never leaves a truncated entry; a corrupt, truncated or hash-collided read is deleted and treated
+  as a miss rather than ever handed to the renderer. Capacity (512 MB) evicts least-recently-*read*
+  files once over budget. Cache-clear control: Settings' new "Storage" section can clear either
+  cache on demand (`AppSettings::clearMapCache`/`clearRadarSweepCache`) and shows each one's
+  current size. The radar cache clears immediately (nothing holds its files open outside one
+  Find/Store call); the basemap cache is MapLibre's own live SQLite connection, so a clear while
+  panes are open defers to the next launch via a marker file, applied before anything reopens it.
+
+  **Verified live 2026-09-26, and it did not work when first written.** A real restart cycle
+  against KDDC (play the history window, quit, relaunch, play it again) found the feature had
+  never once hit: the writer keyed entries on the decoded volume's header start time, which
+  carries milliseconds (`11:47:49.395`), while the probe - which deliberately runs *before* any
+  download - had only the time parsed from the provider's object key, which names whole seconds
+  (`11:47:49.000`). Every entry written was therefore unreadable. Nothing surfaced it: the cache
+  filled, evicted, and reported healthy, and the in-memory caches made the app feel right. Both
+  sides now go through one `BuildSweepDiskCacheKey` that truncates to seconds; after the fix the
+  same restart cycle logs `disk_cache_hit=true` and re-renders the frames with no download or
+  decode. The lesson worth keeping: a cache that is never read looks exactly like a cache that
+  always misses, so "it built and the tests pass" could not have caught this - only watching a
+  restart could.
+
+  **The VCP-change caveat previously recorded here was wrong, 2026-09-26.** It worried that a
+  radar switching VCP between visits could make "requested elevation" resolve to a different cut
+  than the cached entry was built from. It cannot: the key pins `observationTime`, which names one
+  immutable volume, and `Ar2vFile::GetElevationScan` is a const method on that volume, so its
+  resolution is fixed for the life of the entry. A VCP change produces different scans at
+  different times, which get different keys. Nothing can retroactively invalidate an entry.
+
+  What is worth stating instead, and was checked live: the requested elevation is only an
+  *address*, never the answer. Measured against KDDC, an entry keyed `req0.000000` stored a
+  resolved angle of `0.4834°` (the radar's true reported tilt) along with all nine cuts, and two
+  tilts of the same scan produced two distinct keys carrying their own angles and geometry
+  (`req0.000000` at 0.4834°/12.1 MB, `req3.076150` at 3.0761°/1.9 MB). After a restart the 3.1°
+  tilt came back as 3.1° data with a 3.1° readout. So even where a request did resolve
+  differently, the angle served is always the one its sweep was built from - a stale key can cost
+  a miss, never a mismatched tilt.
+
+  C++ tests (`test/source/wxlens/products/sweep_disk_cache.test.cpp`) cover round-tripping,
+  corruption recovery, a fresh instance over the same directory, eviction, and - since 2026-09-26
+  - that sub-second precision cannot change the key while genuinely different scans, products,
+  sites and tilts still get distinct ones.
 - [ ] **Scope Canadian radar against a verified data source before accepting implementation.**
   Request the contributor's exact endpoint, sample file, available products/history, and
   redistribution terms or documented public-safety exemption. ECCC's published
@@ -3092,26 +3240,41 @@ sync system as single-site panes.
 **Size:** L.
 
 ### Phase 3 — Additional data layers + velocity improvements
-**Goal:** togglable overlay stacking (satellite + radar + soundings + jet stream + pressure)
-plus the lower-priority velocity-improvement sub-track.
+**Goal:** togglable overlay stacking (satellite + radar + soundings + jet stream + pressure +
+convective-parameter/surface-analysis fields) plus the lower-priority velocity-improvement
+sub-track.
 **Scope:** satellite imagery (GOES via AWS), sounding data view (Wyoming/RUC — **[OPEN
 QUESTION]** full interactive Skew-T diagram vs. simpler tabular display first), jet stream +
 MSLP overlays (NOMADS GRIB2), overlay toggle/opacity UI in chrome; velocity dealiasing;
 direction-relative velocity color mode via vendored `hsluv-c`.
+**Scope addition (2026-09-25, resolved per §9 Q13):** the model/gridded-field slice widens
+beyond jet-stream+MSLP to include, still from NOMADS GRIB2: CAPE, CIN, Supercell Composite,
+Significant Tornado Parameter, 500mb/850mb wind, max updraft helicity — plus a separate NOAA
+RTMA-derived surface-analysis layer (surface temp/dewpoint/wind speed/visibility/cloud cover;
+see `docs/data-sources.md`'s Phase 3+ candidates for the source). This still explicitly excludes
+full arbitrary Volume-Browser breadth (cross-sections, time-height, per-level model soundings) —
+that remains out of scope for Phase 3.
 **Key technical work:**
-- New provider modules (`SatelliteDataService`, `SoundingDataService`, `ModelGridDataService`),
-  same singleton-cache pattern.
-- GRIB2 + NetCDF4 decoder adoption (license/footprint review per §0/§6 first).
+- New provider modules (`SatelliteDataService`, `SoundingDataService`, `ModelGridDataService`,
+  and an `RtmaDataService` for the surface-analysis layer), same singleton-cache pattern.
+- GRIB2 + NetCDF4 decoder adoption (license/footprint review per §0/§6 first) — the widened
+  convective-parameter set uses the same decoder as the original jet-stream/MSLP slice; RTMA is
+  its own separate NOAA product/access pattern (see `docs/data-sources.md`).
 - Geostationary reprojection for GOES imagery — **[OPEN QUESTION]** GDAL (heavy, capable,
   well-trodden) vs. a purpose-built lighter transform; decide at kickoff once real GOES
   size/perf data is in hand.
-- Overlay stacking/compositing in the render layer — layer order + opacity per overlay.
+- Overlay stacking/compositing in the render layer — layer order + opacity per overlay, surfaced
+  through the unified "Layers" panel UX pattern resolved in §9 Q12 (a single panel with a quick
+  toggle + optional filter per overlay row, rather than one dialog per overlay type).
+- Per-field contour styling (line type, thickness, colormap-vs-single-color) for the new
+  convective-parameter/RTMA layers, consistent with how the existing overlay styling works.
 - Dealiasing module (self-contained, no new dependency).
 - Direction-relative color mode as a per-pane/per-product toggle, alternative to the existing
   `.pal`-driven toward/away coloring.
-**Size:** L (data layers) + M (velocity sub-track). Recommend splitting into two sequenced
-sub-phases (3a: satellite+model overlays, 3b: velocity improvements) since they're technically
-independent and velocity work carries no data-source risk.
+**Size:** L (data layers, now including the widened model-field set) + M (velocity sub-track).
+Recommend splitting into two sequenced sub-phases (3a: satellite+model+RTMA overlays, 3b:
+velocity improvements) since they're technically independent and velocity work carries no
+data-source risk.
 
 ### Phase 4 — 3D storm structure rendering
 **Goal:** volumetric storm structure visualization (debris ball, etc.) — explicitly last
@@ -3172,13 +3335,76 @@ config/data-model choices don't accidentally preclude it later.
 - Skew-T sounding diagram as a first-class view vs. raw data access (Phase 3 open question).
 - Publishing `wxdata` as a proper Conan package (vs. submodule + `add_subdirectory`).
 
+### 8.1 Feature/UX ideas from a competitor feature-parity audit (2026-09-25)
+
+The user reviewed two competing radar apps' full settings surfaces for feature ideas — captured
+here as WxLens feature concepts in our own words, not as things to copy. Per §0.1's "inspiration
+only, never copied" rule, none of this carries over UI layout, branding, exact wording, or
+proprietary implementation, and none of it should be referenced by a competing app's name in
+commit messages, code, or comments — describe the capability itself. New *data sources* surfaced
+by the same audit live in `docs/data-sources.md` (its new "Phase 3+ candidates" and "restricted
+sources" sections), not here.
+
+- **Per-phenomenon warning/watch toggles with push notifications.** Today's overlay toggle
+  (§7 Phase 1) is a single blanket on/off. A real gap worth closing eventually: independent
+  toggles per warning/watch category (tornado, severe thunderstorm, flash flood, winter,
+  fire, hydro, marine, etc. — `wxdata/awips` already parses the VTEC/phenomenon codes needed), each
+  with its own optional OS-level push notification. Push notifications are a new capability with
+  no existing WxLens infrastructure — needs its own design pass (delivery mechanism, background
+  behavior) whenever scoped.
+- **A live, browsable alerts list, separate from the alert settings dialog.** Two distinct
+  surfaces are worth having: one for *what to show/notify on* (settings), and a separate one for
+  *what's active right now* (a sortable, filterable live list with per-category counts).
+- **Combine overlapping polygons into one popup.** When a clicked/tapped point falls under more
+  than one overlapping polygon of the same overlay family (e.g. two offices' overlapping warning
+  polygons, or overlapping outage-area polygons), show all of them together in a single combined
+  popup instead of just the topmost one. A small, generally-applicable interaction detail worth
+  building once into whatever the shared polygon-click-info affordance ends up being, rather than
+  per-overlay.
+- **Historical Local Storm Report archive search** (date-range query, not just live display) as
+  a capability distinct from live LSR display, if/when LSRs are built.
+- **Multi-moment point interrogation ("quick-scope") tool.** Beyond the already-planned §4.4
+  point-info/measurement modes: a way to preview several radar moments (reflectivity, velocity,
+  CC, spectrum width, ZDR, storm-relative velocity, etc.) at one point/time via a press-and-hold
+  or similar gesture, without switching the pane's active product. Complements, doesn't replace,
+  §4.7's beam-height/tower-bearing readout — worth designing them together.
+- **A real keyboard-shortcut scheme.** Nothing like this exists in WxLens today. Worth building
+  out eventually, covering at least: per-product hotkeys, play/pause, prev/next/first/last frame,
+  tilt up/down, data-opacity up/down, playback-speed up/down, toggle measurement/inspector/
+  storm-track/drawing tools, pane-layout presets (e.g. dual/quad view), and quick-open per-domain
+  settings dialogs.
+- **Radar-site metadata refinements**: a "research/testbed radar" category distinct from
+  operational NEXRAD/TDWR (some NWS-adjacent radars are non-operational research installations),
+  and a **live radar-operational-status indicator** (a site currently down/not reporting, vs. the
+  static site database WxLens already has) — the latter needs a live status feed, not just
+  `radar_sites.json`.
+- **Export the current view as an image** (screenshot/share), a small, self-contained capability
+  distinct from the app's own crash/debug reporting.
+- **User-triggered "send debug data" action**, distinct from and complementary to the existing
+  automatic crash reporting (`util::CrashReportManager`, §3.4) — an explicit, user-initiated
+  log/diagnostic export for support purposes.
+- **"Reset all settings" action** in whatever the eventual support/about surface is.
+- **A perceptually-uniform palette option** (e.g. a Viridis-style preset) alongside whatever
+  bundled `.pal` presets ship — a modern scientific-visualization option worth having alongside
+  the traditional NWS-style ones already planned for `res/palettes/`.
+- **Separate frame-count settings for single-site radar vs. tile/composite products**
+  (mosaic/satellite), rather than one shared loop-length setting — composite products reasonably
+  want a different default loop length than single-site radar.
+- **Map label text size** as its own accessibility-oriented setting, distinct from general UI
+  scaling.
+- **Radar data-opacity / brightness control** as a per-domain setting (already implied by §4.6's
+  architecture, called out explicitly here so it isn't missed when the settings surfaces are
+  actually built).
+
+**UX-architecture question this audit surfaced — resolved 2026-09-25, see §9 Q12: a single
+unified "Layers" panel is the direction, not per-overlay dedicated dialogs.**
+
 ---
 
 ## 9. Open questions for the user / other planning agents
 
 1. ~~Final app/brand name~~ — **RESOLVED: the app is named `WxLens`.** (Before registering a
-   domain/GitHub org, do a basic trademark/name-collision check against RadarOmega, RadarScope,
-   GRLevelX/GR2Analyst, and any existing "WxLens" weather software, as a normal due-diligence
+   domain/GitHub org, do a basic trademark/name-collision check against established radar viewers and any existing "WxLens" weather software, as a normal due-diligence
    step — not expected to be a blocker, just unverified as of this roadmap.)
 2. **`wxdata` extraction timing** (§3.1): start with Option A and defer the live-repo extraction
    (Option B), or do the extraction against the current shipping app's repo immediately? This
@@ -3209,6 +3435,23 @@ config/data-model choices don't accidentally preclude it later.
     2026-09-02: floating is the shipping default.** At 1280x800 in a real 3×3 layout the floating
     bar obscures a substantial strip across all three bottom panes; docked mode correctly reserves
     54 px and obscures none. The user reviewed that tradeoff and explicitly selected floating.
+12. ~~**Overlay control UX pattern**~~ (§8.1) — **RESOLVED 2026-09-25: a single unified "Layers"
+    panel** (quick toggle + optional filter icon per overlay row) is the shipping direction, not
+    per-overlay dedicated dialogs and not a hybrid. Apply this pattern once Phase 3 builds out
+    enough overlays (warnings, MDs, outlooks, LSRs, etc.) to need one; deep per-overlay styling
+    (opacity/border/etc., where warranted) should be reachable from within that same panel rather
+    than via separate top-level dialogs.
+13. ~~**Model/gridded-field breadth**~~ (§7 Phase 3, `docs/capability-matrix.md`'s "Model/gridded
+    fields" row) — **RESOLVED 2026-09-25: widen Phase 3's scope now.** In addition to the
+    original 250mb wind (jet stream) + MSLP slice, Phase 3's model/gridded data work should
+    include the broader convective-parameter + surface-analysis field set surfaced by the
+    2026-09-25 feature-parity audit: CAPE, CIN, Supercell Composite, Significant Tornado
+    Parameter, 500mb/850mb wind, updraft helicity (all NOMADS GRIB2, same decoder work as the
+    original slice), plus RTMA-derived surface temp/dewpoint/wind/visibility/cloud-cover analysis
+    (a separate NOAA product/source, see `docs/data-sources.md`). This does not widen scope to
+    full arbitrary Volume-Browser breadth (cross-sections, time-height, per-level soundings from
+    models, etc.) — that remains explicitly out of scope per §7 Phase 3 and the capability
+    matrix.
 
 ---
 

@@ -608,7 +608,7 @@ Rectangle {
     }
     FileDialog {
         id: openDialog
-        title: "Open GRLevelX palette"
+        title: "Open palette"
         nameFilters: ["Palette files (*.pal)"]
         // Inspect first, import second: the preview is where the user learns what the file can
         // colour and links it, so browsing and dropping a file both land in the same place.

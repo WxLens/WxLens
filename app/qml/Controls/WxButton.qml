@@ -29,6 +29,16 @@ Rectangle {
     property string tooltip: root.description
     property bool flat: false
     property bool highlighted: false
+    /**
+     * Set when `highlighted` means "this is the chosen one of a set" - the selected radar product,
+     * the active pane, the current help page - rather than mere visual emphasis on a primary
+     * action. The highlight colour alone cannot convey that to a screen reader, so this exposes it
+     * as the checked state of `Accessible.role: Button` (the convention for a button that acts as
+     * one option of several, rather than the ListItem `Accessible.selected` a real list would use).
+     * Defaults off because most buttons are plain actions, and announcing every one of those as
+     * "not checked" is noise rather than information.
+     */
+    property bool selectable: false
     // No `enabled` property here: Item already has one, and redeclaring it shadowed the base
     // member (qt.qml.propertyCache warned about exactly that) while also breaking the automatic
     // propagation that disables child items.
@@ -62,6 +72,8 @@ Rectangle {
     Accessible.role: Accessible.Button
     Accessible.name: root.name
     Accessible.description: root.description
+    Accessible.checkable: root.selectable
+    Accessible.checked: root.selectable && root.highlighted
     Accessible.onPressAction: root.trigger()
     activeFocusOnTab: root.enabled
 

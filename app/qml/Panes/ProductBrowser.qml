@@ -17,36 +17,91 @@ Rectangle {
     color: themeManager.elevatedSurface
     border.color: themeManager.border
     border.width: 1
+
     property string query: ""
-    property var expandedCategories: ({})
-    readonly property var productGroups: {
+    property var expandedExperts: ({})
+    property var expandedVariants: ({})
+    property int tiltLabelStyle: (typeof appSettings !== "undefined" && appSettings !== null)
+        ? appSettings.productTiltLabelStyle : 0
+
+    readonly property var productFamilies: {
         const needle = query.trim().toLowerCase()
         const products = paneController.productCatalog.filter(function(product) {
-            return needle === "" || [product.description, product.category, product.awipsId,
+            return needle === "" || [product.description, product.family, product.category,
+                                      product.elevationAngleText, product.awipsId,
                                       product.identity].join(" ").toLowerCase().indexOf(needle) >= 0
         })
-        const groups = []
-        const byName = ({})
+        const sections = ({})
+        const sectionOrder = ["Reflectivity Products", "Velocity Products",
+                              "Dual-Polarization", "Precipitation Accumulation",
+                              "Other Products"]
         products.forEach(function(product) {
-            const name = String(product.category)
-            if (!byName[name]) {
-                byName[name] = { category: name, products: [] }
-                groups.push(byName[name])
+            // The backend guarantees family for new catalogs. The fallback keeps an older or
+            // partially populated catalog useful rather than creating a blank family row.
+            const name = String(product.family || product.description || product.category)
+            const section = String(product.category || "Other Products")
+            if (!sections[section])
+                sections[section] = { order: [], byName: ({}) }
+            if (!sections[section].byName[name]) {
+                sections[section].byName[name] = { family: name, section: section, products: [] }
+                sections[section].order.push(name)
             }
-            byName[name].products.push(product)
+            sections[section].byName[name].products.push(product)
         })
-        return groups
+        const families = []
+        const remainingSections = Object.keys(sections).filter(function(section) {
+            return sectionOrder.indexOf(section) < 0
+        })
+        sectionOrder.concat(remainingSections).forEach(function(section) {
+            if (!sections[section]) return
+            sections[section].order.forEach(function(name, index) {
+                const family = sections[section].byName[name]
+                family.firstInSection = index === 0
+                families.push(family)
+            })
+        })
+        return families
     }
 
-    function toggleCategory(category) {
-        const next = Object.assign({}, expandedCategories)
-        next[category] = !next[category]
-        expandedCategories = next
+    function toggleExpert(family) {
+        const next = Object.assign({}, expandedExperts)
+        next[family] = !next[family]
+        expandedExperts = next
+    }
+
+    function toggleVariants(family) {
+        const next = Object.assign({}, expandedVariants)
+        next[family] = !next[family]
+        expandedVariants = next
+    }
+
+    function variantLabel(product) {
+        const angle = String(product.elevationAngleText || "")
+        const awips = String(product.awipsId || "")
+        const fallback = String(product.description || product.identity || "Variant")
+        if (tiltLabelStyle === 1)
+            return angle || fallback
+        if (tiltLabelStyle === 2)
+            return awips || fallback
+        if (angle && awips)
+            return angle + "  ·  " + awips
+        return angle || awips || fallback
+    }
+
+    function sourceLabel(product) {
+        return product.identityKind === "level2" ? "Level 2 raw" : "Level 3"
     }
 
     function selectProduct(product) {
         paneController.selectProduct(product.identityKind, product.identity, product.description)
         closeRequested()
+    }
+
+    Connections {
+        target: (typeof appSettings !== "undefined") ? appSettings : null
+        function onProductTiltLabelStyleChanged() {
+            root.tiltLabelStyle = appSettings.productTiltLabelStyle
+        }
     }
 
     // Consume wheel/touchpad input across the entire popup. A ListView at either boundary can
@@ -55,8 +110,7 @@ Rectangle {
         target: null
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         onWheel: (event) => {
-            var delta = event.pixelDelta.y !== 0 ? event.pixelDelta.y
-                                                  : event.angleDelta.y / 2
+            var delta = event.pixelDelta.y !== 0 ? event.pixelDelta.y : event.angleDelta.y / 2
             var minimum = productList.originY
             var maximum = Math.max(minimum,
                                    productList.originY + productList.contentHeight - productList.height)
@@ -102,7 +156,7 @@ Rectangle {
         TextField {
             id: productSearch
             width: parent.width
-            placeholderText: "Search name, category, or AWIPS ID"
+            placeholderText: "Search family, tilt, or AWIPS ID"
             color: themeManager.textPrimary
             placeholderTextColor: themeManager.textMuted
             selectByMouse: true
@@ -114,6 +168,7 @@ Rectangle {
             onTextChanged: root.query = text
             Keys.onEscapePressed: root.closeRequested()
         }
+
         Text {
             visible: root.paneController.productCatalogError !== ""
             width: parent.width
@@ -128,137 +183,172 @@ Rectangle {
             width: parent.width
             height: parent.height - y
             clip: true
-            spacing: 3
-            model: root.productGroups
+            spacing: 4
+            model: root.productFamilies
 
             delegate: Rectangle {
+                id: familyCard
                 required property var modelData
+
                 width: ListView.view.width
-                readonly property var selectedProduct: {
-                    for (var i = 0; i < modelData.products.length; ++i) {
-                        if (root.paneController.productIdentity === modelData.products[i].identity)
-                            return modelData.products[i]
-                    }
-                    return modelData.products[0]
-                }
-                readonly property bool expanded:
-                    root.query.trim() !== "" || root.expandedCategories[modelData.category] === true
-                readonly property int alternativeCount: Math.max(0, modelData.products.length - 1)
-                height: 58 + (expanded ? alternativeCount * 48 : 0)
+                height: familyContent.height + 16 + (modelData.firstInSection ? 28 : 0)
                 radius: themeManager.cornerRadius
                 color: themeManager.control
                 border.color: themeManager.border
 
-                Rectangle {
-                    id: familyRow
+                readonly property var selectedProduct: {
+                    var recommended = null
+                    for (var i = 0; i < modelData.products.length; ++i) {
+                        const product = modelData.products[i]
+                        if (root.paneController.productIdentity === product.identity)
+                            return product
+                        if (recommended === null && product.recommended)
+                            recommended = product
+                    }
+                    // Level 3 recommendations are intentionally not populated yet. Container
+                    // order is only the neutral fallback until that backend work lands.
+                    return recommended !== null ? recommended : modelData.products[0]
+                }
+                readonly property bool expertExpanded:
+                    root.expandedExperts[modelData.family] === true
+                readonly property bool variantsExpanded:
+                    root.expandedVariants[modelData.family] === true || root.query.trim() !== ""
+
+                Text {
+                    visible: familyCard.modelData.firstInSection
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    height: 58
-                    radius: themeManager.cornerRadius
-                    color: root.paneController.productIdentity === parent.selectedProduct.identity
-                           ? themeManager.controlActive
-                           : familyArea.containsMouse ? themeManager.controlHover : "transparent"
-                    Text {
-                        anchors.left: parent.left; anchors.right: expandButton.left
-                        anchors.top: parent.top; anchors.margins: 8
-                        text: parent.parent.modelData.category
-                        color: themeManager.textPrimary; font.pixelSize: 12; font.bold: true
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        anchors.left: parent.left; anchors.right: expandButton.left
-                        anchors.bottom: parent.bottom; anchors.margins: 8
-                        text: parent.parent.selectedProduct.description +
-                              (parent.parent.selectedProduct.awipsId
-                               ? "  ·  " + parent.parent.selectedProduct.awipsId : "")
-                        color: themeManager.textMuted; font.pixelSize: 10
-                        elide: Text.ElideRight
-                    }
-                    WxButton {
-                        id: expandButton
-                        visible: parent.parent.modelData.products.length > 1
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        anchors.rightMargin: 7
-                        width: 30; height: 30
-                        text: familyRow.parent.expanded ? "⌃" : "⌄"
-                        font.pixelSize: 14
-                        // The direction matters more than the glyph when this is read aloud.
-                        name: (familyRow.parent.expanded ? "Hide " : "Show ") +
-                              familyRow.parent.modelData.category + " variants"
-                        onClicked: root.toggleCategory(familyRow.parent.modelData.category)
-                    }
-                    // Annotated in place rather than swapped for WxMenuItem: this row carries a
-                    // two-line layout and an expander of its own, so the shared component would
-                    // have to grow options for a single call site.
-                    Accessible.role: Accessible.ListItem
-                    Accessible.name: familyRow.parent.modelData.category + ", " +
-                                     familyRow.parent.selectedProduct.description +
-                                     (familyRow.parent.selectedProduct.available
-                                          ? "" : ", unavailable")
-                    Accessible.selected:
-                        root.paneController.productIdentity === familyRow.parent.selectedProduct.identity
-                    Accessible.onPressAction: familyArea.select()
-                    activeFocusOnTab: familyRow.parent.selectedProduct.available
-                    Keys.onSpacePressed: familyArea.select()
-                    Keys.onReturnPressed: familyArea.select()
-
-                    MouseArea {
-                        id: familyArea
-                        function select() {
-                            if (familyRow.parent.selectedProduct.available)
-                                root.selectProduct(familyRow.parent.selectedProduct)
-                        }
-                        anchors.left: parent.left; anchors.right: expandButton.left
-                        anchors.top: parent.top; anchors.bottom: parent.bottom
-                        hoverEnabled: true
-                        enabled: familyRow.parent.selectedProduct.available
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: familyArea.select()
-                    }
+                    anchors.leftMargin: 4
+                    text: familyCard.modelData.section
+                    color: themeManager.textPrimary
+                    font.pixelSize: 12
+                    font.bold: true
                 }
 
                 Column {
-                    visible: parent.expanded
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.top: familyRow.bottom
-                    Repeater {
-                        model: parent.parent.modelData.products.filter(function(product) {
-                            return product.identity !== parent.parent.selectedProduct.identity
-                        })
-                        delegate: Rectangle {
-                            required property var modelData
-                            width: parent.width; height: 48
-                            color: variantArea.containsMouse ? themeManager.controlHover : "transparent"
-                            Text {
-                                anchors.left: parent.left; anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter; anchors.margins: 14
-                                text: modelData.description + (modelData.awipsId ? "  ·  " + modelData.awipsId : "")
-                                color: themeManager.textSecondary; font.pixelSize: 11; elide: Text.ElideRight
-                            }
-                            Accessible.role: Accessible.ListItem
-                            Accessible.name: modelData.description +
-                                             (modelData.awipsId ? ", " + modelData.awipsId : "") +
-                                             (modelData.available ? "" : ", unavailable")
-                            Accessible.onPressAction: variantArea.select()
-                            activeFocusOnTab: modelData.available
-                            Keys.onSpacePressed: variantArea.select()
-                            Keys.onReturnPressed: variantArea.select()
+                    id: familyContent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.topMargin: familyCard.modelData.firstInSection ? 28 : 8
+                    anchors.leftMargin: 8
+                    anchors.rightMargin: 8
+                    spacing: 6
 
-                            MouseArea {
-                                id: variantArea
-                                function select() {
-                                    if (parent.modelData.available) root.selectProduct(parent.modelData)
-                                }
-                                anchors.fill: parent; hoverEnabled: true
-                                enabled: parent.modelData.available; cursorShape: Qt.PointingHandCursor
-                                onClicked: variantArea.select()
+                    Row {
+                        width: parent.width
+                        spacing: 6
+
+                        Text {
+                            width: parent.width - expertButton.width - 6
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: familyCard.modelData.family
+                            color: themeManager.textPrimary
+                            font.pixelSize: 12
+                            font.bold: true
+                            elide: Text.ElideRight
+                        }
+
+                        WxButton {
+                            id: expertButton
+                            width: 72
+                            height: 24
+                            flat: true
+                            text: familyCard.expertExpanded ? "Less info" : "Details"
+                            name: (familyCard.expertExpanded ? "Hide " : "Show ") +
+                                  familyCard.modelData.family + " expert details"
+                            onClicked: root.toggleExpert(familyCard.modelData.family)
+                        }
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 5
+
+                        WxButton {
+                            width: parent.width - (variantButton.visible ? variantButton.width + 5 : 0)
+                            text: root.variantLabel(familyCard.selectedProduct)
+                            name: familyCard.modelData.family + ", " + text
+                            highlighted: root.paneController.productIdentity ===
+                                         familyCard.selectedProduct.identity
+                            // Which product is displayed is the whole point of this row, and the
+                            // highlight colour is the only other thing that says so.
+                            selectable: true
+                            enabled: familyCard.selectedProduct.available
+                            height: 26
+                            onClicked: root.selectProduct(familyCard.selectedProduct)
+                        }
+                        WxButton {
+                            id: variantButton
+                            visible: familyCard.modelData.products.length > 1
+                            width: 74
+                            height: 26
+                            text: familyCard.variantsExpanded ? "Hide" : "Variants"
+                            name: (familyCard.variantsExpanded ? "Hide " : "Show ") +
+                                  familyCard.modelData.family + " variants"
+                            onClicked: root.toggleVariants(familyCard.modelData.family)
+                        }
+                    }
+
+                    Flow {
+                        visible: familyCard.variantsExpanded &&
+                                 familyCard.modelData.products.length > 1
+                        width: parent.width
+                        spacing: 5
+
+                        Repeater {
+                            model: familyCard.modelData.products
+                            delegate: WxButton {
+                                required property var modelData
+                                text: root.variantLabel(modelData)
+                                name: familyCard.modelData.family + ", " + text +
+                                      (modelData.available ? "" : ", unavailable")
+                                highlighted: familyCard.selectedProduct.identity === modelData.identity
+                                selectable: true
+                                enabled: modelData.available
+                                height: 26
+                                onClicked: root.selectProduct(modelData)
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        visible: familyCard.expertExpanded
+                        width: parent.width
+                        height: visible ? expertDetails.height + 12 : 0
+                        radius: themeManager.cornerRadius
+                        color: themeManager.elevatedSurface
+                        border.color: themeManager.border
+
+                        Column {
+                            id: expertDetails
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 6
+                            spacing: 3
+
+                            Text {
+                                text: "Source: " + root.sourceLabel(familyCard.selectedProduct)
+                                color: themeManager.textSecondary
+                                font.pixelSize: 10
+                            }
+                            Text {
+                                text: "AWIPS ID: " + (familyCard.selectedProduct.awipsId || "Not applicable")
+                                color: themeManager.textSecondary
+                                font.pixelSize: 10
+                            }
+                            Text {
+                                text: "Available: " + (familyCard.selectedProduct.available ? "Yes" : "No")
+                                color: familyCard.selectedProduct.available
+                                       ? themeManager.textSecondary : themeManager.warning
+                                font.pixelSize: 10
                             }
                         }
                     }
                 }
             }
         }
-
     }
 }

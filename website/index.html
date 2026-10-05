@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="WxLens is a free, open-source weather radar workstation for Windows, macOS, and Linux."
+    />
+    <meta name="theme-color" content="#081014" />
+    <title>WxLens — Weather, in focus.</title>
+    <link rel="icon" href="../app/res/branding/wxlens-icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="script.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header" data-header>
+      <a class="brand" href="#top" aria-label="WxLens home">
+        <img src="../app/res/branding/wxlens-icon.png" alt="" />
+        <span>WxLens</span>
+      </a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="#capabilities">Capabilities</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#roadmap">Roadmap</a>
+      </nav>
+      <a class="header-cta" href="https://github.com/WxLens/WxLens">View on GitHub</a>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="weather-field" aria-hidden="true"></div>
+        <div class="hero-copy reveal">
+          <p class="eyebrow"><span></span> Open-source weather intelligence</p>
+          <h1>Weather,<br /><em>in focus.</em></h1>
+          <p class="hero-lede">
+            A modern radar workstation built for people who need the full picture—without a
+            subscription, a locked ecosystem, or a dated interface.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/WxLens/WxLens">
+              Explore the project <span aria-hidden="true">↗</span>
+            </a>
+            <a class="button button-quiet" href="#capabilities">See what it does ↓</a>
+          </div>
+          <p class="status-line">
+            <span class="status-dot"></span>
+            Phase 1 in active development · Not yet a finished public release
+          </p>
+        </div>
+
+        <div class="product-frame reveal" aria-label="Stylized preview of the WxLens radar interface">
+          <div class="window-bar">
+            <div class="window-mark">
+              <img src="../app/res/branding/wxlens-icon.png" alt="" />
+              <span>WxLens</span>
+            </div>
+            <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
+          </div>
+          <div class="app-bar">
+            <strong>WxLens</strong>
+            <div><span>Tools</span><b>?</b><b>⚙</b></div>
+          </div>
+          <div class="radar-map">
+            <div class="map-lines" aria-hidden="true"></div>
+            <svg class="radar-art" viewBox="0 0 900 560" role="img" aria-label="Abstract weather radar sweep">
+              <defs>
+                <radialGradient id="sweep" cx="50%" cy="100%" r="82%">
+                  <stop offset="0" stop-color="#4279ff" stop-opacity=".12" />
+                  <stop offset=".62" stop-color="#4279ff" stop-opacity=".06" />
+                  <stop offset="1" stop-color="#4279ff" stop-opacity="0" />
+                </radialGradient>
+                <filter id="soft"><feGaussianBlur stdDeviation="13" /></filter>
+              </defs>
+              <path d="M455 500 105 115A520 520 0 0 1 805 115Z" fill="url(#sweep)" />
+              <g fill="none" stroke="#4074a7" stroke-opacity=".2">
+                <circle cx="455" cy="500" r="110" /><circle cx="455" cy="500" r="220" />
+                <circle cx="455" cy="500" r="330" /><circle cx="455" cy="500" r="440" />
+              </g>
+              <g filter="url(#soft)" opacity=".82">
+                <path d="M520 280c38-69 102-108 158-75 42 25 34 70 81 79 55 10 78 53 46 94-31 40-94 17-123 63-28 43-91 37-110-9-19-47-77-75-52-152Z" fill="#18c66c" />
+                <path d="M604 262c21-33 64-38 84-8 20 29-7 51 21 70 25 18 7 65-27 57-39-9-38-49-68-56-31-8-28-38-10-63Z" fill="#e9e838" />
+                <path d="M652 279c15-12 37 1 33 20-4 17-25 13-31 29-7 18-35 7-29-13 5-16 13-26 27-36Z" fill="#ff7a1a" />
+                <path d="M256 353c19-45 61-57 92-29 26 23 3 56 32 77 26 20 8 57-26 57-38-1-42-40-76-42-35-2-39-32-22-63Z" fill="#23b86b" />
+              </g>
+            </svg>
+            <div class="map-label label-a">DENVER</div><div class="map-label label-b">WICHITA</div>
+            <div class="product-select"><strong>KDDC</strong><span>Reflectivity⌄</span></div>
+            <div class="control-dock">
+              <button aria-label="Add pane">＋</button><button aria-label="Measure">⌁</button>
+              <button aria-label="Play">▶</button><button class="dock-wide">Reflectivity</button>
+              <button>0.9°⌄</button><button aria-label="Pane grid">▦</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="trust-strip" aria-label="Project qualities">
+        <p>Built for serious weather work</p>
+        <div><span>C++20</span><span>Qt 6 Quick</span><span>MapLibre Native</span><span>MIT licensed</span></div>
+      </section>
+
+      <section class="section capabilities" id="capabilities">
+        <div class="section-heading reveal">
+          <p class="eyebrow"><span></span> One workspace, many perspectives</p>
+          <h2>Radar without the<br /><em>tunnel vision.</em></h2>
+          <p>Built from the ground up around the way weather actually gets analyzed: in context.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature feature-large reveal">
+            <div class="feature-visual panes-visual" aria-hidden="true">
+              <div><i></i><i></i><i></i></div><div><i></i><i></i><i></i></div>
+              <span class="sync-line one"></span><span class="sync-line two"></span>
+            </div>
+            <div class="feature-index">01</div>
+            <h3>Your workspace, your way.</h3>
+            <p>Move from a focused single view to a 3×3 analysis grid. Link location, time, product, palette, or zoom independently—only where it helps.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="feature-icon radar-icon" aria-hidden="true"><i></i></div>
+            <div class="feature-index">02</div>
+            <h3>Real radar. Real rendering.</h3>
+            <p>NEXRAD Level 2 and Level 3 products rendered on the GPU over an interactive vector map.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="feature-icon timeline-icon" aria-hidden="true"><i></i><b></b></div>
+            <div class="feature-index">03</div>
+            <h3>Time is a first-class tool.</h3>
+            <p>Move between live and archived data with a purpose-built timeline, playback controls, and local caching.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="feature-icon measure-icon" aria-hidden="true"><span></span><i></i><b></b></div>
+            <div class="feature-index">04</div>
+            <h3>Measure what matters.</h3>
+            <p>Inspect range, bearing, and beam geometry. Pin useful analysis to the map or save places for later.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="feature-icon layers-icon" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="feature-index">05</div>
+            <h3>Weather in context.</h3>
+            <p>Bring warnings, watches, radar sites, and placefile overlays into the same geographic workspace.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="architecture" id="architecture">
+        <div class="architecture-copy reveal">
+          <p class="eyebrow"><span></span> Designed beyond radar</p>
+          <h2>A weather workstation,<br /><em>not a one-trick app.</em></h2>
+          <p>Radar is the first complete data domain—not a constraint baked into the interface. WxLens has a common visualization pipeline so future data sources can arrive without another rewrite.</p>
+          <a href="https://github.com/WxLens/WxLens/blob/main/docs/ROADMAP.md">Read the architecture roadmap <span>→</span></a>
+        </div>
+        <div class="pipeline reveal" aria-label="WxLens visualization pipeline">
+          <div><b>01</b><span>Data source</span><small>NOAA · NWS · future providers</small></div>
+          <i>→</i><div><b>02</b><span>Data product</span><small>Radar sweep · text · raster</small></div>
+          <i>→</i><div><b>03</b><span>Visualization layer</span><small>GPU rendering · overlays</small></div>
+          <i>→</i><div><b>04</b><span>View</span><small>Flexible pane workspaces</small></div>
+        </div>
+      </section>
+
+      <section class="section roadmap" id="roadmap">
+        <div class="section-heading reveal">
+          <p class="eyebrow"><span></span> Built in the open</p>
+          <h2>The forecast is<br /><em>ambitious.</em></h2>
+        </div>
+        <div class="roadmap-track reveal">
+          <article class="current"><b>Now</b><h3>Single-site radar</h3><p>Modern workflows, analysis tools, performance validation, and release readiness.</p><span>In progress</span></article>
+          <article><b>Next</b><h3>Multi-radar mosaics</h3><p>Regional perspective with multiple sources composed into a continuous picture.</p></article>
+          <article><b>Then</b><h3>More weather layers</h3><p>Satellite, soundings, forecast models, and richer atmospheric context.</p></article>
+          <article><b>Later</b><h3>3D storm structure</h3><p>Volumetric exploration when the underlying platform and data are ready.</p></article>
+        </div>
+      </section>
+
+      <section class="open-source">
+        <div class="open-source-mark" aria-hidden="true">{ }</div>
+        <div class="reveal">
+          <p class="eyebrow"><span></span> No paywalls. No black boxes.</p>
+          <h2>Free as in weather data<br /><em>should be.</em></h2>
+        </div>
+        <div class="open-source-copy reveal">
+          <p>WxLens is MIT-licensed and developed in public. Inspect the architecture, build it yourself, report an issue, or help shape what comes next.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/WxLens/WxLens">Open GitHub <span>↗</span></a>
+            <a class="button button-quiet" href="https://github.com/WxLens/WxLens/issues">View issues</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="brand" href="#top"><img src="../app/res/branding/wxlens-icon.png" alt="" /><span>WxLens</span></a>
+      <p>Weather, in focus. Built openly for Windows, macOS, and Linux.</p>
+      <div><a href="https://github.com/WxLens/WxLens">GitHub</a><a href="https://github.com/WxLens/WxLens/blob/main/LICENSE.txt">MIT License</a><a href="#top">Back to top ↑</a></div>
+    </footer>
+  </body>
+</html>

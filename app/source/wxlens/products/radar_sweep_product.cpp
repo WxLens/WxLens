@@ -1,4 +1,5 @@
 #include <wxlens/products/radar_sweep_product.hpp>
+#include <wxlens/products/sweep_disk_cache.hpp>
 #include <wxlens/data/radar_site_data_service.hpp>
 #include <wxlens/data/radar_site_database.hpp>
 #include <wxlens/log/logger.hpp>
@@ -14,7 +15,10 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <cstdint>
+#include <filesystem>
 #include <map>
 #include <mutex>
 #include <shared_mutex>
@@ -22,8 +26,15 @@
 
 #include <units/angle.h>
 #include <units/length.h>
+#include <QDir>
 #include <QFile>
 #include <QElapsedTimer>
+#include <QCoreApplication>
+#include <QPointer>
+#include <QStandardPaths>
+#include <QThreadPool>
+#include <QTimer>
+#include <wxlens/data/frame_cache.hpp>
 
 namespace wxlens
 {
@@ -37,6 +48,36 @@ namespace
 {
 using scwx::wsr88d::rda::DataBlockType;
 using scwx::wsr88d::rda::ElevationScan;
+
+// Defaults to on: this is what the checklist item this feature closes always wanted
+// ("verify reuse after restart"). See SetSweepDiskCachePersistenceEnabled's doc comment.
+std::atomic_bool sweepDiskCachePersistenceEnabled_ {true};
+
+data::FrameCache<SweepData>& GeometryCache()
+{
+   static data::FrameCache<SweepData> cache {256U * 1024U * 1024U};
+   return cache;
+}
+
+// Sized well under the roadmap's 8 GB low-end-floor target: each entry is one sweep's worth of
+// GPU-ready geometry (comparable to or smaller than GeometryCache's in-memory budget above), not
+// a whole decoded volume, so this ceiling holds a meaningfully deep history across restarts
+// without competing with the Level 2/3 memory caches for RAM.
+constexpr std::size_t kSweepDiskCacheCapacityBytes = 512U * 1024U * 1024U;
+
+std::filesystem::path SweepDiskCacheRoot()
+{
+   const QString directory = SweepDiskCacheDirectory();
+   QDir().mkpath(directory);
+   return std::filesystem::path {directory.toStdString()};
+}
+
+SweepDiskCache& DiskCache()
+{
+   static SweepDiskCache cache {SweepDiskCacheRoot(), kSweepDiskCacheCapacityBytes};
+   return cache;
+}
+
 
 DataBlockType ProductBlockType(const std::string& name)
 {
@@ -561,56 +602,108 @@ public:
    std::optional<std::chrono::system_clock::time_point> archiveTime_;
    std::chrono::system_clock::time_point selectedTime_ {};
    std::uint64_t requestId_ {0};
+   std::uint64_t buildGeneration_ {0};
+
+   /**
+    * Owning reference to this product's Data Source, held for the life of the product.
+    *
+    * Required, not tidiness. RadarSiteDataService::Instance() now returns the only strong
+    * reference a caller gets, and the constructor below connects signals to it - which does not
+    * own the sender. The one other owner in the pane path, PaneController::Impl::dataService_,
+    * is not acquired until refreshProductCatalog() runs 23 lines *after* RebindProduct() creates
+    * this product, so without this member the service would be constructed, asked for a volume,
+    * and destroyed before the constructor returned.
+    */
+   std::shared_ptr<wxlens::data::RadarSiteDataService> dataService_;
 };
 
 void RadarSweepProduct::Impl::OnLevelTwoDataLoaded(
    const std::shared_ptr<scwx::wsr88d::Ar2vFile>& file)
 {
-   logger_->debug("Computing sweep for {}", radarSite_);
-
-   // Lowest elevation cut, latest available scan in this volume (an empty time_point means "no
-   // constraint, take the newest" - see Ar2vFile::GetElevationScan). Which cut is *selected* is
-   // still fixed here; the volume's full list of cuts is what elevation selection (slice 4+) will
-   // need. `elevationCut` is the tilt this volume actually answered with, and slice 8's beam
-   // geometry reports it rather than assuming the nominal 0.5°: a VCP's lowest cut is not always
-   // 0.5°, and §4.7 forbids presenting a guessed angle as the radar's own.
-   auto [elevationScan, elevationCut, elevationCuts] = file->GetElevationScan(
-      dataBlockType_, selectedElevation_, std::chrono::system_clock::time_point {});
-
-   if (elevationScan == nullptr)
+   const auto generation = ++buildGeneration_;
+   const QPointer<RadarSweepProduct> guard(self_);
+   const auto site = radarSite_;
+   const auto product = productName_;
+   const auto block = dataBlockType_;
+   const auto elevation = selectedElevation_;
+   const auto latitude = siteLatitude_;
+   const auto longitude = siteLongitude_;
+   const auto table = colorTable_;
+   Q_EMIT self_->LoadStateChanged(true, {}, 0);
+   QThreadPool::globalInstance()->start([guard, generation, file, site, product, block,
+                                       elevation, latitude, longitude, table]()
    {
-      logger_->warn("No {} elevation scan available for {}", productName_, radarSite_);
-      return;
-   }
+      std::shared_ptr<SweepData> sweep;
+      std::shared_ptr<const ColorTableLut> lut;
+      float cut = 0;
+      std::vector<float> cuts;
+      QString error;
+      try
+      {
+         auto [scan, actualCut, availableCuts] = file->GetElevationScan(block, elevation, {});
+         cut = actualCut;
+         cuts = std::move(availableCuts);
+         if (scan)
+         {
+            const auto stamp = std::chrono::duration_cast<std::chrono::milliseconds>(file->start_time().time_since_epoch()).count();
+            const auto key = site + ":" + product + ":" + std::to_string(cut) + ":" + std::to_string(stamp);
+            QElapsedTimer timer;
+            timer.start();
+            const auto result = GeometryCache().Load(key,
+               [&]() { return ComputeSweep(*scan, block, latitude, longitude); },
+               [](const SweepData& value)
+               { return value.vertices.size() * sizeof(float) + value.dataMoments8.size() +
+                        value.dataMoments16.size() * sizeof(std::uint16_t); }, file->start_time());
+            sweep = result.value;
+            if (sweep) lut = BuildColorTableLutFromTable(*sweep, table);
+            logger_->info("Sweep geometry: site={} product={} geometry_ms={:.3f} cache_hit={}",
+                          site, product, timer.nsecsElapsed() / 1.0e6, result.cache_hit());
 
-   QElapsedTimer geometryTimer;
-   geometryTimer.start();
-   std::shared_ptr<SweepData> sweepData =
-      ComputeSweep(*elevationScan, dataBlockType_, siteLatitude_, siteLongitude_);
-
-   if (sweepData == nullptr)
-   {
-      return;
-   }
-
-   logger_->info(
-      "Computed sweep for {}: {} vertices, product={}, elevation={}, "
-      "geometry_ms={:.3f}",
-      radarSite_,
-      sweepData->vertices.size() / 2,
-      productName_,
-      elevationCut,
-      geometryTimer.nsecsElapsed() / 1.0e6);
-
-   {
-      std::scoped_lock lock {dataMutex_};
-      data_                  = std::move(sweepData);
-      colorTableLut_         = BuildColorTableLutFromTable(*data_, colorTable_);
-      elevationAngleDegrees_ = elevationCut;
-      elevationCuts_         = std::move(elevationCuts);
-   }
-
-   Q_EMIT self_->SweepUpdated();
+            // Only a sweep this call actually computed is worth a disk write - one already served
+            // from GeometryCache (or shared with a deduplicated caller) was already persisted the
+            // first time it was computed.
+            //
+            // Posted as its own task rather than called inline: this write (and the capacity check
+            // it can trigger) has nothing to do with getting the sweep on screen, and a disk write
+            // sitting between "geometry computed" and "published to the render thread" measurably
+            // delayed every pane update by however long that write took - worse the busier the
+            // cache. Fire-and-forget is safe here because the disk cache is only ever a "have we
+            // seen this before" accelerator, never a source of truth this worker depends on later.
+            if (sweep && result.origin == data::FrameCache<SweepData>::Origin::Loaded &&
+               SweepDiskCachePersistenceEnabled())
+            {
+               const auto startTime = file->start_time();
+               const auto diskKey =
+                  BuildSweepDiskCacheKey(site, product, elevation, startTime);
+               QThreadPool::globalInstance()->start(
+                  [diskKey, startTime, sweep, cut, cuts]()
+                  { DiskCache().Store(diskKey, startTime, *sweep, cut, cuts); });
+            }
+         }
+         if (!sweep) error = QStringLiteral("No sweep available for this product and elevation");
+      }
+      catch (const std::exception& ex) { error = QString::fromStdString(ex.what()); }
+      const auto actualTime = file->start_time();
+      QMetaObject::invokeMethod(QCoreApplication::instance(),
+         [guard, generation, sweep, lut, cut, cuts = std::move(cuts), error, actualTime]() mutable
+         {
+            if (!guard || guard->p->buildGeneration_ != generation) return;
+            if (sweep)
+            {
+               {
+                  std::scoped_lock lock {guard->p->dataMutex_};
+                  guard->p->data_ = sweep;
+                  guard->p->colorTableLut_ = lut;
+                  guard->p->elevationAngleDegrees_ = cut;
+                  guard->p->elevationCuts_ = std::move(cuts);
+                  guard->p->selectedTime_ = actualTime;
+               }
+               Q_EMIT guard->SweepUpdated();
+            }
+            Q_EMIT guard->LoadStateChanged(false, error,
+               sweep ? std::chrono::duration_cast<std::chrono::milliseconds>(actualTime.time_since_epoch()).count() : 0);
+         }, Qt::QueuedConnection);
+   });
 }
 
 RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
@@ -626,7 +719,18 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
        this, radarSite, siteLatitude, siteLongitude, siteAltitudeMslMeters, productName,
        selectedElevation, archiveTime)}
 {
-   auto service = wxlens::data::RadarSiteDataService::Instance(radarSite);
+   static const auto retentionTimer = []()
+   {
+      auto* timer = new QTimer(QCoreApplication::instance());
+      QObject::connect(timer, &QTimer::timeout, timer, []()
+      { GeometryCache().PruneBefore(std::chrono::system_clock::now() -
+           std::chrono::minutes {data::RadarSiteDataService::HistoryMinutes()}); });
+      timer->start(1000);
+      return timer;
+   }();
+   Q_UNUSED(retentionTimer)
+   p->dataService_ = wxlens::data::RadarSiteDataService::Instance(radarSite);
+   auto service    = p->dataService_;
 
    if (archiveTime.has_value())
    {
@@ -640,8 +744,7 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
                  if (requestId != p->requestId_) return;
                  p->selectedTime_ = actualTime;
                  p->OnLevelTwoDataLoaded(file);
-                 Q_EMIT LoadStateChanged(false, {},
-                    std::chrono::duration_cast<std::chrono::milliseconds>(actualTime.time_since_epoch()).count());
+
               });
       connect(service.get(),
               &wxlens::data::RadarSiteDataService::RequestFailed,
@@ -650,8 +753,59 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
               {
                  if (requestId == p->requestId_) Q_EMIT LoadStateChanged(false, reason, 0);
               });
-      p->requestId_ = service->LoadLevel2DataAt(*archiveTime);
       Q_EMIT LoadStateChanged(true, {}, 0);
+
+      if (!SweepDiskCachePersistenceEnabled())
+      {
+         // Off means off: skip the resolve-then-probe round trip entirely rather than pay for a
+         // listing call whose only purpose is checking a cache this run will neither read from
+         // nor write to. Falls straight through to the same path this used before disk
+         // persistence existed.
+         p->requestId_ = service->LoadLevel2DataAt(*archiveTime);
+         return;
+      }
+
+      // Before paying for the volume fetch, check whether this exact (site, product, elevation,
+      // resolved time) has already been viewed and disk-cached - resolving the time is a listing
+      // call, not a download, so a hit here skips the download and decode entirely rather than
+      // only the geometry rebuild GeometryCache already saves within one process. A miss (or a
+      // resolve failure) falls through to the same LoadLevel2DataAt path this always used.
+      const QPointer<RadarSweepProduct> guard(this);
+      service->ResolveLevel2Time(
+         *archiveTime,
+         [this, guard, service, archiveTime = *archiveTime](
+            std::optional<std::chrono::system_clock::time_point> actual)
+         {
+            if (!guard) return;
+
+            if (actual.has_value())
+            {
+               const auto stampMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       actual->time_since_epoch())
+                                       .count();
+               const auto diskKey = BuildSweepDiskCacheKey(
+                  p->radarSite_, p->productName_, p->selectedElevation_, *actual);
+               if (auto cached = DiskCache().Find(diskKey); cached.sweep)
+               {
+                  const auto lut = BuildColorTableLutFromTable(*cached.sweep, p->colorTable_);
+                  {
+                     std::scoped_lock lock {p->dataMutex_};
+                     p->data_                 = cached.sweep;
+                     p->colorTableLut_        = lut;
+                     p->elevationAngleDegrees_ = cached.elevationAngleDegrees;
+                     p->elevationCuts_         = cached.elevationCuts;
+                     p->selectedTime_          = *actual;
+                  }
+                  logger_->info("Sweep geometry: site={} product={} disk_cache_hit=true",
+                                p->radarSite_, p->productName_);
+                  Q_EMIT SweepUpdated();
+                  Q_EMIT LoadStateChanged(false, {}, stampMs);
+                  return;
+               }
+            }
+
+            p->requestId_ = service->LoadLevel2DataAt(archiveTime);
+         });
    }
    else
    {
@@ -661,8 +815,10 @@ RadarSweepProduct::RadarSweepProduct(const std::string& radarSite,
               [this](std::shared_ptr<scwx::wsr88d::Ar2vFile> file)
               {
                  p->OnLevelTwoDataLoaded(file);
-                 Q_EMIT LoadStateChanged(false, {}, 0);
+
               });
+      connect(service.get(), &data::RadarSiteDataService::LoadFailed, this,
+              [this](const QString& reason) { Q_EMIT LoadStateChanged(false, reason, 0); });
       service->LoadLatestLevel2Data();
    }
 
@@ -680,6 +836,57 @@ BuildColorTableLut(const SweepData& sweep, const QString& paletteText)
    return BuildColorTableLutFromTable(sweep, scwx::common::ColorTable::Load(stream));
 }
 
+std::string BuildSweepDiskCacheKey(const std::string&                    radarSite,
+                                   const std::string&                    productName,
+                                   float                                 requestedElevation,
+                                   std::chrono::system_clock::time_point observationTime)
+{
+   // See the header for why the truncation is the whole point of this function. Keying on the
+   // requested elevation rather than the resolved cut is what keeps the key computable before a
+   // download; for a fixed site/VCP the two correspond, and a VCP change that breaks that costs a
+   // miss, never a wrong answer - the true resolved angle travels inside the entry
+   // (CachedSweep::elevationAngleDegrees), so a stale key cannot pair a sweep with the wrong tilt.
+   const auto seconds =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+         std::chrono::floor<std::chrono::seconds>(observationTime).time_since_epoch())
+         .count();
+   return radarSite + ":" + productName + ":req" + std::to_string(requestedElevation) + ":" +
+         std::to_string(seconds);
+}
+
+QString SweepDiskCacheDirectory()
+{
+   return QStandardPaths::writableLocation(QStandardPaths::CacheLocation) +
+         QStringLiteral("/radar-sweeps");
+}
+
+std::size_t SweepDiskCacheSizeBytes()
+{
+   return DiskCache().size_bytes();
+}
+
+void ClearSweepDiskCache()
+{
+   DiskCache().Clear();
+}
+
+void SetSweepDiskCachePersistenceEnabled(bool enabled)
+{
+   const bool wasEnabled = sweepDiskCachePersistenceEnabled_.exchange(enabled);
+   if (wasEnabled && !enabled)
+   {
+      // Turning this off is specifically about not accumulating disk state on a constrained
+      // machine, so leaving whatever had already built up sitting there defeats the point -
+      // clear it on the way out rather than just stopping future writes.
+      DiskCache().Clear();
+   }
+}
+
+bool SweepDiskCachePersistenceEnabled()
+{
+   return sweepDiskCachePersistenceEnabled_.load();
+}
+
 std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
    const std::string& radarSite,
    const std::string& productName,
@@ -688,12 +895,12 @@ std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
 {
    static std::shared_mutex                                         instanceMutex;
    static std::map<std::string, std::weak_ptr<RadarSweepProduct>>   instances;
-   const auto minute = archiveTime.has_value()
-      ? std::chrono::duration_cast<std::chrono::minutes>(archiveTime->time_since_epoch()).count()
+   const auto timestamp = archiveTime.has_value()
+      ? std::chrono::duration_cast<std::chrono::milliseconds>(archiveTime->time_since_epoch()).count()
       : -1;
    const std::string instanceKey = radarSite + ":" + productName + ":" +
                                    std::to_string(selectedElevation) + ":" +
-                                   std::to_string(minute);
+                                   std::to_string(timestamp);
 
    std::shared_lock readLock {instanceMutex};
    if (auto it = instances.find(instanceKey); it != instances.end())
@@ -710,6 +917,7 @@ std::shared_ptr<RadarSweepProduct> RadarSweepProduct::Instance(
    }
 
    std::unique_lock writeLock {instanceMutex};
+   std::erase_if(instances, [](const auto& entry) { return entry.second.expired(); });
    auto& weak = instances[instanceKey];
    if (auto existing = weak.lock()) return existing;
    auto created = std::make_shared<RadarSweepProduct>(

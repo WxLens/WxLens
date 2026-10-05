@@ -1,0 +1,67 @@
+--- a/src/quick/plugins/map_quick_item.hpp
++++ b/src/quick/plugins/map_quick_item.hpp
+@@ -23,6 +23,8 @@
+     QML_NAMED_ELEMENT(MapLibre)
+     QML_ADDED_IN_VERSION(3, 0)
+ 
++    Q_PROPERTY(QString cacheDatabasePath READ cacheDatabasePath WRITE setCacheDatabasePath)
++    Q_PROPERTY(uint cacheDatabaseMaximumSize READ cacheDatabaseMaximumSize WRITE setCacheDatabaseMaximumSize)
+     Q_PROPERTY(QString style READ style WRITE setStyle)
+     Q_PROPERTY(QVariantList coordinate READ coordinate WRITE setCoordinate NOTIFY coordinateChanged)
+     Q_PROPERTY(double zoomLevel READ zoomLevel WRITE setZoomLevel NOTIFY zoomLevelChanged)
+@@ -37,6 +39,12 @@
+ 
+     explicit MapQuickItem(QQuickItem *parent = nullptr);
+     ~MapQuickItem() override;
++
++    // Configuration is applied before the native Map is initialized.
++    [[nodiscard]] QString cacheDatabasePath() const;
++    void setCacheDatabasePath(const QString &path);
++    [[nodiscard]] uint cacheDatabaseMaximumSize() const;
++    void setCacheDatabaseMaximumSize(uint bytes);
+ 
+     [[nodiscard]] QString style() const;
+     void setStyle(const QString &style);
+--- a/src/quick/plugins/map_quick_item.cpp
++++ b/src/quick/plugins/map_quick_item.cpp
+@@ -45,11 +45,39 @@
+     Q_D(MapQuickItem);
+ 
+     setFlag(ItemHasContents, true);
+-    // TODO: make configurable
++    // Defaults to a transient cache unless the application supplies a disk path.
+     d->m_settings.setCacheDatabasePath(QStringLiteral(":memory:"));
+ }
+ 
+ MapQuickItem::~MapQuickItem() = default;
++
++QString MapQuickItem::cacheDatabasePath() const {
++    Q_D(const MapQuickItem);
++    return d->m_settings.cacheDatabasePath();
++}
++
++void MapQuickItem::setCacheDatabasePath(const QString &path) {
++    Q_D(MapQuickItem);
++    if (d->m_map) {
++        qWarning("MapLibre cacheDatabasePath must be set before initialization");
++        return;
++    }
++    d->m_settings.setCacheDatabasePath(path);
++}
++
++uint MapQuickItem::cacheDatabaseMaximumSize() const {
++    Q_D(const MapQuickItem);
++    return d->m_settings.cacheDatabaseMaximumSize();
++}
++
++void MapQuickItem::setCacheDatabaseMaximumSize(uint bytes) {
++    Q_D(MapQuickItem);
++    if (d->m_map) {
++        qWarning("MapLibre cacheDatabaseMaximumSize must be set before initialization");
++        return;
++    }
++    d->m_settings.setCacheDatabaseMaximumSize(bytes);
++}
+ 
+ QString MapQuickItem::style() const {
+     Q_D(const MapQuickItem);

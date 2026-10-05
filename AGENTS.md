@@ -37,6 +37,19 @@ list in §4.1), never via one global linked flag. See §4.1-§4.2 before touchin
 `namespace wxlens { namespace X { ... } }`, nested, with closing comments. Fully qualified
 namespaces in headers; no `using namespace` in headers.
 
+## Parallel agent workflow
+When a backend agent (C++) and a frontend agent (QML) work in this repo at the same time, in the
+same working directory, on the same branch: split by the existing `app/qml/` (presentation) vs.
+`app/source/wxlens/` (state/business logic) boundary from the section above - neither agent edits
+the other's files. Interface-first: the backend agent adds new `Q_PROPERTY`/`Q_INVOKABLE`/signals
+(even with placeholder/stub values, clearly commented as such) before the corresponding QML lands,
+so the frontend agent has a stable, real contract to bind against instead of guessing at property
+names. Use separate CMake build directories per agent (e.g. `build-release-vs2026` vs.
+`build-qml`) - they aren't tracked by git, but two `ninja`/`cmake --build` runs against the same
+build tree at once will corrupt each other's build. Before building or committing, check
+`git status`/timestamps for changes you didn't make; if you find any, leave them alone and ask
+rather than folding them into your own commit or build.
+
 ## Build system
 
 ### Conan + CMake workflow
@@ -108,8 +121,9 @@ install already (confirmed during Phase 0).
 
 ### Vendored-dependency patches (`external/patches/`)
 `external/maplibre-native-qt` needed real fixes/additions this repo can't make upstream directly
-(a build-breaking CMake bug, a missing custom-layer API, a black-screen rendering bug, and a
-lost-signal race that strands every map after the first — see ADR 0004). Rather than hand-editing
+(a build-breaking CMake bug, a missing custom-layer API, a black-screen rendering bug, a
+lost-signal race that strands every map after the first, a Quick item with no way to configure its
+tile cache, and a renderer never destroyed while a GL context is current — see ADR 0004). Rather than hand-editing
 the vendored source, each fix is a tracked `.patch` file under
 `external/patches/`, applied idempotently at CMake configure time by
 `wxlens_apply_mln_qt_patch()` in `external/maplibre-native-qt.cmake` (checks
@@ -167,6 +181,12 @@ rule.
   because only click-then-hover was driven, never press-drag-release. Both paths call the same
   update function, so exercising one feels like exercising both — but only one holds a button
   down, and a held button is the only state in which a grab can be stolen.
+- **A `TestCase` is invisible by default, and an invisible item is never hit-tested.** A QML test
+  that presses or drags without `visible: true` on the `TestCase` sends events that land nowhere,
+  and every `mousePress`/`mouseClick` still returns normally - so the failure looks like a broken
+  component, not a broken test. Pair it with the other half: `mouseMove`'s `buttons` argument
+  defaults to `Qt.NoButton`, which a `MouseArea` reads as a hover and ignores, so a press-drag
+  test has to pass the held button on every move. Both bit `tst_PlaybackScrubber.qml` in slice 20.
 - **Radar site altitudes in `res/config/radar_sites.json` are feet.** Nothing in the file says so.
   `data::FindRadarSite` converts them and hands back `altitudeMslMeters`; use that, and don't
   reintroduce a raw read of the `elevation` field. See `radar_site_database.hpp` for how the unit

@@ -66,8 +66,7 @@ class PaneController : public QObject
     * always show every warning in this pane, 2 = only warnings near this pane's homeLatitude/
     * homeLongitude). Lives here rather than on OverlayManager because it is inherently per-pane;
     * it is about display preference, not a `radarSite` field, so it does not run afoul of §4.6's
-    * audit note. Session-only by design - panes do not persist their product/camera state across
-    * restarts today either, so this would be the one outlier if it did.
+    * audit note. Session-only override; workspace restoration saves product and camera preferences.
     */
    Q_PROPERTY(int warningsFilterOverride READ warningsFilterOverride WRITE setWarningsFilterOverride
                  NOTIFY warningsFilterOverrideChanged)

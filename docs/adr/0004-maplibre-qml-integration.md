@@ -227,8 +227,8 @@ one is fixed upstream, drop the corresponding patch rather than carrying it fore
 | 0005 (no way to reach the core `Map`) | [#296](https://github.com/maplibre/maplibre-native-qt/issues/296) | Commented on an existing feature request — another user had independently hit the same wall |
 | 0006 (mid-frame framebuffer clear) | [#296](https://github.com/maplibre/maplibre-native-qt/issues/296) | Same thread: that reporter had hit the black framebuffer too, so the root cause went there rather than into a new issue |
 | 0007 (signals connected too late) | [#303](https://github.com/maplibre/maplibre-native-qt/issues/303) | New issue, includes the suggested fix |
-| Teardown crash in `~Context` (not patched) | [#302](https://github.com/maplibre/maplibre-native-qt/issues/302) | New issue |
-| Teardown hang in `~Thread<MainResourceLoaderThread>` (not patched) | [#285](https://github.com/maplibre/maplibre-native-qt/issues/285) | Commented on an existing report with our thread stacks; it had no diagnosis |
+| 0015 (renderer never destroyed while a GL context is current) — fixes the `~Context` teardown crash | [#302](https://github.com/maplibre/maplibre-native-qt/issues/302) | New issue. Patched 2026-09-25: `TextureNodeOpenGL`'s destructor now calls `Map::destroyRenderer()`, which `MapWidget` already did and the Quick module never did. Only viable together with the deterministic exit below, since it uncovers #285 |
+| Teardown hang in `~Thread<MainResourceLoaderThread>` (not patched, worked around) | [#285](https://github.com/maplibre/maplibre-native-qt/issues/285) | Commented on an existing report with our thread stacks; it had no diagnosis. WxLens no longer waits on it: `main()` flushes and calls `std::_Exit` once the event loop returns (see the comment there). A real fix still belongs upstream |
 
 ## Slice 4 finding (2026-08-22): a lost-signal race that only bites the *second* map
 

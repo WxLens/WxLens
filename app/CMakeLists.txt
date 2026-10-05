@@ -37,6 +37,8 @@ qt_add_library(wxlens-app-lib STATIC
     source/wxlens/log/frame_timing.hpp
     source/wxlens/data/frame_cache.hpp
     source/wxlens/data/radar_site_data_service.cpp
+    source/wxlens/data/radar_task_queue.cpp
+    source/wxlens/data/radar_task_queue.hpp
     source/wxlens/data/radar_site_data_service.hpp
     source/wxlens/data/radar_site_database.cpp
     source/wxlens/data/radar_site_database.hpp
@@ -57,6 +59,10 @@ qt_add_library(wxlens-app-lib STATIC
     source/wxlens/overlays/overlay_manager.hpp
     source/wxlens/panes/pane_controller.cpp
     source/wxlens/panes/pane_controller.hpp
+    source/wxlens/panes/playback_controller.cpp
+    source/wxlens/panes/playback_controller.hpp
+    source/wxlens/panes/playback_binding.cpp
+    source/wxlens/panes/playback_binding.hpp
     source/wxlens/panes/pane_grid_model.cpp
     source/wxlens/panes/pane_grid_model.hpp
     source/wxlens/panes/sync_types.hpp
@@ -76,10 +82,10 @@ qt_add_library(wxlens-app-lib STATIC
     source/wxlens/products/level3_graphic_overlay.hpp
     source/wxlens/products/level3_text_product.cpp
     source/wxlens/products/level3_text_product.hpp
-    source/wxlens/products/radar_product_status.cpp
-    source/wxlens/products/radar_product_status.hpp
     source/wxlens/products/radar_sweep_product.cpp
     source/wxlens/products/radar_sweep_product.hpp
+    source/wxlens/products/sweep_disk_cache.cpp
+    source/wxlens/products/sweep_disk_cache.hpp
     source/wxlens/render/radar_sweep_layer.cpp
     source/wxlens/render/radar_sweep_layer.hpp
     source/wxlens/settings/app_settings.cpp
@@ -117,6 +123,7 @@ qt_add_qml_module(wxlens-app-lib
         qml/CrashReporter.qml
         qml/Chrome/TopBar.qml
         qml/Chrome/BottomControlBar.qml
+        qml/Chrome/PlaybackScrubber.qml
         qml/Chrome/TimeControls.qml
         qml/Dialogs/SettingsChoice.qml
         qml/Dialogs/SettingsDialog.qml
