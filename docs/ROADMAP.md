@@ -1113,6 +1113,13 @@ Toolbar customization is for personal workflow, not a second incompatible UI per
 information architecture and one curated default so documentation, support, accessibility, and
 keyboard behavior remain coherent.
 
+**Experience levels (ADR 0005, accepted 2026-11-26)** build on this rule rather than replacing
+it. The three levels (Basic / Advanced / Professional) are curated default sets of reveal
+flags over the same information architecture, and each has its own curated default toolbar.
+Features check a named reveal key, never the level itself. The single top-bar level dropdown is
+an owner-approved exception to the rule above that keeps modes out of persistent chrome. See
+Phase 1 slice 21.
+
 ### 5.4 Primary control surface placement — bottom, not the left rail
 
 Slice 1 put tools in a left `SideRail.qml` as a direct successor to
@@ -1658,6 +1665,72 @@ not to be built speculatively ahead of it.
       is what exposed the other half of it: background history warming posts to the io_context
       `main()` joins on the way out, so quitting mid-download held the process open for the rest
       of the window's downloads. Warming now stands down on quit.
+
+21. **Experience levels** (ADR 0005, §5.3) — three presets (**Basic**,
+    **Advanced**, **Professional**), chosen at first run and changed from one top-bar dropdown.
+    A level is only a default set of reveal flags over the same UI. It never introduces a
+    second layout or code path, and switching never deletes panes, objects or selections. Split
+    into sub-slices that can each be built and tested on their own:
+    - **21A — Profile model and settings.** `ExperienceProfile` in C++ (§0.2: state lives in C++)
+      holds the level, the single level-to-reveal-key table, overrides stored as differences, and
+      `isRevealed(key)`, exposed through `AppSettings`. Add the addressable `experience` settings
+      section with level, overrides and reset. Migrate `advancedPaneLinking` into the
+      `panes.sync_controls` override so existing users see no change. Tests: defaults per level,
+      override round-trip, the "customized" state, reset, migration, and live change notification.
+    - **21B — Gate existing features by reveal key.** Register keys for multi-pane (limited to
+      1/4/4 panes by level; at Advanced all panes stay camera-linked), sync controls, site picker, product browser, palette editor,
+      measurement, markers, drawing/analysis objects, radar geometry rows, archive browsing and
+      warning detail. Lowering the level hides; raising it restores: hidden panes go through the
+      existing hidden-pane retention, and analysis objects are hidden but saved places stay
+      visible. Command search and shortcuts label hidden capability "available in <level>" and
+      offer to switch, rather than running it. Add a check that rejects `level >=` comparisons
+      outside the profile table.
+    - **21C — First run and top-bar picker.** The "How do you use weather?" prompt with three
+      cards (default Basic), in the same first-run flow the update preference will use.
+      A compact level dropdown in `TopBar.qml` that shows "(customized)" and the reset action,
+      and collapses to an icon at narrow widths (this is the §5.3 constrained-chrome exception the
+      owner approved). Packaged-app check: switching Professional → Basic → Professional on a 2×2 layout
+      with drawings restores the layout and objects exactly, and loaded radar data is not
+      reloaded.
+    - **21D — Basic radar without picking a site, stopgap.** Until the composite layer exists,
+      Basic follows the nearest suitable site to the map center (or to home when there is no
+      interaction), with distance hysteresis and a dwell time so it does not switch back and
+      forth at coverage edges. Built on the existing site-switch scheduling. Log each automatic
+      switch with its reason.
+    - **21E — Composite radar in Basic.** Bring Phase 2's IEM MRMS tile bootstrap forward as
+      the Basic radar view. When it lands it replaces 21D in Basic and becomes the default
+      view in Advanced. The full `MosaicDataService`/GRIB2 path stays in Phase 2.
+    - **21F — Forecast and current-conditions card.** *Approved by the owner 2026-11-26.*
+      NWS API forecast and observation endpoints for the home saved place, added to
+      `docs/data-sources.md`, cached and unit-aware like any other Data Source. Visible at every
+      level (`weather.forecast_card`). With no home place set, the card offers to set one instead
+      of guessing a location.
+    - **21G — Custom presets and `.wxsetup` sharing** (ADR 0005 §8). Basic, Advanced and
+      Professional are fixed built-in defaults that cannot be edited or overwritten. Users can
+      save any number of their own named presets alongside them (for example "Snow" or "Tornado
+      season"), each listed under the built-ins in the level dropdown. Each preset has an
+      editing mode. **Ask before saving** (the default) shows "(modified)" and offers Save to
+      the existing preset / Save as new preset (to try a variation) / Discard, and asks again if
+      the user switches away with unsaved changes. **Save changes automatically** writes every
+      change straight into the preset, keeping a snapshot from when it was opened so "Revert to
+      when I opened it" always works. Built-in tiers never take either mode. Export a
+      preset as a single self-contained TOML `.wxsetup` file with embedded `.pal` color tables
+      and theme. **Importing only adds a new preset.** It never replaces the current setup or
+      another preset, never switches level on its own (the preview offers "Add" or "Add and
+      switch"), and renames on a name clash. An **allowlist** decides what is
+      written: never saved places or home, camera position or selected site, map objects,
+      placefile URLs, paths, cache or update settings. Every setting is marked shareable or
+      private, with private as the default. Tests: an export → import round trip reproduces the
+      configuration; a heavily populated profile's private values (place names, coordinates,
+      URLs) never appear anywhere in the exported text; malformed, oversized and future-version
+      files are rejected cleanly; palettes are renamed on a name clash. Packaged-app check: export
+      on one config directory, import into an empty one, and compare the two side by side.
+
+    **Order:** 21A → 21B → 21C first. 21D can follow straight away. 21E waits on the IEM tile
+    work. 21F is independent and can run in parallel after 21A. 21G needs 21A–21C, because it
+    snapshots levels, overrides and the dropdown. Reconcile with the first-run usability gate below: that
+    gate is now run once per level, and at Basic it must reach a useful live radar view
+    without the user picking a site.
 
 Adjust ordering/granularity as real work reveals better seams — this sequence is a starting
 structure, not a rigid contract — but keep the principle: each slice buildable and testable on
@@ -3234,7 +3307,9 @@ sync system as single-site panes.
 - New `MosaicDataService` following the same per-source-key-singleton pattern as
   `RadarSiteDataService` — the payoff of designing that pattern generically in Phase 1.
 - MRMS provider (§6): IEM tile bootstrap first, raw MRMS-on-AWS GRIB2 as the full-control
-  follow-up.
+  follow-up. **The IEM tile bootstrap is pulled forward into Phase 1 slice 21E** (ADR 0005),
+  because the Basic experience level depends on a radar view that does not require picking a
+  site. What remains here is `MosaicDataService`, the GRIB2 path and tiling/level of detail.
 - Mosaic tiling/LOD strategy for "modest laptop" perf — likely a coarser base resolution with
   viewport-driven detail loading (standard tile-pyramid pattern). This is genuinely new
   engineering with no direct precedent in the current app.
@@ -3461,6 +3536,10 @@ unified "Layers" panel is the direction, not per-overlay dedicated dialogs.**
     full arbitrary Volume-Browser breadth (cross-sections, time-height, per-level soundings from
     models, etc.) — that remains explicitly out of scope per §7 Phase 3 and the capability
     matrix.
+14. ~~**Experience-level details**~~ (ADR 0005, Phase 1 slice 21) — **RESOLVED 2026-11-26
+    (owner):** tiers are Basic / Advanced / Professional; Advanced allows up to 4 panes; the
+    forecast and current-conditions card is in scope (slice 21F); and any number of custom presets can be saved
+    and shared as a `.wxsetup` file with private data excluded (slice 21G).
 
 ---
 
