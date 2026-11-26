@@ -56,11 +56,32 @@ jobs:
       # fails at the first link against Qt's MSVC-built import libraries ("undefined reference to
       # __imp__ZN7QObject...") - confirmed as the actual cause of a Build-step failure after
       # everything upstream (submodules, Qt, Conan, CMake configure) had already gone green.
+      #
+      # TEMPORARY toolset pin: MSVC 14.52, the windows-2025-vs2026 default since image 20261116,
+      # dies with an internal compiler error (C1001) compiling maplibre-native's
+      # src/mbgl/gfx/drawable_atlases_tweaker.cpp. 14.51 is what local dev uses and what CI built
+      # green with before that image, but the image only preinstalls 14.29/14.44 side by side, so
+      # add the 14.51 component first. Same Conan compiler.version (195), so cached packages stay
+      # valid. Drop this step and the toolset input once a 14.52 servicing release compiles
+      # mbgl-core. Keep in sync with release.yml.
+      - name: Install MSVC 14.51 toolset
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+          $vsPath = & "$installer\vswhere.exe" -latest -products * -property installationPath
+          $p = Start-Process -FilePath "$installer\setup.exe" -Wait -PassThru -ArgumentList @(
+            'modify', '--installPath', "`"$vsPath`"",
+            '--add', 'Microsoft.VisualStudio.Component.VC.14.51.x86.x64',
+            '--quiet', '--norestart', '--nocache')
+          if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { throw "VS installer exited $($p.ExitCode)" }
+          Get-ChildItem "$vsPath\VC\Tools\MSVC" | Select-Object -ExpandProperty Name
       - name: Set up MSVC environment
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+          toolset: '14.51'
 
       # Only the submodules WxLens actually builds are initialized - see
       # docs/adr/0002-wxdata-reuse-strategy.md and docs/adr/0004-maplibre-qml-integration.md for

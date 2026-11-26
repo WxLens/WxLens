@@ -39,11 +39,24 @@ jobs:
           ref: ${{ inputs.build_ref || inputs.tag || github.ref }}
           submodules: false
 
-      # Same reasoning as ci.yml's windows_vs2026_x64 job - keep these steps in sync with it.
+      # Same reasoning as ci.yml's windows_vs2026_x64 job - keep these steps in sync with it,
+      # including the TEMPORARY MSVC 14.51 toolset pin.
+      - name: Install MSVC 14.51 toolset
+        shell: pwsh
+        run: |
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+          $vsPath = & "$installer\vswhere.exe" -latest -products * -property installationPath
+          $p = Start-Process -FilePath "$installer\setup.exe" -Wait -PassThru -ArgumentList @(
+            'modify', '--installPath', "`"$vsPath`"",
+            '--add', 'Microsoft.VisualStudio.Component.VC.14.51.x86.x64',
+            '--quiet', '--norestart', '--nocache')
+          if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { throw "VS installer exited $($p.ExitCode)" }
+          Get-ChildItem "$vsPath\VC\Tools\MSVC" | Select-Object -ExpandProperty Name
       - name: Set up MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+          toolset: '14.51'
 
       - name: Initialize required submodules
         shell: bash
