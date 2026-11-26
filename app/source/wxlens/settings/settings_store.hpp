@@ -79,6 +79,15 @@ public:
    void SetDouble(const QString& category, const QString& key, double value);
    void SetString(const QString& category, const QString& key, const QString& value);
 
+   /// Whether `key` is present in the category at all, whatever its type. For settings whose
+   /// meaning depends on "never written" versus "written with the default" - a migration that
+   /// must run once, or an override that exists only while it differs from its baseline.
+   [[nodiscard]] bool Contains(const QString& category, const QString& key);
+
+   /// Deletes `key` from the category (a no-op if it is absent). Like the setters, persisted by
+   /// the next Save().
+   void Remove(const QString& category, const QString& key);
+
    /**
     * Writes every category modified since the last save. Returns false if any file could not be
     * written - callers should surface that rather than assume a silent success, since a settings

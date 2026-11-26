@@ -134,6 +134,7 @@ add_executable(wxlens-app-test
     source/wxlens/panes/source_probe.test.cpp
     source/wxlens/settings/settings_store.test.cpp
     source/wxlens/settings/app_settings.test.cpp
+    source/wxlens/settings/experience_profile.test.cpp
     source/wxlens/theme/theme_manager.test.cpp
     source/wxlens/util/radar_geometry.test.cpp
     source/wxlens/util/unit_format.test.cpp

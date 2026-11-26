@@ -90,6 +90,8 @@ qt_add_library(wxlens-app-lib STATIC
     source/wxlens/render/radar_sweep_layer.hpp
     source/wxlens/settings/app_settings.cpp
     source/wxlens/settings/app_settings.hpp
+    source/wxlens/settings/experience_profile.cpp
+    source/wxlens/settings/experience_profile.hpp
     source/wxlens/settings/settings_store.cpp
     source/wxlens/settings/settings_store.hpp
     source/wxlens/theme/theme_manager.cpp

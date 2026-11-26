@@ -34,6 +34,7 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QScreen>
+#include <QStandardPaths>
 #include <QSurfaceFormat>
 
 #include <algorithm>
@@ -103,6 +104,15 @@ void FitWindowToScreen(QWindow* window, const std::shared_ptr<spdlog::logger>& l
 
 int main(int argc, char* argv[])
 {
+   // Development/QA switch: WXLENS_THROWAWAY_PROFILE=1 redirects every QStandardPaths location
+   // (config, logs, caches) to Qt's separate "qttest" tree, so a build can be tried - first-run
+   // paths, migrations, settings changes - without reading or writing the user's real profile.
+   // Must run before anything resolves a path.
+   if (qEnvironmentVariableIntValue("WXLENS_THROWAWAY_PROFILE") == 1)
+   {
+      QStandardPaths::setTestModeEnabled(true);
+   }
+
    const bool reportOnly =
       std::any_of(argv + 1,
                   argv + argc,
@@ -323,6 +333,12 @@ int main(int argc, char* argv[])
    paneGridModel.setAdvancedPaneLinking(appSettings.advancedPaneLinking());
    QObject::connect(&appSettings, &wxlens::settings::AppSettings::advancedPaneLinkingChanged,
                     &paneGridModel, [&]() { paneGridModel.setAdvancedPaneLinking(appSettings.advancedPaneLinking()); });
+   // Experience level (ADR 0005): set before restoreWorkspace so a Basic start never flashes the
+   // stored multi-pane layout.
+   paneGridModel.setMultiPaneEnabled(appSettings.isRevealed(QStringLiteral("panes.multi")));
+   QObject::connect(&appSettings, &wxlens::settings::AppSettings::experienceChanged,
+                    &paneGridModel, [&]() { paneGridModel.setMultiPaneEnabled(
+                                             appSettings.isRevealed(QStringLiteral("panes.multi"))); });
    wxlens::data::RadarSiteDataService::SetHistoryMinutes(appSettings.playbackMinutes());
    paneGridModel.restoreWorkspace(wxlens::settings::SettingsStore::Instance(),
                                   QString::fromStdString(kDefaultRadarSite));

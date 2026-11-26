@@ -17,6 +17,32 @@ Rectangle {
     property int lastGridWidth: 2
     property int lastGridHeight: 2
 
+    // Experience-level reveal keys (ADR 0005). Bound through appSettings.reveals so every control
+    // re-evaluates on a level or override change; `!== false` keeps a key this build does not
+    // know visible, matching settings::ExperienceProfile::IsRevealed.
+    readonly property bool multiPaneRevealed: appSettings.reveals["panes.multi"] !== false
+    readonly property bool measurementRevealed: appSettings.reveals["tools.measurement"] !== false
+    readonly property bool markersRevealed: appSettings.reveals["tools.markers"] !== false
+    readonly property bool drawingRevealed: appSettings.reveals["tools.drawing"] !== false
+    readonly property bool analysisRevealed: markersRevealed || drawingRevealed
+
+    // A tool hidden by a level change must not stay armed with no visible way to turn it off.
+    // Objects already placed are untouched - hiding a tool never deletes what it made.
+    Connections {
+        target: appSettings
+        function onExperienceChanged() {
+            if ((objectTools.activeTool === 1 && !root.markersRevealed) ||
+                ((objectTools.activeTool === 2 || objectTools.activeTool === 3) && !root.drawingRevealed))
+                objectTools.activeTool = 0
+            if (!root.measurementRevealed)
+                measurementTool.mode = 0
+            if (!root.analysisRevealed)
+                root.analysisOpen = false
+            if (!root.multiPaneRevealed)
+                root.layoutOpen = false
+        }
+    }
+
     function toggleLastLayout() {
         if (gridModel.gridWidth === 1 && gridModel.gridHeight === 1) {
             gridModel.setGridSize(lastGridWidth, lastGridHeight)
@@ -78,7 +104,7 @@ Rectangle {
     }
 
     Rectangle {
-        visible: root.analysisOpen
+        visible: root.analysisOpen && root.analysisRevealed
         anchors.left: parent.left
         anchors.bottom: parent.top
         anchors.bottomMargin: 8
@@ -96,6 +122,7 @@ Rectangle {
             spacing: 5
 
             ToolButton {
+                visible: root.markersRevealed
                 active: objectTools.activeTool === 1; accent: themeManager.warning; hint: "Marker"
                 onTriggered: {
                     measurementTool.mode = 0
@@ -104,6 +131,7 @@ Rectangle {
                 Rectangle { anchors.centerIn: parent; width: 9; height: 9; radius: 5; color: themeManager.textPrimary }
             }
             ToolButton {
+                visible: root.drawingRevealed
                 active: objectTools.activeTool === 2; accent: themeManager.warning; hint: "Range ring"
                 onTriggered: {
                     measurementTool.mode = 0
@@ -113,6 +141,7 @@ Rectangle {
                 Rectangle { anchors.centerIn: parent; width: 4; height: 4; radius: 2; color: themeManager.textPrimary }
             }
             ToolButton {
+                visible: root.drawingRevealed
                 active: objectTools.activeTool === 3; accent: themeManager.warning; hint: "Draw line"
                 onTriggered: {
                     measurementTool.mode = 0
@@ -148,7 +177,7 @@ Rectangle {
     }
 
     Rectangle {
-        visible: root.layoutOpen
+        visible: root.layoutOpen && root.multiPaneRevealed
         anchors.right: parent.right
         anchors.bottom: parent.top
         anchors.bottomMargin: 8
@@ -216,15 +245,17 @@ Rectangle {
 
         ToolButton {
             id: analysisButton
+            visible: root.analysisRevealed
             active: root.analysisOpen
             hint: "Analysis tools"
             onTriggered: { root.analysisOpen = !root.analysisOpen; root.layoutOpen = false }
             Text { anchors.centerIn: parent; text: "+"; color: themeManager.textSecondary; font.pixelSize: 18 }
         }
 
-        Rectangle { width: 1; height: 28; anchors.verticalCenter: parent.verticalCenter; color: themeManager.border }
+        Rectangle { visible: root.analysisRevealed; width: 1; height: 28; anchors.verticalCenter: parent.verticalCenter; color: themeManager.border }
 
         ToolButton {
+            visible: root.measurementRevealed
             active: measurementTool.mode === appSettings.preferredMeasurementTool
             accent: themeManager.measurementAccent
             hint: appSettings.preferredMeasurementTool === 1 ? "Measure point to point" : "Measure path"
@@ -241,7 +272,7 @@ Rectangle {
                            appSettings.preferredMeasurementTool === 1 ? 2 : 1
             }
         }
-        Rectangle { width: 1; height: 28; anchors.verticalCenter: parent.verticalCenter; color: themeManager.border }
+        Rectangle { visible: root.measurementRevealed; width: 1; height: 28; anchors.verticalCenter: parent.verticalCenter; color: themeManager.border }
 
         Loader {
             anchors.verticalCenter: parent.verticalCenter
@@ -351,10 +382,11 @@ Rectangle {
             Text { anchors.centerIn: parent; text: "P" + (root.gridModel.activePaneIndex + 1); color: themeManager.textSecondary; font.pixelSize: 10; font.bold: true }
         }
 
-        Rectangle { width: 1; height: 28; anchors.verticalCenter: parent.verticalCenter; color: themeManager.border }
+        Rectangle { visible: root.multiPaneRevealed; width: 1; height: 28; anchors.verticalCenter: parent.verticalCenter; color: themeManager.border }
 
         ToolButton {
             id: layoutButton
+            visible: root.multiPaneRevealed
             holdInterval: 300
             readonly property bool singlePane: root.gridModel.gridWidth === 1 && root.gridModel.gridHeight === 1
             readonly property int targetColumns: singlePane ? root.lastGridWidth : 1

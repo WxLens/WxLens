@@ -190,14 +190,34 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
+                // -- Experience level (ADR 0005) ----------------------------------------------
                 SettingsChoice {
-                    visible: root.currentSection === "appearance"
+                    visible: root.currentSection === "experience"
                     width: contentColumn.width
-                    label: "Advanced pane linking"
-                    explanation: "Split panes share pan and zoom by default. Enable to show each pane's linking menu and choose independent views or custom links. Turning this off matches all maps to the active pane and restores map-only linking."
-                    options: ["Off", "On"]
-                    currentIndex: appSettings.advancedPaneLinking ? 1 : 0
-                    onSelected: (index) => appSettings.advancedPaneLinking = index === 1
+                    label: "Experience level"
+                    explanation: "Basic shows a single radar map. Advanced adds multiple panes, measurement and markers. Professional shows everything, including per-pane linking and drawing tools. Changing level only changes what is shown: hidden panes and map objects are kept and come back when you switch up again."
+                    options: appSettings.experienceLevelNames
+                    currentIndex: appSettings.experienceLevel
+                    onSelected: (index) => appSettings.experienceLevel = index
+                }
+
+                Repeater {
+                    model: root.currentSection === "experience" ? appSettings.revealKeys : []
+                    delegate: SettingsChoice {
+                        required property var modelData
+                        width: contentColumn.width
+                        label: modelData.label + (modelData.overridden ? "  (customized)" : "")
+                        explanation: modelData.description
+                        options: ["Hidden", "Shown"]
+                        currentIndex: modelData.revealed ? 1 : 0
+                        onSelected: (index) => appSettings.setRevealed(modelData.id, index === 1)
+                    }
+                }
+
+                WxButton {
+                    visible: root.currentSection === "experience" && appSettings.experienceCustomized
+                    text: "Reset to " + appSettings.experienceLevelNames[appSettings.experienceLevel] + " defaults"
+                    onClicked: appSettings.resetExperienceOverrides()
                 }
 
                 // -- Appearance ---------------------------------------------------------------

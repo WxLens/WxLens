@@ -4,6 +4,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -80,7 +81,23 @@ class AppSettings : public QObject
 
    /// Basemap appearance: follow the chrome by default, or force dark/light independently.
    Q_PROPERTY(int mapTheme READ mapTheme WRITE setMapTheme NOTIFY mapThemeChanged)
+   /// The `panes.sync_controls` reveal key (ADR 0005 §2), kept under its old name for the
+   /// C++ wiring that predates experience levels. Writing it records an override.
    Q_PROPERTY(bool advancedPaneLinking READ advancedPaneLinking WRITE setAdvancedPaneLinking NOTIFY advancedPaneLinkingChanged)
+
+   /**
+    * Experience level (ADR 0005): a curated default set of reveal keys over one interface.
+    * `reveals` maps every known key to whether it is shown, so QML binds
+    * `appSettings.reveals["tools.drawing"]` and re-evaluates on any change; C++ calls
+    * isRevealed(). Neither compares levels - only settings::ExperienceProfile's table does.
+    */
+   Q_PROPERTY(int experienceLevel READ experienceLevel WRITE setExperienceLevel NOTIFY
+                 experienceChanged)
+   Q_PROPERTY(bool experienceCustomized READ experienceCustomized NOTIFY experienceChanged)
+   Q_PROPERTY(QStringList experienceLevelNames READ experienceLevelNames CONSTANT)
+   Q_PROPERTY(QVariantMap reveals READ reveals NOTIFY experienceChanged)
+   /// {id, label, description, revealed, levelDefault, overridden} per key, for Settings.
+   Q_PROPERTY(QVariantList revealKeys READ revealKeys NOTIFY experienceChanged)
    Q_PROPERTY(bool controlBarDocked READ controlBarDocked WRITE setControlBarDocked NOTIFY
                  controlBarDockedChanged)
    Q_PROPERTY(bool centerMapOnSiteChange READ centerMapOnSiteChange WRITE setCenterMapOnSiteChange
@@ -229,6 +246,19 @@ public:
    [[nodiscard]] bool tdwrSitesVisible() const;
    [[nodiscard]] int mapDetailsPreset() const;
 
+   [[nodiscard]] int experienceLevel() const;
+   [[nodiscard]] bool experienceCustomized() const;
+   [[nodiscard]] QStringList experienceLevelNames() const;
+   [[nodiscard]] QVariantMap reveals() const;
+   [[nodiscard]] QVariantList revealKeys() const;
+   [[nodiscard]] Q_INVOKABLE bool isRevealed(const QString& key) const;
+
+   /// Picks a built-in level and drops its overrides; re-picking the current level is how
+   /// "Reset to <level> defaults" works.
+   void setExperienceLevel(int level);
+   Q_INVOKABLE void setRevealed(const QString& key, bool revealed);
+   Q_INVOKABLE void resetExperienceOverrides();
+
    void setMeasurementGesture(int gesture);
    void setPreferredMeasurementTool(int tool);
    void setSnapStrength(int strength);
@@ -299,6 +329,7 @@ signals:
    void mapDetailsChanged();
    void toolbarActionsChanged();
    void geometryRowsChanged();
+   void experienceChanged();
 
    /**
     * resetToDefaults() finished. Preferences owned by other subsystems (the palette family

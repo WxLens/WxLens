@@ -304,6 +304,22 @@ void SettingsStore::SetString(const QString& category, const QString& key, const
    entry.dirty = true;
 }
 
+bool SettingsStore::Contains(const QString& category, const QString& key)
+{
+   std::scoped_lock lock {p->mutex_};
+   return p->Load(category).table.contains(key.toStdString());
+}
+
+void SettingsStore::Remove(const QString& category, const QString& key)
+{
+   std::scoped_lock lock {p->mutex_};
+   Category&        entry = p->Load(category);
+   if (entry.table.erase(key.toStdString()) > 0)
+   {
+      entry.dirty = true;
+   }
+}
+
 bool SettingsStore::Save()
 {
    std::scoped_lock lock {p->mutex_};

@@ -1,4 +1,5 @@
 #include <wxlens/settings/app_settings.hpp>
+#include <wxlens/settings/experience_profile.hpp>
 #include <wxlens/log/logger.hpp>
 #include <wxlens/objects/map_object.hpp>
 #include <wxlens/products/radar_sweep_product.hpp>
@@ -154,6 +155,14 @@ const QString kUnitsCategory       = QStringLiteral("units");
 const QString kRadarCategory       = QStringLiteral("radar");
 const QString kAppearanceCategory  = QStringLiteral("appearance");
 const QString kMapCategory         = QStringLiteral("map");
+const QString kExperienceCategory  = QStringLiteral("experience");
+const QString kExperienceLevelKey  = QStringLiteral("level");
+// Overrides are stored as `"reveal.<key id>" = true|false`, present only while they differ from
+// the level default (ADR 0005 §3).
+const QString kRevealOverridePrefix = QStringLiteral("reveal.");
+const QString kSyncControlsKey      = QStringLiteral("panes.sync_controls");
+// The pre-ADR-0005 toggle, migrated once into a panes.sync_controls override.
+const QString kLegacyPaneLinkingKey = QStringLiteral("advanced_pane_linking");
 
 struct MapDetailGroup
 {
@@ -223,7 +232,8 @@ struct Section
 
 /// Stable ids (§4.5). Changing one breaks every deep-link that points at it, so treat these as
 /// part of the app's contract rather than as labels.
-constexpr std::array<Section, 11> kSections {{
+constexpr std::array<Section, 12> kSections {{
+   {"experience", "Experience level", "Choose how much of WxLens is shown, and fine-tune it."},
    {"appearance", "Appearance", "Choose the chrome theme used throughout WxLens."},
    {"toolbar", "Toolbar", "Choose optional shortcuts shown beside the complete Tools menu."},
    {"map-details", "Map details", "Choose which geographic context appears beneath data."},
@@ -279,6 +289,9 @@ public:
          static_cast<util::DistanceUnitPreference>(distanceUnits_));
    }
 
+   void LoadExperience();
+   void SaveExperience();
+
    SettingsStore& store_;
 
    int playbackMinutes_ {30};
@@ -290,7 +303,7 @@ public:
    int velocityUnits_ {static_cast<int>(VelocityUnits::MilesPerHour)};
    int productTiltLabelStyle_ {static_cast<int>(ProductTiltLabelStyle::Both)};
    int mapTheme_ {static_cast<int>(MapTheme::FollowChrome)};
-   bool advancedPaneLinking_ {false};
+   ExperienceProfile experience_ {};
    bool controlBarDocked_ {false};
    bool centerMapOnSiteChange_ {true};
    bool persistRadarCache_ {true};
@@ -348,7 +361,7 @@ void AppSettings::Impl::Load()
                              static_cast<int>(MapTheme::FollowChrome),
                              0,
                              kMapThemeMax);
-   advancedPaneLinking_ = store_.GetBool(kAppearanceCategory, QStringLiteral("advanced_pane_linking"), false);
+   LoadExperience();
    controlBarDocked_ = store_.GetBool(
       kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
    centerMapOnSiteChange_ =
@@ -391,6 +404,79 @@ void AppSettings::Impl::Load()
 
    ApplyDistanceUnits();
    ApplyVelocityUnits();
+}
+
+void AppSettings::Impl::LoadExperience()
+{
+   experience_ = ExperienceProfile {};
+
+   if (store_.Contains(kExperienceCategory, kExperienceLevelKey))
+   {
+      experience_.SetLevel(static_cast<ExperienceLevel>(
+         store_.GetInt(kExperienceCategory,
+                       kExperienceLevelKey,
+                       static_cast<int>(ExperienceProfile::kDefaultLevel),
+                       static_cast<int>(ExperienceLevel::Basic),
+                       static_cast<int>(ExperienceLevel::Professional))));
+      for (const RevealKey& key : ExperienceProfile::Keys())
+      {
+         const QString id = QString::fromLatin1(key.id);
+         if (store_.Contains(kExperienceCategory, kRevealOverridePrefix + id))
+         {
+            experience_.SetRevealed(
+               id,
+               store_.GetBool(kExperienceCategory,
+                              kRevealOverridePrefix + id,
+                              ExperienceProfile::LevelDefault(experience_.Level(), id)));
+         }
+      }
+      return;
+   }
+
+   // First launch of a build with experience levels. A brand-new install starts at the ADR's
+   // default (Basic). An existing install starts at Professional instead: ADR 0005 §4 says a
+   // level change must never take away what the user had, and every capability was visible
+   // before levels existed. The workspace and appearance files are the evidence of a previous
+   // run - the workspace is written on every exit.
+   const bool existingInstall = QFile::exists(store_.FilePath(QStringLiteral("workspace"))) ||
+                                QFile::exists(store_.FilePath(kAppearanceCategory));
+   experience_.SetLevel(existingInstall ? ExperienceLevel::Professional
+                                        : ExperienceProfile::kDefaultLevel);
+   // ADR 0005 §2: the old toggle becomes an override, so the user keeps exactly what they had.
+   if (store_.Contains(kAppearanceCategory, kLegacyPaneLinkingKey))
+   {
+      experience_.SetRevealed(kSyncControlsKey,
+                              store_.GetBool(kAppearanceCategory, kLegacyPaneLinkingKey, false));
+      store_.Remove(kAppearanceCategory, kLegacyPaneLinkingKey);
+   }
+   else if (existingInstall)
+   {
+      // Its default was off, and an absent key meant off.
+      experience_.SetRevealed(kSyncControlsKey, false);
+   }
+   SaveExperience();
+   logger_->info("Experience level initialized to {}{}",
+                 ExperienceProfile::LevelName(experience_.Level()).toStdString(),
+                 existingInstall ? " (existing install)" : "");
+}
+
+void AppSettings::Impl::SaveExperience()
+{
+   store_.SetInt(kExperienceCategory, kExperienceLevelKey, static_cast<int>(experience_.Level()));
+   for (const RevealKey& key : ExperienceProfile::Keys())
+   {
+      const QString id = QString::fromLatin1(key.id);
+      const auto    it = experience_.Overrides().find(id);
+      if (it != experience_.Overrides().end())
+      {
+         store_.SetBool(kExperienceCategory, kRevealOverridePrefix + id, it->second);
+      }
+      else
+      {
+         store_.Remove(kExperienceCategory, kRevealOverridePrefix + id);
+      }
+   }
+   store_.Save();
 }
 
 AppSettings::AppSettings(SettingsStore& store, QObject* parent) :
@@ -508,16 +594,93 @@ void AppSettings::setPersistRadarCache(bool enabled)
 }
 
 int AppSettings::radarSiteScope() const { return p->radarSiteScope_; }
-bool AppSettings::advancedPaneLinking() const { return p->advancedPaneLinking_; }
+bool AppSettings::advancedPaneLinking() const { return isRevealed(kSyncControlsKey); }
 
 void AppSettings::setAdvancedPaneLinking(bool enabled)
 {
-   if (enabled == p->advancedPaneLinking_) return;
-   p->advancedPaneLinking_ = enabled;
-   p->store_.SetBool(kAppearanceCategory, QStringLiteral("advanced_pane_linking"), enabled);
-   p->store_.Save();
-   logger_->info("Advanced pane linking set to {}", enabled);
-   Q_EMIT advancedPaneLinkingChanged();
+   setRevealed(kSyncControlsKey, enabled);
+}
+
+int AppSettings::experienceLevel() const { return static_cast<int>(p->experience_.Level()); }
+bool AppSettings::experienceCustomized() const { return p->experience_.HasOverrides(); }
+
+QStringList AppSettings::experienceLevelNames() const
+{
+   QStringList names;
+   for (int level = static_cast<int>(ExperienceLevel::Basic);
+        level <= static_cast<int>(ExperienceLevel::Professional);
+        ++level)
+   {
+      names << ExperienceProfile::LevelName(static_cast<ExperienceLevel>(level));
+   }
+   return names;
+}
+
+QVariantMap AppSettings::reveals() const
+{
+   QVariantMap map;
+   for (const RevealKey& key : ExperienceProfile::Keys())
+   {
+      const QString id = QString::fromLatin1(key.id);
+      map[id]          = p->experience_.IsRevealed(id);
+   }
+   return map;
+}
+
+QVariantList AppSettings::revealKeys() const
+{
+   QVariantList list;
+   for (const RevealKey& key : ExperienceProfile::Keys())
+   {
+      const QString id = QString::fromLatin1(key.id);
+      QVariantMap   entry;
+      entry[QStringLiteral("id")]          = id;
+      entry[QStringLiteral("label")]       = QString::fromLatin1(key.label);
+      entry[QStringLiteral("description")] = QString::fromLatin1(key.description);
+      entry[QStringLiteral("revealed")]    = p->experience_.IsRevealed(id);
+      entry[QStringLiteral("levelDefault")] =
+         ExperienceProfile::LevelDefault(p->experience_.Level(), id);
+      entry[QStringLiteral("overridden")] = p->experience_.Overrides().contains(id);
+      list.append(entry);
+   }
+   return list;
+}
+
+bool AppSettings::isRevealed(const QString& key) const { return p->experience_.IsRevealed(key); }
+
+void AppSettings::setExperienceLevel(int level)
+{
+   if (!ExperienceProfile::IsValidLevel(level)) return;
+   const bool syncBefore = advancedPaneLinking();
+   if (!p->experience_.SetLevel(static_cast<ExperienceLevel>(level))) return;
+   p->SaveExperience();
+   logger_->info("Experience level set to {}",
+                 ExperienceProfile::LevelName(p->experience_.Level()).toStdString());
+   Q_EMIT experienceChanged();
+   if (syncBefore != advancedPaneLinking()) Q_EMIT advancedPaneLinkingChanged();
+}
+
+void AppSettings::setRevealed(const QString& key, bool revealed)
+{
+   if (ExperienceProfile::FindKey(key) == nullptr)
+   {
+      logger_->warn("Unknown reveal key \"{}\"", key.toStdString());
+      return;
+   }
+   if (!p->experience_.SetRevealed(key, revealed)) return;
+   p->SaveExperience();
+   logger_->info("Reveal key {} set to {}", key.toStdString(), revealed);
+   Q_EMIT experienceChanged();
+   if (key == kSyncControlsKey) Q_EMIT advancedPaneLinkingChanged();
+}
+
+void AppSettings::resetExperienceOverrides()
+{
+   const bool syncBefore = advancedPaneLinking();
+   if (!p->experience_.ClearOverrides()) return;
+   p->SaveExperience();
+   Q_EMIT experienceChanged();
+   if (syncBefore != advancedPaneLinking()) Q_EMIT advancedPaneLinkingChanged();
 }
 
 bool AppSettings::radarSitesVisible() const { return p->radarSitesVisible_; }
@@ -860,7 +1023,6 @@ void AppSettings::resetToDefaults()
    p->store_.SetInt(kAppearanceCategory,
                     QStringLiteral("map_theme"),
                     static_cast<int>(MapTheme::FollowChrome));
-   p->store_.SetBool(kAppearanceCategory, QStringLiteral("advanced_pane_linking"), false);
    p->store_.SetBool(kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
    p->store_.SetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), true);
    p->store_.SetBool(kRadarCategory, QStringLiteral("persist_sweep_cache"), true);
@@ -890,7 +1052,11 @@ void AppSettings::resetToDefaults()
          kRadarCategory, QStringLiteral("show_") + QString::fromLatin1(row.id), true);
    }
 
-   p->store_.Save();
+   // The experience *level* survives a global reset: it is the user's answer to "how much do
+   // you want to see", and silently dropping a forecaster back to Basic would hide their panes.
+   // The per-key overrides on top of it are ordinary preferences and do reset.
+   p->experience_.ClearOverrides();
+   p->SaveExperience();
    p->Load();
    // p->Load() only refreshes this object's own fields; the runtime flag it drives lives in
    // products:: (see the constructor's identical call) and needs the same explicit push.
@@ -914,6 +1080,7 @@ void AppSettings::resetToDefaults()
    Q_EMIT toolbarActionsChanged();
    Q_EMIT geometryRowsChanged();
    Q_EMIT advancedPaneLinkingChanged();
+   Q_EMIT experienceChanged();
    Q_EMIT playbackMinutesChanged();
    Q_EMIT defaultsReset();
 }

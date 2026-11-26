@@ -56,8 +56,13 @@ public:
    PaneGridModel(PaneGridModel&&)                 = delete;
    PaneGridModel& operator=(PaneGridModel&&)      = delete;
 
+   /// The *visible* grid. 1x1 while multiple panes are hidden (setMultiPaneEnabled), whatever
+   /// layout is stored.
    [[nodiscard]] int gridWidth() const;
    [[nodiscard]] int gridHeight() const;
+   /// The chosen (and persisted) layout, which can be larger than the visible grid.
+   [[nodiscard]] int layoutWidth() const;
+   [[nodiscard]] int layoutHeight() const;
    [[nodiscard]] int syncRevision() const;
    [[nodiscard]] int firstPaneId() const;
    [[nodiscard]] QObject* activePane() const;
@@ -110,6 +115,14 @@ public:
    void setAdvancedPaneLinking(bool enabled);
    void setCenterMapOnSiteChange(bool enabled);
    void setRadarSiteScope(int scope);
+
+   /**
+    * The `panes.multi` reveal key (ADR 0005). Off shows only the first pane but keeps the stored
+    * layout, the hidden panes and their selections, and keeps saving that layout - so a user who
+    * drops to Basic and back gets their 2x2 back untouched. setGridSize still records a layout
+    * while this is off; it just is not shown until it is turned back on.
+    */
+   void setMultiPaneEnabled(bool enabled);
 
 signals:
    void gridSizeChanged();

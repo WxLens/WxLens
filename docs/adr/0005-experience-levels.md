@@ -238,3 +238,37 @@ attach to a message, and needs no zip library.
   its own first-run usability check ("empty settings to a useful live radar view" without picking
   a radar site).
 - Phase 2's mosaic bootstrap becomes higher priority, since Basic depends on it.
+
+## Implementation log
+
+**Slice 1 — level core (2026-11-26).** `settings::ExperienceProfile` holds the level, the one
+level-to-key table (`kRevealKeys` in `experience_profile.cpp`, as each key's lowest level) and the
+per-key overrides; `AppSettings` persists it to `experience.toml` and exposes it to QML
+(`reveals`, `isRevealed()`, `setRevealed()`, `experienceLevel`). Keys gated in this slice:
+`panes.multi` (Advanced), `panes.sync_controls` (Professional; replaces `advancedPaneLinking`),
+`tools.measurement` and `tools.markers` (Advanced), `tools.drawing` (Professional, covering line
+drawing and range rings). Hiding `panes.multi` caps only the *visible* grid at 1x1
+(`PaneGridModel::setMultiPaneEnabled`); the stored layout and hidden panes are kept and saved.
+The top bar has the level dropdown (built-in tiers, reset, "Customize…"), and Settings has an
+addressable `experience` section.
+
+Decisions taken while implementing, open to revision:
+- A brand-new install starts at Basic. An install with existing config (a `workspace.toml` or
+  `appearance.toml`) starts at **Professional**, so an upgrade hides nothing the user had (§4).
+  The legacy `advanced_pane_linking` value is migrated into a `panes.sync_controls` override and
+  removed.
+- Picking a level from the dropdown clears that level's overrides; re-picking the current level is
+  "Reset to <level> defaults". The global **Reset to defaults** clears overrides but keeps the
+  level.
+
+Not yet done, deliberately:
+- `radar.site_picker` and `radar.product_browser` are not gated: hiding the site picker before
+  automatic site selection (§6) exists would leave Basic stuck on one site.
+- Placed analysis objects stay visible when their tool is hidden; §4 asks for them to be hidden at
+  lower levels, which needs a per-kind filter in `MapObjectsLayer`.
+- Dropping from Professional to Advanced still relinks all cameras through the existing
+  `setAdvancedPaneLinking(false)` path, which rewrites custom sync groups. §4 asks for that to be
+  display-only; it needs an effective-group layer over the stored groups.
+- The layout menu still offers 3x3, while §1 says "up to 4 panes" at Advanced and Professional.
+  This slice does not take that layout away from existing users without a decision.
+- Custom presets, the `.wxsetup` exporter and the first-run question come in later slices.
