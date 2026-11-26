@@ -178,3 +178,50 @@ window could be focused and no automated click/keystroke could reach the app.
 This is a capture-validity issue (see the DPI/foreground pitfalls recorded
 elsewhere), not a result. A live click-through site-switch retest while the
 desktop is unlocked would still be worth doing before calling this fully closed.
+
+## 2026-11-26 parallel Level 2 LDM-record decompression
+
+Measures `external/patches/0016-wxdata-parallel-ldm-decompress.patch`. In `Ar2vFile`, it
+decompresses a volume's independent bzip2 LDM records in parallel instead of one at a time.
+Parsing still runs afterwards, in file order. The patch was written because the field logs
+showed `download_decode_ms` dominating site loads. `wxlens.3.log`, 158 loads from late September:
+median 7,580 ms, p90 14,518 ms, against a median listing of 304 ms and geometry of 1,672 ms.
+
+**Method.** `wxlens-level2-decode-bench` (Release, `test/source/wxlens/bench/`) reads each file
+into memory, then times `Ar2vFile::LoadData`, which covers decompression, parsing and indexing.
+No network or disk is involved. Files: the latest KEAX, KLSX and KTLX volumes from
+`unidata-nexrad-level2` at about 19:45Z on 2026-11-26, plus the legacy repo's
+`Level2_KLSX_20210527_1757.ar2v` fixture. The unpatched and patched executables were run
+alternately for five rounds of five loads each. The table gives the median of the five
+per-round medians.
+
+The machine was the Core Ultra 9 185H (22 logical processors) on AC power, with the Balanced
+power plan. Unrelated background processes used about 18% of total CPU, which made individual
+rounds vary by up to 3x. The patched build was faster in every round.
+
+| Volume | Compressed | LDM records | Before | After | Speedup |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| KLSX20261126_194843_V06 | 13.6 MB | 73 | 2,444 ms | 829 ms | 2.9x |
+| Level2_KLSX_20210527_1757 (fixture) | 14.9 MB | 94 | 2,498 ms | 921 ms | 2.7x |
+| KEAX20261126_194455_V06 | 3.6 MB | 67 | 900 ms | 423 ms | 2.1x |
+| KTLX20261126_194803_V06 | 2.5 MB | 55 | 695 ms | 428 ms | 1.6x |
+
+Before the patch, a decompress-only pass accounted for about 60–85% of `LoadData`. The time
+left after the patch is mostly sequential message parsing. That makes parsing the next
+candidate, and it is the reason smaller volumes gain less.
+
+**Correctness.** The bench fingerprints every radial: its identity, azimuth, time, and the raw
+bytes of every moment block. It also fingerprints the `GetElevationScan` cut list. All five
+files produced identical fingerprints before and after the patch.
+
+Tests: `wxlens-wxdata-test` had 186 passed and 12 skipped. Its 2 failures were
+`IemApiProviderTest`, a live third-party API that CI already excludes; they are unrelated. Every
+`Ar2v`/`NexradFile`/Level 2 provider case passed. `wxlens-app-test` had 244 passed and 1
+skipped (the existing skip).
+
+The patched app passed `tools/retest/ui-drive.ps1 smoke` and loaded live KSRX data with
+`download_decode_ms=919.565`. That is a single sample and is not compared with anything.
+
+**Not measured.** Network transfer time was not isolated. The bench also did not cover
+contention when several sites decode at once on the four radar `io_context` threads; each
+decode now spawns up to `hardware_concurrency()` short-lived workers.

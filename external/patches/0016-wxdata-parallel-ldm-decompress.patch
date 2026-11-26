@@ -1,0 +1,170 @@
+diff --git a/wxdata/source/scwx/wsr88d/ar2v_file.cpp b/wxdata/source/scwx/wsr88d/ar2v_file.cpp
+index f4a71c1..6699275 100644
+--- a/wxdata/source/scwx/wsr88d/ar2v_file.cpp
++++ b/wxdata/source/scwx/wsr88d/ar2v_file.cpp
+@@ -7,8 +7,15 @@
+ #include <scwx/util/time.hpp>
+ #include <scwx/common/geographic.hpp>
+ 
++#include <algorithm>
++#include <atomic>
++#include <exception>
+ #include <fstream>
++#include <memory>
++#include <mutex>
+ #include <sstream>
++#include <thread>
++#include <vector>
+ 
+ #if defined(_MSC_VER)
+ #   pragma warning(push)
+@@ -22,6 +29,7 @@
+ 
+ #include <boost/algorithm/string/trim.hpp>
+ #include <boost/iostreams/copy.hpp>
++#include <boost/iostreams/device/array.hpp>
+ #include <boost/iostreams/filtering_streambuf.hpp>
+ #include <boost/iostreams/filter/bzip2.hpp>
+ #include <fmt/chrono.h>
+@@ -275,7 +283,22 @@ std::size_t Ar2vFileImpl::DecompressLDMRecords(std::istream& is)
+ {
+    logger_->trace("Decompressing LDM Records");
+ 
+-   std::size_t numRecords = 0;
++   // Each LDM record is an independent bzip2 stream, and decompressing them is
++   // most of the cost of loading a volume. So: read every record's compressed
++   // bytes off the stream first (cheap, and inherently sequential - each
++   // record's size is in the control word in front of it), decompress them in
++   // parallel, then publish them in file order. Parsing still happens in that
++   // order afterwards, so the decoded result is identical to decompressing one
++   // record at a time.
++   struct CompressedRecord
++   {
++      std::vector<char> bytes {};
++      std::stringstream decompressed {};
++      std::streamsize   decompressedSize {0};
++      bool              valid {false};
++      std::string       error {};
++   };
++   std::vector<std::unique_ptr<CompressedRecord>> records {};
+ 
+    while (is.peek() != EOF)
+    {
+@@ -296,28 +319,105 @@ std::size_t Ar2vFileImpl::DecompressLDMRecords(std::istream& is)
+          break;
+       }
+ 
++      // Read straight from the stream buffer, as util::rangebuf did: a short
++      // read at the end of a truncated file leaves the stream state untouched
++      // and simply ends the loop at the next peek().
++      auto record = std::make_unique<CompressedRecord>();
++      record->bytes.resize(recordSize);
++      const std::streamsize bytesRead =
++         is.rdbuf()->sgetn(record->bytes.data(),
++                           static_cast<std::streamsize>(recordSize));
++      record->bytes.resize(static_cast<std::size_t>(std::max<std::streamsize>(bytesRead, 0)));
++      records.push_back(std::move(record));
++   }
++
++   const auto decompress = [](CompressedRecord& record)
++   {
+       boost::iostreams::filtering_streambuf<boost::iostreams::input> in;
+-      util::rangebuf r(is.rdbuf(), recordSize);
+       in.push(boost::iostreams::bzip2_decompressor());
+-      in.push(r);
+-
++      in.push(boost::iostreams::array_source(record.bytes.data(),
++                                             record.bytes.size()));
+       try
+       {
+-         std::stringstream ss;
+-         std::streamsize   bytesCopied = boost::iostreams::copy(in, ss);
+-         logger_->trace("Decompressed record size = {} bytes", bytesCopied);
+-
+-         rawRecords_.push_back(std::move(ss));
++         record.decompressedSize =
++            boost::iostreams::copy(in, record.decompressed);
++         record.valid = true;
+       }
+       catch (const boost::iostreams::bzip2_error& ex)
+       {
+-         logger_->warn(
+-            "Error decompressing record {}: {}", numRecords, ex.what());
++         record.error = ex.what();
++      }
++      std::vector<char>().swap(record.bytes);
++   };
+ 
+-         is.seekg(startPosition + std::streampos(recordSize),
+-                  std::ios_base::beg);
++   const std::size_t threadCount =
++      std::min<std::size_t>(records.size(),
++                            std::max(1u, std::thread::hardware_concurrency()));
++   if (threadCount <= 1)
++   {
++      for (auto& record : records)
++      {
++         decompress(*record);
++      }
++   }
++   else
++   {
++      std::atomic_size_t       next {0};
++      std::mutex               failureMutex {};
++      std::exception_ptr       failure {};
++      std::vector<std::thread> workers {};
++      workers.reserve(threadCount);
++      for (std::size_t t = 0; t < threadCount; ++t)
++      {
++         workers.emplace_back(
++            [&]()
++            {
++               for (std::size_t i = next++; i < records.size(); i = next++)
++               {
++                  try
++                  {
++                     decompress(*records[i]);
++                  }
++                  catch (...)
++                  {
++                     // Anything but a bzip2 error (bad_alloc, say) propagated
++                     // out of the sequential loop; keep that, from the caller's
++                     // thread rather than terminating in a worker.
++                     std::scoped_lock lock {failureMutex};
++                     if (!failure) failure = std::current_exception();
++                     next = records.size();
++                  }
++               }
++            });
++      }
++      for (auto& worker : workers)
++      {
++         worker.join();
++      }
++      if (failure)
++      {
++         std::rethrow_exception(failure);
+       }
++   }
+ 
++   // A record that fails to decompress is skipped but still counted, as it
++   // always was. (The sequential version then re-seeked to 4 bytes short of
++   // the next record; boundaries are now known up front, so the next record is
++   // read from its actual start.)
++   std::size_t numRecords = 0;
++   for (auto& record : records)
++   {
++      if (record->valid)
++      {
++         logger_->trace("Decompressed record size = {} bytes",
++                        record->decompressedSize);
++         rawRecords_.push_back(std::move(record->decompressed));
++      }
++      else
++      {
++         logger_->warn(
++            "Error decompressing record {}: {}", numRecords, record->error);
++      }
+       ++numRecords;
+    }
+ 
