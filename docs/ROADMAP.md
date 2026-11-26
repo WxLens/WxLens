@@ -2866,6 +2866,15 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   attempts aborted on displaced cursor. At the owner's request, desktop automation is now
   paused while background builds/CI/nonvisual verification continue. No valid camera comparison
   or performance-gate closure is claimed; see `docs/performance-baseline.md`.
+  **2026-09-28: the site-switch/scheduling-contention slice of this is now measured and fixed**
+  on `perf/slice1-service-lifecycle` (`87b4dfb`/`5aabf46`/`d521d93`) - queueing overhead per
+  site switch dropped from a 47.6s worst case / 7.1% of requests losing >1s to scheduling, down
+  to a 1.4s worst case / 0.2%, measured from real usage logs before and after (see
+  `docs/performance-baseline.md`'s 2026-09-28 entry for method and numbers). Camera-movement
+  overlay cost, GPU-path profiling and Canadian/backend items in this checklist remain open;
+  this closes only the site-switch contention finding from the 2026-09-09 review, and interactive
+  click-driven retest of site switching in the packaged UI is still outstanding (blocked this
+  time by a locked session, not attempted).
 - [ ] **Fix camera-movement cost in warning/placefile overlays.**
   `app/qml/Panes/WeatherOverlaysLayer.qml` currently requests Canvas painting on camera changes
   and reprojects/redraws warning polygons. This confirms repeated work, not its measured share of

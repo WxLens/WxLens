@@ -124,3 +124,57 @@ crash-report tests passed and four network-dependent cases were skipped. The CSV
 recorder produced real frame rows, refused to overwrite an existing capture, and
 the summary tool passed known-value/time-bound/invalid-run checks. Primary camera
 gesture performance remains unverified.
+
+## 2026-09-28 site-switch scheduling fix, verified
+
+Verifies the three scheduling commits on `perf/slice1-service-lifecycle`
+(`87b4dfb` `RadarTaskQueue`, `5aabf46` weak_ptr site lifecycle, `d521d93` four
+io_context threads), which targeted the specific problem measured on 2026-09-26:
+a site switch queued behind whatever other sites' background work was already
+running, up to 59.5s worst-case, even though the actual network+decode for that
+same request took only a few seconds.
+
+**Method.** End-to-end site-switch time conflates two things: the real
+network/decode work, and queueing/contention overhead waiting for a free worker.
+Only the second is what this fix changed, and raw network conditions vary
+session to session, so comparing raw end-to-end times before/after is confounded.
+Instead, for every `Requesting latest Level 2 data for <site>` / `Level 2 load
+metrics` pair in the log, `overhead = end_to_end - (listing_ms + download_decode_ms)`
+isolates time spent waiting on scheduling from time spent actually transferring
+and decoding data.
+
+**Data.** Pre-fix: `wxlens.log.pre-slice123`, a snapshot taken 2026-09-26 just
+before these commits (197 site-load pairs, the same session the commit messages'
+"624s/96 loads/59.5s worst" figures came from). Post-fix: the live `wxlens.log`
+that has been running continuously since the `d521d93` build (568 site-load
+pairs across 2026-09-26 through 2026-09-28, real usage, not a synthetic burst).
+
+| | pre-fix (n=197) | post-fix (n=568) |
+| --- | ---: | ---: |
+| overhead, median | 0.001s | 0.001s |
+| overhead, p95 | 8.883s | 0.091s |
+| overhead, worst | 47.619s | 1.433s |
+| requests with >1s overhead | 7.1% | 0.2% |
+
+Post-fix, a site switch pays almost exclusively for its own network/decode time;
+before the fix, worst-case switches lost 16-47s purely to being queued behind
+other sites' background history-warming.
+
+**Anomaly found while measuring, out of scope for this branch:** the post-fix log
+also has several KTLX requests where `download_decode_ms` itself runs 50-143s
+(overhead near zero — the wait is real, not queueing). That is a genuine
+slow-download/slow-source issue for that site, unrelated to the scheduling fix,
+and is not investigated here.
+
+**Also verified:** a non-interactive smoke launch (`tools/retest/ui-drive.ps1
+smoke`) against the current build - clean startup, zero QML errors. Full suite
+`wxlens-app-test`: 233 tests, 232 passed, 1 pre-existing skip (`MapCache.Child`),
+0 failed.
+
+**Not verified:** interactive click-driven site switching
+(`tools/retest/ui-drive.ps1 click`/`type`) - the session was locked
+(`GetForegroundWindow` returned the lock screen) when this check ran, so no
+window could be focused and no automated click/keystroke could reach the app.
+This is a capture-validity issue (see the DPI/foreground pitfalls recorded
+elsewhere), not a result. A live click-through site-switch retest while the
+desktop is unlocked would still be worth doing before calling this fully closed.
