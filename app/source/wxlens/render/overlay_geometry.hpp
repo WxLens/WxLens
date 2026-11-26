@@ -80,5 +80,12 @@ BuildOverlayGeometry(const QVariantList&        warningPolygons,
                      const QVariantList&        placefileItems,
                      const OverlayBuildOptions& options);
 
+/**
+ * Resolves a pane's PaneController::warningsFilterOverride against the global "nearby warnings
+ * only" default: 0 follows the default, 1 forces every warning, 2 forces nearby only. Any other
+ * value is treated as 0.
+ */
+[[nodiscard]] bool ResolveNearbyWarningsOnly(int warningsFilterOverride, bool globalDefault);
+
 } // namespace render
 } // namespace wxlens

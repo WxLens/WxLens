@@ -265,5 +265,33 @@ TEST(OverlayGeometry, TextAndIconItemsHaveNoVectorGeometry)
    EXPECT_TRUE(BuildOverlayGeometry({}, items, {})->vertices.empty());
 }
 
+// Ported from the QML test that covered this predicate while it lived in WeatherOverlaysLayer.
+TEST(OverlayGeometry, PaneOverrideResolvesAgainstTheGlobalDefault)
+{
+   EXPECT_FALSE(ResolveNearbyWarningsOnly(0, false)) << "0 follows default off";
+   EXPECT_TRUE(ResolveNearbyWarningsOnly(0, true)) << "0 follows default on";
+   EXPECT_FALSE(ResolveNearbyWarningsOnly(1, true)) << "1 forces all against the default";
+   EXPECT_TRUE(ResolveNearbyWarningsOnly(2, false)) << "2 forces nearby against the default";
+   EXPECT_TRUE(ResolveNearbyWarningsOnly(7, true)) << "unknown values follow the default";
+}
+
+// The QML test's realistic case: KEAX, ~111 km (inside 230 km) vs ~333 km (outside).
+TEST(OverlayGeometry, NearbyFilterUsesTheRangeAroundTheSite)
+{
+   const double siteLat = 38.810;
+   const double siteLon = -94.264;
+   const QVariantList inside {SquareWarning(siteLat + 1.0, siteLon)};
+   const QVariantList outside {SquareWarning(siteLat + 3.0, siteLon)};
+
+   OverlayBuildOptions options;
+   options.nearbyWarningsOnly = true;
+   options.homeLatitude       = siteLat;
+   options.homeLongitude      = siteLon;
+   options.nearbyRangeMeters  = 230000.0;
+
+   EXPECT_FALSE(BuildOverlayGeometry(inside, {}, options)->vertices.empty());
+   EXPECT_TRUE(BuildOverlayGeometry(outside, {}, options)->vertices.empty());
+}
+
 } // namespace render
 } // namespace wxlens

@@ -291,5 +291,18 @@ BuildOverlayGeometry(const QVariantList&        warningPolygons,
    return geometry;
 }
 
+bool ResolveNearbyWarningsOnly(int warningsFilterOverride, bool globalDefault)
+{
+   switch (warningsFilterOverride)
+   {
+   case 1:
+      return false;
+   case 2:
+      return true;
+   default:
+      return globalDefault;
+   }
+}
+
 } // namespace render
 } // namespace wxlens

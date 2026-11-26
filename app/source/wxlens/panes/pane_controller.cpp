@@ -735,19 +735,8 @@ void PaneController::Impl::RebuildOverlays()
    render::OverlayBuildOptions options;
    options.warningsVisible   = overlayManager_->warningsVisible();
    options.placefilesVisible = overlayManager_->placefilesVisible();
-   // 0 = follow the global default, 1 = force all, 2 = force nearby only.
-   if (warningsFilterOverride_ == 1)
-   {
-      options.nearbyWarningsOnly = false;
-   }
-   else if (warningsFilterOverride_ == 2)
-   {
-      options.nearbyWarningsOnly = true;
-   }
-   else
-   {
-      options.nearbyWarningsOnly = overlayManager_->nearbyWarningsOnly();
-   }
+   options.nearbyWarningsOnly = render::ResolveNearbyWarningsOnly(
+      warningsFilterOverride_, overlayManager_->nearbyWarningsOnly());
    if (options.nearbyWarningsOnly)
    {
       // Only part of the options when they matter, so a site change with the filter off does not

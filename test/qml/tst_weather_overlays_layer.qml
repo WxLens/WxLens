@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 //
-// WeatherOverlaysLayer's nearby-warnings filter (ROADMAP slice 19's first QML coverage).
+// WeatherOverlaysLayer after the move to GPU rendering (ROADMAP: "Fix camera-movement cost in
+// warning/placefile overlays").
 //
-// This predicate decides which warning polygons a pane draws. It is pure QML - the C++ side
-// contributes only the persisted default and the range constant - so wxlens-app-test cannot
-// reach it, which is why it shipped untested.
+// Warning polygons and placefile vector items are now built and filtered in C++
+// (render::BuildOverlayGeometry, render::ResolveNearbyWarningsOnly - covered by
+// overlay_geometry.test.cpp, including the nearby-filter cases this file used to hold). What is
+// left in QML, and tested here, is the layer's glue: handing the manager to the pane's
+// PaneController, and selecting the icon and text items it still draws as QML items.
 import QtQuick
 import QtTest
 import WxLens.App
@@ -13,24 +16,11 @@ TestCase {
     id: testCase
     name: "WeatherOverlaysLayer"
 
-    // KEAX, the site the application opens on, so the numbers below are realistic rather than
-    // arbitrary. One degree of latitude is ~111 km, comfortably inside and outside the 230 km
-    // cutoff at 1 and 3 degrees respectively.
-    readonly property real siteLatitude: 38.810
-    readonly property real siteLongitude: -94.264
-
-    // Stands in for wxlens::panes::PaneController. Only the members the layer actually reads are
+    // Stands in for wxlens::panes::PaneController. Only the members the layer actually touches are
     // present; a wider fake would just be more surface to drift from the real class.
-    // The signals matter as much as the properties: the layer's Connections blocks bind to them
-    // by name, and a fake missing one produces a "no signal of the target matches the name"
-    // warning per instantiation rather than a failure. Keeping them here is what makes that
-    // warning mean a real mismatch with the C++ class instead of a gap in this file.
     component FakePane: QtObject {
-        property real homeLatitude: testCase.siteLatitude
-        property real homeLongitude: testCase.siteLongitude
-        property int warningsFilterOverride: 0
-        signal productChanged()
-        function pixelForCoordinate(lat, lon) { return Qt.point(0, 0) }
+        property var overlayManager: null
+        function pixelForCoordinate(lat, lon) { return Qt.point(lon * 10, lat * 10) }
     }
 
     // Stands in for wxlens::overlays::OverlayManager.
@@ -50,89 +40,83 @@ TestCase {
         WeatherOverlaysLayer {}
     }
 
-    property FakePane pane: FakePane {}
+    Component {
+        id: paneComponent
+        FakePane {}
+    }
+
     property FakeManager manager: FakeManager {}
 
-    function makeLayer() {
+    readonly property var mixedItems: [
+        { kind: "line", coordinates: [35, -97, 36, -96], color: "#ff0000", width: 2 },
+        { kind: "polygon", contours: [[35, -97, 35, -96, 36, -96]], color: "#00ff00" },
+        { kind: "triangles", coordinates: [35, -97, 35, -96, 36, -96], color: "#0000ff" },
+        { kind: "text", latitude: 35, longitude: -97, text: "OKC", color: "#ffffff" },
+        { kind: "text", latitude: 36, longitude: -96, text: "TUL", color: "#ffffff" },
+        { kind: "icon", latitude: 35.5, longitude: -96.5, source: "", width: 16, height: 16,
+          hotX: 8, hotY: 8, iconNumber: 0, angle: 0 }
+    ]
+
+    function init() {
+        // Reset between cases - the manager fake is shared across the whole TestCase.
+        manager.placefilesVisible = true
+        manager.placefileItems = []
+    }
+
+    function makeLayer(pane) {
         const layer = createTemporaryObject(layerComponent, testCase,
                                             { paneController: pane, manager: manager })
         verify(layer !== null, "layer instantiated")
         return layer
     }
 
-    function warningAt(lat, lon) {
-        return { latitude: lat, longitude: lon, coordinates: [], color: "#ff0000", label: "TOR" }
+    function test_hands_the_manager_to_the_pane_controller() {
+        const pane = createTemporaryObject(paneComponent, testCase)
+        makeLayer(pane)
+        compare(pane.overlayManager, manager,
+                "PaneController.overlayManager is what feeds the C++ overlay layer")
     }
 
-    function init() {
-        // Reset between cases - the fakes are shared across the whole TestCase.
-        pane.warningsFilterOverride = 0
-        manager.nearbyWarningsOnly = false
+    function test_only_text_and_icon_items_stay_in_qml() {
+        manager.placefileItems = mixedItems
+        const layer = makeLayer(createTemporaryObject(paneComponent, testCase))
+        compare(layer.textItems.length, 2, "both text items")
+        compare(layer.iconItems.length, 1, "the icon item")
+        compare(layer.textItems[0].text, "OKC")
+        compare(layer.textItems[1].text, "TUL")
     }
 
-    function test_distanceMeters_matches_known_separation() {
-        const layer = makeLayer()
-        // One degree of latitude is ~111.2 km anywhere on the globe. A 1% tolerance is well
-        // inside what distinguishes "near" from "far" at a 230 km cutoff.
-        const oneDegree = layer.distanceMeters(siteLatitude, siteLongitude,
-                                               siteLatitude + 1.0, siteLongitude)
-        verify(Math.abs(oneDegree - 111195) < 1112,
-               "one degree of latitude measured " + oneDegree + " m")
-        compare(layer.distanceMeters(siteLatitude, siteLongitude, siteLatitude, siteLongitude), 0,
-                "zero separation")
+    function test_hidden_placefiles_draw_no_qml_items() {
+        manager.placefileItems = mixedItems
+        manager.placefilesVisible = false
+        const layer = makeLayer(createTemporaryObject(paneComponent, testCase))
+        compare(layer.textItems.length, 0)
+        compare(layer.iconItems.length, 0)
     }
 
-    function test_filter_off_keeps_every_warning() {
-        const layer = makeLayer()
-        verify(layer.isNearby(warningAt(siteLatitude, siteLongitude)), "co-located warning kept")
-        verify(layer.isNearby(warningAt(siteLatitude + 30, siteLongitude + 30)),
-               "a warning on the other side of the country is kept when filtering is off")
+    function test_items_follow_a_data_change() {
+        const layer = makeLayer(createTemporaryObject(paneComponent, testCase))
+        compare(layer.textItems.length, 0)
+        manager.placefileItems = mixedItems
+        compare(layer.textItems.length, 2, "re-filtered when placefileItems changes")
     }
 
-    function test_global_default_filters_distant_warnings() {
-        manager.nearbyWarningsOnly = true
-        const layer = makeLayer()
-        verify(layer.isNearby(warningAt(siteLatitude + 1, siteLongitude)),
-               "~111 km is inside the 230 km range")
-        verify(!layer.isNearby(warningAt(siteLatitude + 3, siteLongitude)),
-               "~333 km is outside the 230 km range")
-    }
-
-    function test_pane_override_forces_all_against_global_default() {
-        manager.nearbyWarningsOnly = true
-        pane.warningsFilterOverride = 1
-        const layer = makeLayer()
-        verify(layer.isNearby(warningAt(siteLatitude + 3, siteLongitude)),
-               "override 1 shows a distant warning the global default would hide")
-    }
-
-    function test_pane_override_forces_nearby_against_global_default() {
-        manager.nearbyWarningsOnly = false
-        pane.warningsFilterOverride = 2
-        const layer = makeLayer()
-        verify(!layer.isNearby(warningAt(siteLatitude + 3, siteLongitude)),
-               "override 2 hides a distant warning the global default would show")
-        verify(layer.isNearby(warningAt(siteLatitude + 1, siteLongitude)),
-               "override 2 still shows a nearby warning")
-    }
-
-    function test_override_follows_global_default_when_unset() {
-        pane.warningsFilterOverride = 0
-        const layer = makeLayer()
-        verify(layer.isNearby(warningAt(siteLatitude + 3, siteLongitude)), "follows default off")
-        manager.nearbyWarningsOnly = true
-        verify(!layer.isNearby(warningAt(siteLatitude + 3, siteLongitude)),
-               "follows the default when it flips, without the pane being touched")
+    function test_anchor_uses_the_pane_projection() {
+        const layer = makeLayer(createTemporaryObject(paneComponent, testCase))
+        const anchor = layer.anchorFor({ latitude: 35, longitude: -97 })
+        compare(anchor.x, -970)
+        compare(anchor.y, 350)
     }
 
     // The layer must tolerate a null controller: PaneGrid destroys PaneControllers while their
     // delegates are still tearing down, which is the same hazard PaneHost's hasController guard
     // exists for.
     function test_null_controller_is_not_a_crash() {
-        const layer = createTemporaryObject(layerComponent, testCase,
-                                            { paneController: null, manager: manager })
-        verify(layer !== null, "layer instantiated with no controller")
-        verify(layer.isNearby(warningAt(siteLatitude, siteLongitude)),
-               "filtering is inert without a controller rather than throwing")
+        manager.placefileItems = mixedItems
+        const layer = makeLayer(null)
+        const anchor = layer.anchorFor({ latitude: 35, longitude: -97 })
+        compare(anchor.x, 0)
+        compare(anchor.y, 0)
+        compare(layer.textItems.length, 2, "item selection does not depend on the controller")
     }
 }
