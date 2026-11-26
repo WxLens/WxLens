@@ -31,6 +31,7 @@ Window {
             onSavedPlacesRequested: savedPlacesDialog.open()
             onOverlaysRequested: overlaysDialog.open()
             onHelpRequested: helpDialog.open()
+            onExperienceSettingsRequested: settingsDialog.openAt("experience")
         }
 
         Item {

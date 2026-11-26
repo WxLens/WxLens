@@ -94,6 +94,7 @@ public:
    int     syncRevision_ {0};
    int     activePaneIndex_ {0};
    bool    advancedPaneLinking_ {false};
+   bool    multiPaneEnabled_ {true};
    bool    centerMapOnSiteChange_ {true};
    int     radarSiteScope_ {0}; // AppSettings::RadarSiteScope::AllPanes
 
@@ -165,12 +166,31 @@ bool PaneGridModel::saveWorkspace()
 
 int PaneGridModel::gridWidth() const
 {
-   return p->gridWidth_;
+   return p->multiPaneEnabled_ ? p->gridWidth_ : 1;
 }
 
 int PaneGridModel::gridHeight() const
 {
-   return p->gridHeight_;
+   return p->multiPaneEnabled_ ? p->gridHeight_ : 1;
+}
+
+int PaneGridModel::layoutWidth() const { return p->gridWidth_; }
+int PaneGridModel::layoutHeight() const { return p->gridHeight_; }
+
+void PaneGridModel::setMultiPaneEnabled(bool enabled)
+{
+   if (enabled == p->multiPaneEnabled_) return;
+   const bool wasMulti = p->gridWidth_ * p->gridHeight_ > 1;
+   p->multiPaneEnabled_ = enabled;
+   if (!enabled && p->activePaneIndex_ != 0)
+   {
+      p->activePaneIndex_ = 0;
+      Q_EMIT activePaneChanged();
+   }
+   // Only the *visible* size moves; the chosen layout and every pane behind it are kept, so
+   // re-enabling restores them exactly (ADR 0005 §4).
+   if (wasMulti) Q_EMIT gridSizeChanged();
+   logger_->info("Multiple panes {}", enabled ? "shown" : "hidden; showing the first pane only");
 }
 
 int PaneGridModel::syncRevision() const
@@ -227,7 +247,7 @@ bool PaneGridModel::selectRadarSite(QObject* object, const QString& siteId)
    const auto site = data::FindRadarSite(siteId.toUpper().toStdString());
    if (!selectedPane || !site) return false;
 
-   const int visibleCount = p->gridWidth_ * p->gridHeight_;
+   const int visibleCount = gridWidth() * gridHeight();
    for (int i = 0; i < visibleCount; ++i)
    {
       PaneController* pane = p->panes_[static_cast<std::size_t>(i)].get();
@@ -244,7 +264,7 @@ void PaneGridModel::setRadarSiteScope(int scope) { p->radarSiteScope_ = scope ==
 
 void PaneGridModel::setActivePaneIndex(int index)
 {
-   const int visiblePaneCount = p->gridWidth_ * p->gridHeight_;
+   const int visiblePaneCount = gridWidth() * gridHeight();
    if (index < 0 || index >= visiblePaneCount ||
        index == p->activePaneIndex_)
    {
