@@ -1,7 +1,8 @@
-#include <wxlens/render/polyline_layer.hpp>
+#include <wxlens/render/overlay_layer.hpp>
 #include <wxlens/log/logger.hpp>
 
 #include <cmath>
+#include <cstddef>
 #include <utility>
 
 #include <glm/glm.hpp>
@@ -19,19 +20,12 @@ namespace render
 
 namespace
 {
-const std::string logPrefix_ = "render.polyline_layer";
-const auto         logger_    = wxlens::log::Create(logPrefix_);
+const std::string logPrefix_ = "render.overlay_layer";
+const auto        logger_    = wxlens::log::Create(logPrefix_);
 
-// Same mbgl-private constants RadarSweepLayer's MVP construction uses (see that file's comment).
+// Same mbgl-private constants RadarSweepLayer's MVP construction uses (see that file).
 constexpr double kTileSize   = 512.0;
 constexpr double kDegreesMax = 360.0;
-
-// Deliberately uniform, not per-item (placefile Line items carry their own width_, alert polygons
-// could vary by threat category) - core-profile GL_LINES width beyond 1px is unreliably supported
-// across drivers (many silently clamp glLineWidth to 1.0), so per-item width would be a value
-// that looks different machine to machine. A geometry-expanded thick line is the correct fix and
-// is exactly the kind of follow-up work real per-item styling would deliver.
-constexpr float kLineWidth = 1.5f;
 
 void CheckGlError(QOpenGLFunctions_3_3_Core* gl, const char* where)
 {
@@ -40,27 +34,39 @@ void CheckGlError(QOpenGLFunctions_3_3_Core* gl, const char* where)
       logger_->error("GL error {} at {}", static_cast<unsigned int>(err), where);
    }
 }
+
+// See RadarSweepLayer's DrainPendingGlErrors: mbgl leaves its own errors queued mid-frame, and
+// without draining on entry this layer would be blamed for them.
+void DrainPendingGlErrors(QOpenGLFunctions_3_3_Core* gl, const char* where)
+{
+   for (GLenum err = gl->glGetError(); err != GL_NO_ERROR; err = gl->glGetError())
+   {
+      logger_->error("GL error {} already queued on entry to {} (not raised by this layer)",
+                     static_cast<unsigned int>(err),
+                     where);
+   }
+}
 } // namespace
 
-void PolylineLayerBinding::setData(std::shared_ptr<const PolylineData> data)
+void OverlayLayerBinding::setData(std::shared_ptr<const OverlayGeometry> data)
 {
    std::scoped_lock lock {mutex_};
    data_ = std::move(data);
 }
 
-std::shared_ptr<const PolylineData> PolylineLayerBinding::data() const
+std::shared_ptr<const OverlayGeometry> OverlayLayerBinding::data() const
 {
    std::scoped_lock lock {mutex_};
    return data_;
 }
 
-class PolylineLayer::Impl
+class OverlayLayer::Impl
 {
 public:
-   explicit Impl(std::shared_ptr<PolylineLayerBinding> binding) : binding_ {std::move(binding)} {}
+   explicit Impl(std::shared_ptr<OverlayLayerBinding> binding) : binding_ {std::move(binding)} {}
 
-   // See RadarSweepLayer::Impl's ~Impl for why this guard exists - identical hazard, identical
-   // fix: mbgl can destroy a custom layer host after its owning GL context is already gone.
+   // Same hazard and fix as RadarSweepLayer::Impl's destructor: mbgl can destroy a custom layer
+   // host after its owning GL context is already gone.
    ~Impl()
    {
       if (QOpenGLContext::currentContext() == nullptr)
@@ -75,9 +81,9 @@ public:
    Impl(Impl&&)                 = delete;
    Impl& operator=(Impl&&)      = delete;
 
-   void Upload(QOpenGLFunctions_3_3_Core* gl, const std::shared_ptr<const PolylineData>& data);
+   void Upload(const std::shared_ptr<const OverlayGeometry>& data);
 
-   std::shared_ptr<PolylineLayerBinding> binding_;
+   std::shared_ptr<OverlayLayerBinding> binding_;
 
    std::unique_ptr<QOpenGLShaderProgram>      shaderProgram_ {nullptr};
    std::unique_ptr<QOpenGLFunctions_3_3_Core> gl_ {nullptr};
@@ -87,51 +93,55 @@ public:
 
    int uMVPMatrixLocation_     {-1};
    int uOriginLatLongLocation_ {-1};
+   int uViewportHalfLocation_  {-1};
 
-   std::shared_ptr<const PolylineData> lastUploaded_ {nullptr};
-   GLsizei                             numVertices_ {0};
+   std::shared_ptr<const OverlayGeometry> lastUploaded_ {nullptr};
+   GLsizei                                numVertices_ {0};
 };
 
-void PolylineLayer::Impl::Upload(QOpenGLFunctions_3_3_Core*                gl,
-                                 const std::shared_ptr<const PolylineData>& data)
+void OverlayLayer::Impl::Upload(const std::shared_ptr<const OverlayGeometry>& data)
 {
-   gl->glBindVertexArray(vao_);
+   auto* gl = gl_.get();
+   DrainPendingGlErrors(gl, "Upload()");
 
+   gl->glBindVertexArray(vao_);
    gl->glBindBuffer(GL_ARRAY_BUFFER, vbo_);
    gl->glBufferData(GL_ARRAY_BUFFER,
-                    static_cast<GLsizeiptr>(data->vertices.size() * sizeof(PolylineVertex)),
+                    static_cast<GLsizeiptr>(data->vertices.size() * sizeof(OverlayVertex)),
                     data->vertices.data(),
                     GL_STATIC_DRAW);
 
-   gl->glVertexAttribPointer(0,
-                             2,
-                             GL_FLOAT,
-                             GL_FALSE,
-                             sizeof(PolylineVertex),
-                             reinterpret_cast<void*>(offsetof(PolylineVertex, latitude)));
-   gl->glEnableVertexAttribArray(0);
+   const auto stride = static_cast<GLsizei>(sizeof(OverlayVertex));
+   const auto offset = [](std::size_t bytes) { return reinterpret_cast<void*>(bytes); };
 
-   gl->glVertexAttribPointer(1,
-                             4,
-                             GL_FLOAT,
-                             GL_FALSE,
-                             sizeof(PolylineVertex),
-                             reinterpret_cast<void*>(offsetof(PolylineVertex, r)));
+   // location 0: anchor lat/lon, 1: other segment end lat/lon, 2: (side, halfWidthPx), 3: color
+   gl->glVertexAttribPointer(
+      0, 2, GL_FLOAT, GL_FALSE, stride, offset(offsetof(OverlayVertex, latitude)));
+   gl->glEnableVertexAttribArray(0);
+   gl->glVertexAttribPointer(
+      1, 2, GL_FLOAT, GL_FALSE, stride, offset(offsetof(OverlayVertex, otherLatitude)));
    gl->glEnableVertexAttribArray(1);
+   gl->glVertexAttribPointer(
+      2, 2, GL_FLOAT, GL_FALSE, stride, offset(offsetof(OverlayVertex, side)));
+   gl->glEnableVertexAttribArray(2);
+   gl->glVertexAttribPointer(
+      3, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, offset(offsetof(OverlayVertex, r)));
+   gl->glEnableVertexAttribArray(3);
+
+   gl->glBindVertexArray(0);
 
    numVertices_ = static_cast<GLsizei>(data->vertices.size());
-
    CheckGlError(gl, "Upload()");
 }
 
-PolylineLayer::PolylineLayer(std::shared_ptr<PolylineLayerBinding> binding) :
+OverlayLayer::OverlayLayer(std::shared_ptr<OverlayLayerBinding> binding) :
     p {std::make_unique<Impl>(std::move(binding))}
 {
 }
 
-PolylineLayer::~PolylineLayer() = default;
+OverlayLayer::~OverlayLayer() = default;
 
-void PolylineLayer::initialize()
+void OverlayLayer::initialize()
 {
    logger_->debug("initialize()");
 
@@ -141,15 +151,16 @@ void PolylineLayer::initialize()
       logger_->error("Failed to initialize OpenGL 3.3 core functions");
       return;
    }
+   DrainPendingGlErrors(p->gl_.get(), "initialize()");
 
    p->shaderProgram_ = std::make_unique<QOpenGLShaderProgram>();
    if (!p->shaderProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex,
-                                                   ":/qt/qml/WxLens/App/res/gl/polyline.vert"))
+                                                   ":/qt/qml/WxLens/App/res/gl/overlay.vert"))
    {
       logger_->error("Vertex shader compile failed: {}", p->shaderProgram_->log().toStdString());
    }
    if (!p->shaderProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment,
-                                                   ":/qt/qml/WxLens/App/res/gl/polyline.frag"))
+                                                   ":/qt/qml/WxLens/App/res/gl/overlay.frag"))
    {
       logger_->error("Fragment shader compile failed: {}",
                      p->shaderProgram_->log().toStdString());
@@ -161,6 +172,7 @@ void PolylineLayer::initialize()
 
    p->uMVPMatrixLocation_     = p->shaderProgram_->uniformLocation("uMVPMatrix");
    p->uOriginLatLongLocation_ = p->shaderProgram_->uniformLocation("uOriginLatLong");
+   p->uViewportHalfLocation_  = p->shaderProgram_->uniformLocation("uViewportHalf");
 
    p->gl_->glGenVertexArrays(1, &p->vao_);
    p->gl_->glGenBuffers(1, &p->vbo_);
@@ -168,7 +180,7 @@ void PolylineLayer::initialize()
    CheckGlError(p->gl_.get(), "initialize()");
 }
 
-void PolylineLayer::render(const QMapLibre::CustomLayerRenderParameters& params)
+void OverlayLayer::render(const QMapLibre::CustomLayerRenderParameters& params)
 {
    if (!p->shaderProgram_ || !p->shaderProgram_->isLinked() || !p->gl_ ||
        QOpenGLContext::currentContext() == nullptr)
@@ -176,27 +188,22 @@ void PolylineLayer::render(const QMapLibre::CustomLayerRenderParameters& params)
       return;
    }
 
-   std::shared_ptr<const PolylineData> data = p->binding_->data();
-   if (data == nullptr)
-   {
-      return;
-   }
-
-   if (data != p->lastUploaded_)
-   {
-      p->Upload(p->gl_.get(), data);
-      p->lastUploaded_ = data;
-   }
-
-   if (p->numVertices_ == 0)
+   const std::shared_ptr<const OverlayGeometry> data = p->binding_->data();
+   if (data == nullptr || data->vertices.empty())
    {
       return;
    }
 
    try
    {
+      if (data != p->lastUploaded_)
+      {
+         p->Upload(data);
+         p->lastUploaded_ = data;
+      }
+
+      DrainPendingGlErrors(p->gl_.get(), "render()");
       p->gl_->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-      p->gl_->glLineWidth(kLineWidth);
 
       p->shaderProgram_->bind();
 
@@ -210,14 +217,18 @@ void PolylineLayer::render(const QMapLibre::CustomLayerRenderParameters& params)
                               glm::radians(static_cast<float>(params.bearing)),
                               glm::vec3(0.0f, 0.0f, 1.0f));
 
-      p->gl_->glUniformMatrix4fv(
-         p->uMVPMatrixLocation_, 1, GL_FALSE, glm::value_ptr(mvpMatrix));
+      p->gl_->glUniformMatrix4fv(p->uMVPMatrixLocation_, 1, GL_FALSE, glm::value_ptr(mvpMatrix));
       p->gl_->glUniform2f(p->uOriginLatLongLocation_,
                           static_cast<float>(params.latitude),
                           static_cast<float>(params.longitude));
+      // The same logical-pixel viewport the MVP above is built from, so line widths come out in
+      // the logical pixels the old Canvas used.
+      p->gl_->glUniform2f(p->uViewportHalfLocation_,
+                          static_cast<float>(params.width * 0.5),
+                          static_cast<float>(params.height * 0.5));
 
       p->gl_->glBindVertexArray(p->vao_);
-      p->gl_->glDrawArrays(GL_LINES, 0, p->numVertices_);
+      p->gl_->glDrawArrays(GL_TRIANGLES, 0, p->numVertices_);
       p->gl_->glBindVertexArray(0);
 
       p->shaderProgram_->release();
@@ -234,11 +245,11 @@ void PolylineLayer::render(const QMapLibre::CustomLayerRenderParameters& params)
    }
 }
 
-void PolylineLayer::deinitialize()
+void OverlayLayer::deinitialize()
 {
    logger_->debug("deinitialize()");
 
-   // See RadarSweepLayer::deinitialize's identical comment - same hazard, same fix.
+   // Same hazard and fix as RadarSweepLayer::deinitialize.
    if (QOpenGLContext::currentContext() == nullptr)
    {
       logger_->warn("deinitialize() with no current GL context - leaking GPU resources rather "
@@ -255,6 +266,8 @@ void PolylineLayer::deinitialize()
    }
    p->shaderProgram_.reset();
    p->gl_.reset();
+   p->lastUploaded_.reset();
+   p->numVertices_ = 0;
 }
 
 } // namespace render

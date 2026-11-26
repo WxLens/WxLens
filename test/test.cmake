@@ -127,6 +127,7 @@ add_executable(wxlens-app-test
     source/wxlens/products/level3_graphic_overlay.test.cpp
     source/wxlens/products/level3_text_product.test.cpp
     source/wxlens/products/sweep_disk_cache.test.cpp
+    source/wxlens/render/overlay_geometry.test.cpp
     source/wxlens/panes/pane_palette.test.cpp
     source/wxlens/panes/playback.test.cpp
     source/wxlens/panes/workspace.test.cpp

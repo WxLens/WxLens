@@ -18,7 +18,12 @@ namespace wxlens
 {
 namespace render
 {
+class OverlayLayerBinding;
 class RadarSweepLayerBinding;
+} // namespace render
+namespace overlays
+{
+class OverlayManager;
 }
 
 namespace panes
@@ -70,6 +75,16 @@ class PaneController : public QObject
     */
    Q_PROPERTY(int warningsFilterOverride READ warningsFilterOverride WRITE setWarningsFilterOverride
                  NOTIFY warningsFilterOverrideChanged)
+
+   /**
+    * The shared OverlayManager whose warnings and placefile vector items this pane draws through
+    * its render::OverlayLayer. Set from QML (it is a context property there); typed as QObject so
+    * QML can assign it without a type registration. Geometry is rebuilt only when that manager's
+    * data or visibility, this pane's warning filter, or this pane's home site changes - never on
+    * camera movement.
+    */
+   Q_PROPERTY(QObject* overlayManager READ overlayManager WRITE setOverlayManager NOTIFY
+                 overlayManagerChanged)
 
    // Location is read-only as a property and written through setCenter(): latitude and longitude
    // are one channel, and setting them one at a time would fan a half-updated coordinate out to
@@ -138,6 +153,9 @@ public:
 
    [[nodiscard]] int warningsFilterOverride() const;
    void setWarningsFilterOverride(int value);
+
+   [[nodiscard]] QObject* overlayManager() const;
+   void setOverlayManager(QObject* manager);
 
    [[nodiscard]] double centerLatitude() const;
    [[nodiscard]] double centerLongitude() const;
@@ -271,6 +289,7 @@ signals:
    void productChanged();
    void productCatalogChanged();
    void warningsFilterOverrideChanged();
+   void overlayManagerChanged();
    void paletteChanged();
    void cameraChanged();
    /**

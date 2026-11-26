@@ -86,6 +86,10 @@ qt_add_library(wxlens-app-lib STATIC
     source/wxlens/products/radar_sweep_product.hpp
     source/wxlens/products/sweep_disk_cache.cpp
     source/wxlens/products/sweep_disk_cache.hpp
+    source/wxlens/render/overlay_geometry.cpp
+    source/wxlens/render/overlay_geometry.hpp
+    source/wxlens/render/overlay_layer.cpp
+    source/wxlens/render/overlay_layer.hpp
     source/wxlens/render/radar_sweep_layer.cpp
     source/wxlens/render/radar_sweep_layer.hpp
     source/wxlens/settings/app_settings.cpp
@@ -114,6 +118,10 @@ qt_add_executable(wxlens-app
 )
 
 target_include_directories(wxlens-app-lib PUBLIC source "${CMAKE_CURRENT_BINARY_DIR}/generated")
+# mapbox::earcut (header-only polygon triangulation, ISC) for render/overlay_geometry.cpp. Read in
+# place from MapLibre's own vendored copy, not copied, so external/ stays untouched.
+target_include_directories(wxlens-app-lib PRIVATE
+    "${CMAKE_SOURCE_DIR}/external/maplibre-native-qt/vendor/maplibre-native/vendor/earcut.hpp/include")
 
 qt_add_qml_module(wxlens-app-lib
     URI WxLens.App
@@ -153,6 +161,8 @@ qt_add_qml_module(wxlens-app-lib
         res/themes/daylight.toml
         res/gl/radar.vert
         res/gl/radar.frag
+        res/gl/overlay.vert
+        res/gl/overlay.frag
 )
 
 # NOAA Weather and Climate Toolkit defaults, carried forward unmodified with the attribution in

@@ -9,6 +9,9 @@
 #include <wxlens/data/radar_site_data_service.hpp>
 #include <wxlens/palettes/palette_manager.hpp>
 #include <wxlens/palettes/palette_defaults.hpp>
+#include <wxlens/overlays/overlay_manager.hpp>
+#include <wxlens/render/overlay_geometry.hpp>
+#include <wxlens/render/overlay_layer.hpp>
 #include <wxlens/render/radar_sweep_layer.hpp>
 
 #include <wxlens/util/geodesic.hpp>
@@ -16,6 +19,8 @@
 #include <wxlens/util/unit_format.hpp>
 
 #include <map>
+#include <optional>
+#include <vector>
 #include <array>
 #include <ranges>
 
@@ -92,6 +97,14 @@ public:
    void SetArchiveTime(PaneController* self,
                        std::optional<std::chrono::system_clock::time_point> time);
 
+   /**
+    * Marks overlay geometry stale and queues one rebuild for the next event-loop turn, so a burst
+    * of signals (a site change emits productChanged several times; a refresh can change warnings
+    * and visibility together) costs one rebuild, not one per signal.
+    */
+   void ScheduleOverlayRebuild(PaneController* self, bool dataChanged);
+   void RebuildOverlays();
+
    int                         paneId_;
    products::ProductDescriptor descriptor_;
 
@@ -125,6 +138,14 @@ public:
    // Borrowed, not owned: MapQuickItem's unique_ptr owns this. Cleared when the map goes away so
    // the projection helpers cannot outlive it.
    QPointer<QMapLibre::Map> map_ {nullptr};
+
+   QPointer<overlays::OverlayManager>           overlayManager_ {nullptr};
+   std::vector<QMetaObject::Connection>         overlayConnections_ {};
+   std::shared_ptr<render::OverlayLayerBinding> overlayLayerBinding_ {
+      std::make_shared<render::OverlayLayerBinding>()};
+   std::optional<render::OverlayBuildOptions> lastOverlayOptions_ {};
+   bool overlayDataDirty_ {true};
+   bool overlayRebuildQueued_ {false};
 
    double centerLatitude_ {kFallbackLatitude};
    double centerLongitude_ {kFallbackLongitude};
@@ -640,6 +661,107 @@ void PaneController::setWarningsFilterOverride(int value)
    if (p->warningsFilterOverride_ == value) return;
    p->warningsFilterOverride_ = value;
    Q_EMIT warningsFilterOverrideChanged();
+}
+
+QObject* PaneController::overlayManager() const
+{
+   return p->overlayManager_.data();
+}
+
+void PaneController::setOverlayManager(QObject* manager)
+{
+   auto* typed = qobject_cast<overlays::OverlayManager*>(manager);
+   if (typed == p->overlayManager_.data())
+   {
+      return;
+   }
+
+   for (const auto& connection : p->overlayConnections_)
+   {
+      QObject::disconnect(connection);
+   }
+   p->overlayConnections_.clear();
+   p->overlayManager_ = typed;
+
+   const auto dataChanged   = [this] { p->ScheduleOverlayRebuild(this, true); };
+   const auto optionChanged = [this] { p->ScheduleOverlayRebuild(this, false); };
+   if (typed != nullptr)
+   {
+      using overlays::OverlayManager;
+      p->overlayConnections_ = {
+         connect(typed, &OverlayManager::warningsChanged, this, dataChanged),
+         connect(typed, &OverlayManager::placefilesChanged, this, dataChanged),
+         connect(typed, &OverlayManager::warningsVisibleChanged, this, optionChanged),
+         connect(typed, &OverlayManager::placefilesVisibleChanged, this, optionChanged),
+         connect(typed, &OverlayManager::nearbyWarningsOnlyChanged, this, optionChanged),
+         // homeLatitude/homeLongitude ride productChanged (section 4.6): a site change re-filters
+         // "nearby" warnings. RebuildOverlays skips the work when the options did not change.
+         connect(this, &PaneController::productChanged, this, optionChanged),
+         connect(this, &PaneController::warningsFilterOverrideChanged, this, optionChanged),
+      };
+   }
+   p->ScheduleOverlayRebuild(this, true);
+   Q_EMIT overlayManagerChanged();
+}
+
+void PaneController::Impl::ScheduleOverlayRebuild(PaneController* self, bool dataChanged)
+{
+   overlayDataDirty_ = overlayDataDirty_ || dataChanged;
+   if (overlayRebuildQueued_)
+   {
+      return;
+   }
+   overlayRebuildQueued_ = true;
+   QMetaObject::invokeMethod(
+      self,
+      [self]
+      {
+         self->p->overlayRebuildQueued_ = false;
+         self->p->RebuildOverlays();
+      },
+      Qt::QueuedConnection);
+}
+
+void PaneController::Impl::RebuildOverlays()
+{
+   if (overlayManager_.isNull())
+   {
+      overlayLayerBinding_->setData(nullptr);
+      lastOverlayOptions_.reset();
+      if (!map_.isNull()) map_->triggerRepaint();
+      return;
+   }
+
+   render::OverlayBuildOptions options;
+   options.warningsVisible   = overlayManager_->warningsVisible();
+   options.placefilesVisible = overlayManager_->placefilesVisible();
+   options.nearbyWarningsOnly = render::ResolveNearbyWarningsOnly(
+      warningsFilterOverride_, overlayManager_->nearbyWarningsOnly());
+   if (options.nearbyWarningsOnly)
+   {
+      // Only part of the options when they matter, so a site change with the filter off does not
+      // count as a change and skips the rebuild.
+      options.homeLatitude =
+         radarProduct_ != nullptr ? radarProduct_->site_latitude() : kFallbackLatitude;
+      options.homeLongitude =
+         radarProduct_ != nullptr ? radarProduct_->site_longitude() : kFallbackLongitude;
+      options.nearbyRangeMeters = overlayManager_->nearbyWarningsRangeMeters();
+   }
+
+   if (!overlayDataDirty_ && lastOverlayOptions_ == options)
+   {
+      return;
+   }
+
+   auto geometry = render::BuildOverlayGeometry(
+      overlayManager_->warningPolygons(), overlayManager_->placefileItems(), options);
+   logger_->debug("Pane {} rebuilt weather overlay geometry: {} vertices",
+                  paneId_,
+                  geometry->vertices.size());
+   overlayLayerBinding_->setData(std::move(geometry));
+   lastOverlayOptions_ = options;
+   overlayDataDirty_   = false;
+   if (!map_.isNull()) map_->triggerRepaint();
 }
 
 double PaneController::centerLatitude() const
@@ -1184,6 +1306,11 @@ void PaneController::attachLayers(QMapLibre::Map* map)
 
    map->addCustomLayer("wxlens-radar-sweep",
                        std::make_unique<render::RadarSweepLayer>(p->radarLayerBinding_));
+   // Added after the sweep so it draws on top of it: warnings and placefiles sit above radar and
+   // below every QML analysis layer (section 4.3's locked stack). A style reload recreates both
+   // layers, and the new OverlayLayer re-uploads from the binding on its first frame.
+   map->addCustomLayer("wxlens-weather-overlays",
+                       std::make_unique<render::OverlayLayer>(p->overlayLayerBinding_));
 
    if (p->radarProduct_ != nullptr && p->radarProduct_->sweep_data() != nullptr)
    {

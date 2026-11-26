@@ -2884,6 +2884,32 @@ the optional backend remain separately scoped follow-ups, not new Phase 1 comple
   unverified starting point, not a complete polygon/fill solution. Preserve fills, outlines,
   visibility, labels and geographic alignment through pan/zoom/rotation; trigger repaints on
   data changes. Verify representative dense alerts/placefiles and compare against the baseline.
+
+  **IMPLEMENTED (2026-11-26) on `perf/overlay-gpu-render`, baseline comparison not yet done.**
+  Warning polygons and placefile Line/Triangles/Polygon items now draw through
+  `render/overlay_layer.*`, a MapLibre custom layer registered directly after the radar sweep (so
+  §4.3's stack is unchanged: above radar, below every QML analysis layer). The QML Canvas and its
+  per-camera-tick JavaScript reprojection are gone. `render/overlay_geometry.*` builds one triangle
+  list per pane only when overlay data, visibility, the pane's nearby-warnings filter or its home
+  site changes; the camera reaches the GPU only as uniforms (the same MVP as the radar sweep), so
+  panning and zooming do no CPU work for these overlays. Lines are extruded to their width in the
+  vertex shader in pixels (constant on-screen width, and wider than the 1px most core-profile
+  drivers allow `glLineWidth`); fills are triangulated with earcut in Mercator space. Styling
+  matches the Canvas, with one deliberate change: placefile polygon contours after the first are
+  now holes (GR placefile semantics; Supercell Wx tessellated them the same way), where the Canvas
+  filled every contour solid. Placefile text labels and icons stay QML items, and now also follow
+  camera ticks (icons previously had no camera dependency at all). The salvaged
+  `render/polyline_layer.*` was superseded and removed.
+  Verified: 12 new headless tests in `test/source/wxlens/render/overlay_geometry.test.cpp`
+  (245 app tests: 244 pass, 1 existing skip); smoke launch with zero QML errors; and a
+  screenshot check with a synthetic placefile covering a holed polygon, a concave polygon, 6px and
+  1px lines, triangles and a text label, before and after a wheel zoom - all aligned with the
+  basemap and radar, widths constant, hole unfilled.
+  **Not verified:** live warning polygons on screen (none were active near the test site; they
+  share the code path the fixture exercised), multi-pane, a basemap style switch, rotation, macOS
+  and Linux, and frame-time numbers against `docs/performance-baseline.md` - the performance
+  half of this item stays open until `tools/retest/capture-performance.ps1` is rerun with a dense
+  fixture.
 - [ ] **Optimize the existing accelerated radar path where measurements justify it.**
   `render/radar_sweep_layer.cpp` already uses OpenGL shaders, GPU buffers and draw calls;
   supported Level 3 rasters feed that same sweep renderer. Unchanged sweep/LUT pointers avoid
@@ -3333,14 +3359,13 @@ config/data-model choices don't accidentally preclude it later.
   paths: (a) near-zero-effort, works today — add a GR-format county-line placefile through the
   existing Weather Overlays dialog (`overlays::OverlayManager` already renders placefile
   Line/Polygon items); (b) a first-class "Counties" toggle with its own styling and real
-  performance at national scale needs GPU rendering instead of `WeatherOverlaysLayer.qml`'s
-  per-frame QML Canvas redraw. For (b),
-  [app/source/wxlens/render/polyline_layer.hpp](../app/source/wxlens/render/polyline_layer.hpp)
-  is a salvaged-but-unwired starting point (a generic GL custom-layer line renderer, ported
-  2026-09-02 from the abandoned slice-12 branch, tag `archive/slice-12-warnings-placefiles`) —
-  not in `app/CMakeLists.txt` yet and unverified against the current codebase; wire it in and
-  recompile against current APIs when a consumer (e.g. a `CountyLayer`/`CountyDataService` pair
-  loading a bundled Census TIGER/Line county dataset) is actually built.
+  performance at national scale needs GPU rendering. As of 2026-11-26 warnings and placefiles
+  already draw on the GPU through
+  [app/source/wxlens/render/overlay_layer.hpp](../app/source/wxlens/render/overlay_layer.hpp)
+  (fills plus pixel-width lines from one `OverlayGeometry` triangle list, built by
+  `render/overlay_geometry.*`), so (b) needs only a geometry source - e.g. a
+  `CountyLayer`/`CountyDataService` pair loading a bundled Census TIGER/Line county dataset into
+  the same vertex format - not a new renderer. It replaced the salvaged `render/polyline_layer.*`.
 - Skew-T sounding diagram as a first-class view vs. raw data access (Phase 3 open question).
 - Publishing `wxdata` as a proper Conan package (vs. submodule + `add_subdirectory`).
 
