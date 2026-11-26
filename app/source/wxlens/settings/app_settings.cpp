@@ -1,6 +1,7 @@
 #include <wxlens/settings/app_settings.hpp>
 #include <wxlens/log/logger.hpp>
 #include <wxlens/objects/map_object.hpp>
+#include <wxlens/products/radar_sweep_product.hpp>
 #include <wxlens/settings/settings_store.hpp>
 #include <wxlens/util/unit_format.hpp>
 
@@ -8,6 +9,11 @@
 #include <map>
 
 #include <QVariantMap>
+#include <QStandardPaths>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QStringList>
 
 namespace wxlens
 {
@@ -16,6 +22,127 @@ namespace settings
 
 static const std::string logPrefix_ = "settings.app_settings";
 static const auto        logger_    = wxlens::log::Create(logPrefix_);
+
+namespace
+{
+// MapLibre's SQLite connection can hold basemap.db open for the whole process, and Windows'
+// default SQLite VFS does not request FILE_SHARE_DELETE, so a live clear can fail with a sharing
+// violation. When that happens, clearMapCache() leaves this marker instead, and the very first
+// mapCachePath() call in the *next* process - guaranteed to run before any pane creates a
+// MapQuickItem and opens the file - finishes the deferred delete while nothing has it open.
+const QString kMapCacheClearMarker = QStringLiteral(".clear-pending");
+
+QStringList MapCacheFilePaths(const QString& directory)
+{
+   // SQLite's WAL mode can leave -wal/-shm siblings, and a crash mid-checkpoint can leave a
+   // -journal; a real "clear" removes all of them, not just the .db a partial clear would leave
+   // looking cleared while a stale journal replays stale pages back into it.
+   QStringList paths;
+   for (const char* suffix : {"", "-wal", "-shm", "-journal"})
+   {
+      paths << QDir(directory).filePath(QStringLiteral("basemap.db") + suffix);
+   }
+   return paths;
+}
+
+void ApplyPendingMapCacheClear(const QString& directory)
+{
+   static bool checked = false;
+   if (checked)
+   {
+      return;
+   }
+   checked = true;
+
+   const QString marker = QDir(directory).filePath(kMapCacheClearMarker);
+   if (!QFile::exists(marker))
+   {
+      return;
+   }
+
+   for (const auto& path : MapCacheFilePaths(directory))
+   {
+      QFile::remove(path);
+   }
+   QFile::remove(marker);
+   logger_->info("Cleared basemap cache deferred from a previous session");
+}
+} // namespace
+
+QString AppSettings::mapCachePath() const
+{
+   const QString directory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                             + QStringLiteral("/maps");
+   if (!QDir().mkpath(directory))
+   {
+      logger_->error("Cannot create map cache directory {}", directory.toStdString());
+      return QStringLiteral(":memory:");
+   }
+   ApplyPendingMapCacheClear(directory);
+   return QDir(directory).filePath(QStringLiteral("basemap.db"));
+}
+
+QString AppSettings::radarSweepCachePath() const
+{
+   return products::SweepDiskCacheDirectory();
+}
+
+bool AppSettings::clearMapCache()
+{
+   const QString directory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                             + QStringLiteral("/maps");
+   bool allRemoved = true;
+   for (const auto& path : MapCacheFilePaths(directory))
+   {
+      if (QFile::exists(path) && !QFile::remove(path))
+      {
+         allRemoved = false;
+      }
+   }
+
+   if (allRemoved)
+   {
+      logger_->info("Cleared basemap cache");
+      return true;
+   }
+
+   // Still open by a live pane - defer to the next launch instead of leaving a half-cleared,
+   // still-in-use database on disk.
+   QFile marker(QDir(directory).filePath(kMapCacheClearMarker));
+   if (!marker.open(QIODevice::WriteOnly))
+   {
+      logger_->error("Cannot write pending-clear marker {}", marker.fileName().toStdString());
+   }
+   logger_->info("Basemap cache still open; clearing deferred to next launch");
+   return false;
+}
+
+void AppSettings::clearRadarSweepCache()
+{
+   products::ClearSweepDiskCache();
+   logger_->info("Cleared radar sweep disk cache");
+}
+
+qint64 AppSettings::mapCacheSizeBytes() const
+{
+   const QString directory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                             + QStringLiteral("/maps");
+   qint64 total = 0;
+   for (const auto& path : MapCacheFilePaths(directory))
+   {
+      const QFileInfo info(path);
+      if (info.exists())
+      {
+         total += info.size();
+      }
+   }
+   return total;
+}
+
+qint64 AppSettings::radarSweepCacheSizeBytes() const
+{
+   return static_cast<qint64>(products::SweepDiskCacheSizeBytes());
+}
 
 namespace
 {
@@ -96,15 +223,18 @@ struct Section
 
 /// Stable ids (§4.5). Changing one breaks every deep-link that points at it, so treat these as
 /// part of the app's contract rather than as labels.
-constexpr std::array<Section, 8> kSections {{
+constexpr std::array<Section, 11> kSections {{
    {"appearance", "Appearance", "Choose the chrome theme used throughout WxLens."},
    {"toolbar", "Toolbar", "Choose optional shortcuts shown beside the complete Tools menu."},
    {"map-details", "Map details", "Choose which geographic context appears beneath data."},
+   {"playback", "Playback", "Recent radar history and rolling cache duration."},
+   {"storage", "Storage", "Clear the on-disk basemap and radar caches."},
    {"radar-sites", "Radar sites", "Choose how pane cameras respond when a radar site changes."},
    {"measurement", "Measurement", "How measurements are started and finished."},
    {"objects", "Map objects", "Defaults for markers, range rings and pinned measurements."},
    {"units", "Units", "How distances and altitudes are displayed."},
    {"radar-geometry", "Radar geometry", "Which rows the beam-height readout shows."},
+   {"radar-products", "Radar products", "How Level 3 tilt variants are labeled in the product picker."},
 }};
 
 struct ToolbarAction { const char* id; const char* label; };
@@ -122,6 +252,8 @@ constexpr int kMapThemeMax           = static_cast<int>(AppSettings::MapTheme::L
 constexpr int kMapDetailsPresetMax = static_cast<int>(AppSettings::MapDetailsPreset::Custom);
 constexpr int kScopeKindMax = static_cast<int>(objects::MapObjectScopeKind::AllPanes);
 constexpr int kRadarSiteScopeMax = static_cast<int>(AppSettings::RadarSiteScope::ActivePaneOnly);
+constexpr int kProductTiltLabelStyleMax =
+   static_cast<int>(AppSettings::ProductTiltLabelStyle::AwipsCode);
 
 } // namespace
 
@@ -149,16 +281,19 @@ public:
 
    SettingsStore& store_;
 
+   int playbackMinutes_ {30};
    int measurementGesture_ {static_cast<int>(MeasurementGesture::Both)};
    int preferredMeasurementTool_ {1};
    int snapStrength_ {static_cast<int>(SnapStrength::Subtle)};
    int defaultObjectScope_ {static_cast<int>(objects::MapObjectScopeKind::CurrentPaneOnly)};
    int distanceUnits_ {static_cast<int>(DistanceUnits::Both)};
    int velocityUnits_ {static_cast<int>(VelocityUnits::MilesPerHour)};
+   int productTiltLabelStyle_ {static_cast<int>(ProductTiltLabelStyle::Both)};
    int mapTheme_ {static_cast<int>(MapTheme::FollowChrome)};
    bool advancedPaneLinking_ {false};
    bool controlBarDocked_ {false};
    bool centerMapOnSiteChange_ {true};
+   bool persistRadarCache_ {true};
    int radarSiteScope_ {static_cast<int>(RadarSiteScope::AllPanes)};
    bool radarSitesVisible_ {true};
    bool tdwrSitesVisible_ {true};
@@ -171,6 +306,7 @@ public:
 
 void AppSettings::Impl::Load()
 {
+   playbackMinutes_ = store_.GetInt(kRadarCategory, "playback_minutes", 30, 5, 120);
    measurementGesture_ = store_.GetInt(kMeasurementCategory,
                                        QStringLiteral("gesture"),
                                        static_cast<int>(MeasurementGesture::Both),
@@ -201,6 +337,11 @@ void AppSettings::Impl::Load()
                                   static_cast<int>(DistanceUnits::Both),
                                   0,
                                   kDistanceUnitsMax);
+   productTiltLabelStyle_ = store_.GetInt(kRadarCategory,
+                                          QStringLiteral("tilt_label_style"),
+                                          static_cast<int>(ProductTiltLabelStyle::Both),
+                                          0,
+                                          kProductTiltLabelStyleMax);
 
    mapTheme_ = store_.GetInt(kAppearanceCategory,
                              QStringLiteral("map_theme"),
@@ -212,6 +353,8 @@ void AppSettings::Impl::Load()
       kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
    centerMapOnSiteChange_ =
       store_.GetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), true);
+   persistRadarCache_ =
+      store_.GetBool(kRadarCategory, QStringLiteral("persist_sweep_cache"), true);
    radarSiteScope_ = store_.GetInt(kRadarCategory, QStringLiteral("site_scope"),
                                    static_cast<int>(RadarSiteScope::AllPanes), 0,
                                    kRadarSiteScopeMax);
@@ -254,10 +397,27 @@ AppSettings::AppSettings(SettingsStore& store, QObject* parent) :
     QObject(parent), p {std::make_unique<Impl>(store)}
 {
    p->Load();
+   // Self-contained rather than wired from main.cpp (contrast
+   // RadarSiteDataService::SetHistoryMinutes): this file already depends on products:: for the
+   // cache path/clear/size accessors above, so there is no layering reason to push this one knob
+   // out to main.cpp instead - and doing it here means the runtime flag matches a saved "off"
+   // from a previous session immediately, not only after the user touches the setting again.
+   products::SetSweepDiskCachePersistenceEnabled(p->persistRadarCache_);
    logger_->info("Settings loaded from {}", store.ConfigDirectory().toStdString());
 }
 
 AppSettings::~AppSettings() = default;
+
+int AppSettings::playbackMinutes() const { return p->playbackMinutes_; }
+void AppSettings::setPlaybackMinutes(int minutes)
+{
+   if (minutes < 5 || minutes > 120 || minutes == p->playbackMinutes_) return;
+   p->playbackMinutes_ = minutes;
+   p->store_.SetInt(kRadarCategory, "playback_minutes", minutes);
+   p->store_.Save();
+   logger_->info("Playback window changed to {} minutes", minutes);
+   Q_EMIT playbackMinutesChanged();
+}
 
 int AppSettings::measurementGesture() const
 {
@@ -307,6 +467,23 @@ void AppSettings::setVelocityUnits(int units)
    Q_EMIT velocityUnitsChanged();
 }
 
+int AppSettings::productTiltLabelStyle() const
+{
+   return p->productTiltLabelStyle_;
+}
+
+void AppSettings::setProductTiltLabelStyle(int style)
+{
+   if (style < 0 || style > kProductTiltLabelStyleMax || style == p->productTiltLabelStyle_)
+   {
+      return;
+   }
+   p->productTiltLabelStyle_ = style;
+   p->store_.SetInt(kRadarCategory, QStringLiteral("tilt_label_style"), style);
+   p->store_.Save();
+   Q_EMIT productTiltLabelStyleChanged();
+}
+
 int AppSettings::mapTheme() const
 {
    return p->mapTheme_;
@@ -314,6 +491,22 @@ int AppSettings::mapTheme() const
 
 bool AppSettings::controlBarDocked() const { return p->controlBarDocked_; }
 bool AppSettings::centerMapOnSiteChange() const { return p->centerMapOnSiteChange_; }
+bool AppSettings::persistRadarCache() const { return p->persistRadarCache_; }
+
+void AppSettings::setPersistRadarCache(bool enabled)
+{
+   if (enabled == p->persistRadarCache_) return;
+   p->persistRadarCache_ = enabled;
+   p->store_.SetBool(kRadarCategory, QStringLiteral("persist_sweep_cache"), enabled);
+   p->store_.Save();
+   // Takes effect immediately, including clearing whatever had already accumulated when turned
+   // off - see SetSweepDiskCachePersistenceEnabled's doc comment for why that clear is part of
+   // "off", not a separate step.
+   products::SetSweepDiskCachePersistenceEnabled(enabled);
+   logger_->info("Persist radar cache to disk set to {}", enabled);
+   Q_EMIT persistRadarCacheChanged();
+}
+
 int AppSettings::radarSiteScope() const { return p->radarSiteScope_; }
 bool AppSettings::advancedPaneLinking() const { return p->advancedPaneLinking_; }
 
@@ -650,6 +843,7 @@ bool AppSettings::hasSection(const QString& sectionId) const
 
 void AppSettings::resetToDefaults()
 {
+   p->store_.SetInt(kRadarCategory, "playback_minutes", 30);
    p->store_.SetInt(
       kMeasurementCategory, QStringLiteral("gesture"), static_cast<int>(MeasurementGesture::Both));
    p->store_.SetInt(kRadarCategory, QStringLiteral("site_scope"),
@@ -669,6 +863,7 @@ void AppSettings::resetToDefaults()
    p->store_.SetBool(kAppearanceCategory, QStringLiteral("advanced_pane_linking"), false);
    p->store_.SetBool(kAppearanceCategory, QStringLiteral("control_bar_docked"), false);
    p->store_.SetBool(kRadarCategory, QStringLiteral("center_map_on_site_change"), true);
+   p->store_.SetBool(kRadarCategory, QStringLiteral("persist_sweep_cache"), true);
    for (const ToolbarAction& action : kToolbarActions)
       p->store_.SetBool(kAppearanceCategory,
                         QStringLiteral("show_toolbar_") + QString::fromLatin1(action.id), false);
@@ -685,6 +880,9 @@ void AppSettings::resetToDefaults()
    p->store_.SetInt(kUnitsCategory, QStringLiteral("distance"), static_cast<int>(DistanceUnits::Both));
    p->store_.SetInt(
       kUnitsCategory, QStringLiteral("velocity"), static_cast<int>(VelocityUnits::MilesPerHour));
+   p->store_.SetInt(kRadarCategory,
+                    QStringLiteral("tilt_label_style"),
+                    static_cast<int>(ProductTiltLabelStyle::Both));
 
    for (const GeometryRow& row : kGeometryRows)
    {
@@ -694,6 +892,9 @@ void AppSettings::resetToDefaults()
 
    p->store_.Save();
    p->Load();
+   // p->Load() only refreshes this object's own fields; the runtime flag it drives lives in
+   // products:: (see the constructor's identical call) and needs the same explicit push.
+   products::SetSweepDiskCachePersistenceEnabled(p->persistRadarCache_);
 
    Q_EMIT measurementGestureChanged();
    Q_EMIT preferredMeasurementToolChanged();
@@ -701,9 +902,11 @@ void AppSettings::resetToDefaults()
    Q_EMIT defaultObjectScopeChanged();
    Q_EMIT distanceUnitsChanged();
    Q_EMIT velocityUnitsChanged();
+   Q_EMIT productTiltLabelStyleChanged();
    Q_EMIT mapThemeChanged();
    Q_EMIT controlBarDockedChanged();
    Q_EMIT centerMapOnSiteChangeChanged();
+   Q_EMIT persistRadarCacheChanged();
    Q_EMIT radarSiteScopeChanged();
    Q_EMIT radarSitesVisibleChanged();
    Q_EMIT tdwrSitesVisibleChanged();
@@ -711,6 +914,7 @@ void AppSettings::resetToDefaults()
    Q_EMIT toolbarActionsChanged();
    Q_EMIT geometryRowsChanged();
    Q_EMIT advancedPaneLinkingChanged();
+   Q_EMIT playbackMinutesChanged();
    Q_EMIT defaultsReset();
 }
 

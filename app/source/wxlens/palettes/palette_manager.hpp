@@ -31,7 +31,7 @@ namespace palettes
  * - A **family** is one meteorological field's group of interchangeable ramps. Bundled palettes
  *   are their own family except for the declared variants (`SRV` belongs to `DV`, `KDP2` to
  *   `KDP`). An imported palette starts with no family and is matched to candidates by its
- *   `Units:` header - the one physical property a GRLevelX `.pal` reliably declares - then linked
+ *   `Units:` header - the one physical property a `.pal` file reliably declares - then linked
  *   to one explicitly by the user.
  * - A **family default** is which palette that field's panes use when they carry no explicit
  *   override of their own. "Apply to product" both publishes the edited palette text and makes

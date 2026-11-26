@@ -9,6 +9,7 @@
 
 namespace wxlens
 {
+namespace settings { class SettingsStore; }
 namespace panes
 {
 
@@ -100,6 +101,10 @@ public:
    Q_INVOKABLE int syncGroupForPreset(int paneId) const;
 
    /** The default radar site new panes are created with, until pane chrome can set it (§4.5). */
+   // Bind before creating panes. Saves are debounced; flush explicitly on application exit.
+   void restoreWorkspace(wxlens::settings::SettingsStore& store, const QString& defaultSource);
+   bool saveWorkspace();
+
    void setDefaultSourceKey(const QString& sourceKey);
    // A presentation policy applied through the existing per-channel groups.
    void setAdvancedPaneLinking(bool enabled);

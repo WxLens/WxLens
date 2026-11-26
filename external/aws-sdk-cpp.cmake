@@ -21,6 +21,14 @@ set(MINIMIZE_SIZE      OFF  CACHE BOOL   "If enabled, the SDK will be built via 
 # Save off ${CMAKE_CXX_FLAGS} before modifying compiler settings
 set(CMAKE_CXX_FLAGS_PREV "${CMAKE_CXX_FLAGS}")
 
+# Always build aws-c-io's bundled s2n-tls rather than adopting a system copy. aws-c-io (macOS
+# defaults USE_S2N=ON) calls find_package(s2n) first and only falls back to the in-tree build when
+# that fails. GitHub's macos-15-arm64 image started shipping Homebrew's s2n (image 20261123), which
+# was then found and broke configure: its exported AWS::s2n links AWS::crypto, a target only
+# Homebrew's aws-lc defines. Disabling the lookup (it also skips the Conan dependency provider)
+# keeps every platform on the same in-tree s2n it was already using.
+set(CMAKE_DISABLE_FIND_PACKAGE_s2n ON)
+
 # Configure OpenSSL crypto library
 find_package(OpenSSL)
 add_library(crypto ALIAS OpenSSL::Crypto)

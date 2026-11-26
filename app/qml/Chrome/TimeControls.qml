@@ -1,71 +1,120 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
+import QtQuick.Controls
 
 import WxLens.App
 
 Item {
     id: root
     required property var paneController
-    width: controls.width
-    height: controls.height
+    width: 50
+    height: 32
 
-    Row {
-        id: controls
-        anchors.centerIn: parent
-        spacing: 6
+    Rectangle {
+        id: playButton
+        anchors.fill: parent
+        radius: themeManager.cornerRadius
+        color: playArea.containsMouse ? themeManager.controlHover : themeManager.control
+        border.color: playback.playing ? themeManager.primary : themeManager.border
+        border.width: root.activeFocus ? 2 : 1
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: playback.playing ? "Pause radar playback" : "Play recent radar history"
+        Accessible.description: "Press and hold, or press Down, to open the playback timeline"
+        Accessible.onPressAction: playback.togglePlaying()
 
-        WxButton {
-            width: 52; height: 32; radius: themeManager.cornerRadius
-            text: "LIVE"
-            name: "Use live radar data"
-            highlighted: root.paneController.liveMode
-            onClicked: root.paneController.selectLive()
+        Text {
+            anchors.centerIn: parent
+            text: playback.playing ? "■" : "▶"
+            color: playback.playing ? themeManager.primary : themeManager.textPrimary
+            font.pixelSize: 13
         }
-        Rectangle {
-            width: 142; height: 32; radius: themeManager.cornerRadius
-            color: themeManager.control; border.color: themeManager.border; border.width: 1
-            TextInput {
-                id: archiveInput
-                anchors.fill: parent; anchors.margins: 6
-                color: themeManager.textPrimary; selectionColor: themeManager.primary
-                font.pixelSize: 11; verticalAlignment: TextInput.AlignVCenter
-                text: root.paneController.liveMode
-                    ? Qt.formatDateTime(new Date(), "yyyy-MM-dd HH:mm")
-                    : root.paneController.selectedTimeText.replace(" UTC", "")
-                onAccepted: root.paneController.selectArchiveTime(text)
-                Accessible.role: Accessible.EditableText
-                Accessible.name: "Archive date and time in UTC"
+
+        MouseArea {
+            id: playArea
+            property bool heldThisPress: false
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            pressAndHoldInterval: 350
+            onPressed: heldThisPress = false
+            onPressAndHold: {
+                heldThisPress = true
+                timelinePopup.open()
+            }
+            onClicked: {
+                if (!heldThisPress) playback.togglePlaying()
             }
         }
-        WxButton {
-            width: 62; height: 32; radius: themeManager.cornerRadius
-            text: root.paneController.timeLoading ? "Loading…" : "Archive"
-            name: "Load archive radar data"
-            highlighted: !root.paneController.liveMode
-            enabled: !root.paneController.timeLoading
-            onClicked: root.paneController.selectArchiveTime(archiveInput.text)
-        }
-        Rectangle {
-            width: 62; height: 32; radius: themeManager.cornerRadius
-            color: themeManager.control; border.color: themeManager.border; border.width: 1
-            TextInput {
-                anchors.fill: parent; anchors.margins: 6
-                text: root.paneController.sourceKey
-                color: themeManager.textPrimary; selectionColor: themeManager.primary
-                font.pixelSize: 11; maximumLength: 4; horizontalAlignment: TextInput.AlignHCenter
-                verticalAlignment: TextInput.AlignVCenter
-                onAccepted: root.paneController.sourceKey = text.toUpperCase()
-                Accessible.role: Accessible.EditableText
-                Accessible.name: "Radar site identifier"
-            }
-        }
+        Keys.onSpacePressed: playback.togglePlaying()
+        Keys.onReturnPressed: playback.togglePlaying()
+        Keys.onDownPressed: timelinePopup.open()
     }
-    Text {
-        visible: root.paneController.timeError !== ""
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.bottom; anchors.topMargin: 3
-        text: root.paneController.timeError
-        color: themeManager.danger
-        font.pixelSize: 10
+
+    Popup {
+        id: timelinePopup
+        parent: root
+        x: -Math.max(0, (width - root.width) / 2)
+        y: -height - 10
+        width: Math.min(650, root.Window.window ? root.Window.window.width - 32 : 650)
+        height: 58
+        padding: 9
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            radius: themeManager.cornerRadius * 1.4
+            color: themeManager.elevatedSurface
+            border.color: themeManager.border
+            border.width: 1
+        }
+
+        contentItem: Row {
+            spacing: 6
+
+            WxButton {
+                width: 42; height: 32
+                text: "LIVE"
+                name: "Use live radar data"
+                highlighted: root.paneController.liveMode
+                onClicked: playback.returnToLive()
+            }
+            WxButton {
+                width: 28; height: 32; text: "‹"; name: "Previous scan"
+                enabled: playback.frameCount > 0
+                onClicked: playback.step(-1)
+            }
+            WxButton {
+                width: 42; height: 32; text: playback.playing ? "■" : "▶"
+                name: "Play or pause recent radar history"
+                enabled: playback.frameCount > 1
+                onClicked: playback.togglePlaying()
+            }
+            PlaybackScrubber {
+                width: Math.max(120, timelinePopup.availableWidth - 342)
+                height: 32
+                frameCount: playback.frameCount
+                selectedIndex: playback.selectedIndex
+                trackColor: themeManager.border
+                handleColor: themeManager.primary
+                onSeekRequested: index => playback.seek(index)
+            }
+            WxButton {
+                width: 28; height: 32; text: "›"; name: "Next scan"
+                enabled: playback.frameCount > 0
+                onClicked: playback.step(1)
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 82
+                elide: Text.ElideRight
+                text: root.paneController.timeError !== ""
+                    ? root.paneController.timeError : playback.status
+                color: root.paneController.timeError !== ""
+                    ? themeManager.danger : themeManager.textMuted
+                font.pixelSize: 9
+                Accessible.role: Accessible.StaticText
+                Accessible.name: "Playback status: " + text
+            }
+        }
     }
 }

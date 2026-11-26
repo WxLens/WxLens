@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <chrono>
 #include <functional>
 #include <future>
 #include <list>
@@ -64,6 +65,8 @@ public:
       [[nodiscard]] bool cache_hit() const { return origin == Origin::Cache; }
    };
 
+   using TimePoint = std::chrono::system_clock::time_point;
+
    using Loader       = std::function<std::shared_ptr<T>()>;
    using SizeEstimate = std::function<std::size_t(const T&)>;
 
@@ -103,7 +106,8 @@ public:
     */
    LoadResult Load(const std::string&  key,
                    const Loader&       loader,
-                   const SizeEstimate& sizeOf)
+                   const SizeEstimate& sizeOf,
+                   TimePoint observationTime = TimePoint::max())
    {
       std::shared_ptr<InFlight> inFlight;
       bool                      owner = false;
@@ -154,14 +158,32 @@ public:
       {
          std::lock_guard lock {mutex_};
          inFlight_.erase(key);
-         if (value != nullptr && bytes <= capacityBytes_)
+         if (value != nullptr && bytes <= capacityBytes_ && observationTime > cutoff_)
          {
-            InsertLocked(key, value, bytes);
+            InsertLocked(key, value, bytes, observationTime);
          }
       }
 
       inFlight->promise.set_value(value);
       return {std::move(value), Origin::Loaded};
+   }
+
+   // Expire by observation time, including loads that finish after their window expires.
+   // Active consumers may still hold a shared_ptr, which is deliberately left valid.
+   void PruneBefore(TimePoint cutoff)
+   {
+      std::lock_guard lock {mutex_};
+      cutoff_ = cutoff;
+      for (auto it = entries_.begin(); it != entries_.end();)
+      {
+         if (it->second.observationTime <= cutoff_)
+         {
+            usedBytes_ -= it->second.bytes;
+            order_.erase(it->second.position);
+            it = entries_.erase(it);
+         }
+         else ++it;
+      }
    }
 
    /// Drops every retained entry. In-flight loads are unaffected; their results
@@ -186,7 +208,31 @@ public:
       return entries_.size();
    }
 
-   [[nodiscard]] std::size_t capacity_bytes() const { return capacityBytes_; }
+   [[nodiscard]] std::size_t capacity_bytes() const
+   {
+      std::lock_guard lock {mutex_};
+      return capacityBytes_;
+   }
+
+   /**
+    * Resizes the byte budget. Shrinking evicts least-recently-used entries
+    * immediately, so the new budget is honoured before the next load rather
+    * than only as entries happen to be replaced.
+    *
+    * The budget is a runtime setting (the playback window's retention, see
+    * RadarSiteDataService), not a compile-time constant, because a window that
+    * cannot hold its own frames re-downloads them on every refresh.
+    */
+   void SetCapacityBytes(std::size_t bytes)
+   {
+      std::lock_guard lock {mutex_};
+      if (bytes == capacityBytes_)
+      {
+         return;
+      }
+      capacityBytes_ = bytes;
+      EvictLocked();
+   }
 
    /// Diagnostic only - does not promote the entry, so tests can assert
    /// eviction order without altering it.
@@ -207,6 +253,7 @@ private:
    {
       std::shared_ptr<T>                        value;
       std::size_t                               bytes;
+      TimePoint observationTime;
       typename std::list<std::string>::iterator position;
    };
 
@@ -224,7 +271,8 @@ private:
 
    void InsertLocked(const std::string&        key,
                      const std::shared_ptr<T>& value,
-                     std::size_t               bytes)
+                     std::size_t               bytes,
+                     TimePoint observationTime)
    {
       // A concurrent loader for a different key may have inserted this one in
       // the window where the lock was released, so replace rather than assume.
@@ -236,9 +284,14 @@ private:
       }
 
       order_.push_front(key);
-      entries_.emplace(key, Entry {value, bytes, order_.begin()});
+      entries_.emplace(key, Entry {value, bytes, observationTime, order_.begin()});
       usedBytes_ += bytes;
 
+      EvictLocked();
+   }
+
+   void EvictLocked()
+   {
       while (usedBytes_ > capacityBytes_ && !order_.empty())
       {
          const std::string oldest = order_.back();
@@ -251,7 +304,8 @@ private:
       }
    }
 
-   const std::size_t                      capacityBytes_;
+   TimePoint cutoff_ {TimePoint::min()};
+   std::size_t                            capacityBytes_;
    mutable std::mutex                     mutex_;
    std::unordered_map<std::string, Entry> entries_;
    std::list<std::string>                 order_;

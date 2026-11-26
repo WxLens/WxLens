@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: MIT
 import QtQuick
+import QtQuick.Controls
+// WxButton (the tilt popup's rows) is registered by the module, not by this directory - without
+// this the whole file fails to load as a type, taking Main.qml's bottom bar down with it.
+import WxLens.App
 
 // Slice 16's single bottom zone: global tools and layout controls flank the time controls for
 // the selected pane. All icons are drawn primitives, so their meaning is not tied to a font's
@@ -263,23 +267,79 @@ Rectangle {
             }
         }
         ToolButton {
+            id: tiltButton
             visible: root.gridModel.activePane !== null
-            width: 45
-            hint: "Elevation tilt"
+            width: 54
+            active: tiltPopup.opened
+            hint: "Choose elevation tilt"
             Text {
                 anchors.centerIn: parent
                 text: root.gridModel.activePane
                     ? Number(root.gridModel.activePane.selectedElevation).toFixed(1) + "°" : "—"
                 color: themeManager.textSecondary; font.pixelSize: 9
             }
-            onTriggered: {
-                const pane = root.gridModel.activePane
-                const cuts = pane.elevationCuts
-                if (cuts.length === 0) return
-                var current = 0
-                for (var i = 0; i < cuts.length; ++i)
-                    if (Math.abs(cuts[i] - pane.selectedElevation) < 0.01) current = i
-                pane.selectedElevation = cuts[(current + 1) % cuts.length]
+            onTriggered: tiltPopup.open()
+
+            Text {
+                anchors.right: parent.right
+                anchors.rightMargin: 5
+                anchors.verticalCenter: parent.verticalCenter
+                text: "⌄"
+                color: themeManager.textMuted
+                font.pixelSize: 8
+            }
+
+            Popup {
+                id: tiltPopup
+                parent: tiltButton
+                x: (tiltButton.width - width) / 2
+                y: -height - 9
+                width: 112
+                height: Math.min(230, tiltChoices.implicitHeight + 16)
+                padding: 8
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+                background: Rectangle {
+                    radius: themeManager.cornerRadius * 1.2
+                    color: themeManager.elevatedSurface
+                    border.color: themeManager.border
+                }
+                contentItem: Flickable {
+                    clip: true
+                    contentHeight: tiltChoices.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    Column {
+                        id: tiltChoices
+                        width: parent.width
+                        spacing: 4
+                        Repeater {
+                            model: root.gridModel.activePane
+                                ? root.gridModel.activePane.elevationCuts : []
+                            delegate: WxButton {
+                                required property var modelData
+                                width: tiltChoices.width
+                                height: 27
+                                text: Number(modelData).toFixed(1) + "°"
+                                name: "Select " + text + " elevation tilt"
+                                highlighted: root.gridModel.activePane &&
+                                    Math.abs(Number(modelData) -
+                                             root.gridModel.activePane.selectedElevation) < 0.01
+                                onClicked: {
+                                    root.gridModel.activePane.selectedElevation = Number(modelData)
+                                    tiltPopup.close()
+                                }
+                            }
+                        }
+                        Text {
+                            visible: !root.gridModel.activePane ||
+                                     root.gridModel.activePane.elevationCuts.length === 0
+                            width: parent.width
+                            text: "Tilts load with the first scan"
+                            wrapMode: Text.WordWrap
+                            color: themeManager.textMuted
+                            font.pixelSize: 9
+                        }
+                    }
+                }
             }
         }
 

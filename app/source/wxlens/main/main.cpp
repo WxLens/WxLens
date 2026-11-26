@@ -1,3 +1,4 @@
+#include <wxlens/data/radar_site_data_service.hpp>
 #include <wxlens/data/radar_site_marker_source.hpp>
 #include <wxlens/log/logger.hpp>
 #include <wxlens/objects/map_object_store.hpp>
@@ -6,7 +7,10 @@
 #include <wxlens/objects/saved_place_manager.hpp>
 #include <wxlens/objects/object_tool_controller.hpp>
 #include <wxlens/overlays/overlay_manager.hpp>
+#include <wxlens/panes/pane_controller.hpp>
 #include <wxlens/panes/pane_grid_model.hpp>
+#include <wxlens/panes/playback_binding.hpp>
+#include <wxlens/panes/playback_controller.hpp>
 #include <wxlens/palettes/palette_manager.hpp>
 #include <wxlens/settings/app_settings.hpp>
 #include <wxlens/settings/settings_store.hpp>
@@ -17,6 +21,8 @@
 #include <wxlens/log/frame_timing.hpp>
 
 #include <scwx/util/threads.hpp>
+
+#include <wxlens/data/radar_task_queue.hpp>
 
 #include <aws/core/Aws.h>
 #include <boost/asio.hpp>
@@ -31,6 +37,7 @@
 #include <QSurfaceFormat>
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 
 // Defined by app/CMakeLists.txt from WXLENS_VERSION. Defaulted so the file still compiles if it
@@ -226,23 +233,41 @@ int main(int argc, char* argv[])
    // exceptions escaping posted work.
    boost::asio::io_context& ioContext = scwx::util::io_context();
    auto                     ioContextWork = boost::asio::make_work_guard(ioContext);
-   boost::asio::thread_pool ioThreadPool {4};
-   boost::asio::post(ioThreadPool,
-                     [&]()
-                     {
-                        while (true)
+
+   // One runner per pool thread. The previous version created four threads and posted a single
+   // run() task into them, so the whole application had exactly *one* radar worker and every
+   // provider call - live refresh, archive seek, Level 3 catalog, history warming, for every
+   // site - executed strictly in turn. Measured on 2026-09-26: 624 s spent inside 96 loads on
+   // one thread, with a worst single load of 59.5 s, which is what a site switch had to queue
+   // behind. Inherited from the legacy app's main.cpp, which compensates with a second thread
+   // pool inside RadarProductManager that this application does not have.
+   //
+   // Raising this is necessary but not sufficient, and on its own it is not even safe: two
+   // concurrent listing calls on one provider race in wxdata's Impl::UpdateMetadata. What makes
+   // the extra threads usable is RadarTaskQueue, which bounds total concurrency, keeps a slot
+   // free for foreground work, and serializes each site's listing calls against each other.
+   constexpr std::size_t    kIoRunners = 4;
+   boost::asio::thread_pool ioThreadPool {kIoRunners};
+   for (std::size_t runner = 0; runner < kIoRunners; ++runner)
+   {
+      boost::asio::post(ioThreadPool,
+                        [&]()
                         {
-                           try
+                           while (true)
                            {
-                              ioContext.run();
-                              break;
+                              try
+                              {
+                                 ioContext.run();
+                                 break;
+                              }
+                              catch (const std::exception& ex)
+                              {
+                                 logger->error(ex.what());
+                              }
                            }
-                           catch (const std::exception& ex)
-                           {
-                              logger->error(ex.what());
-                           }
-                        }
-                     });
+                        });
+   }
+   wxlens::data::RadarTaskQueue::Instance().SetMaxConcurrency(kIoRunners);
 
    // Required before any AWS S3 call (RadarSiteDataService's Level 2 provider uses one) - not
    // previously needed since nothing in the app made network requests through the AWS SDK yet.
@@ -272,7 +297,7 @@ int main(int argc, char* argv[])
    static const std::string kDefaultRadarSite = "KEAX";
 
    wxlens::panes::PaneGridModel paneGridModel;
-   paneGridModel.setDefaultSourceKey(QString::fromStdString(kDefaultRadarSite));
+
    engine.rootContext()->setContextProperty("appVersion", QStringLiteral(WXLENS_VERSION_STRING));
    engine.rootContext()->setContextProperty("appBuildCommit",
                                             QStringLiteral(WXLENS_BUILD_COMMIT_STRING));
@@ -298,6 +323,11 @@ int main(int argc, char* argv[])
    paneGridModel.setAdvancedPaneLinking(appSettings.advancedPaneLinking());
    QObject::connect(&appSettings, &wxlens::settings::AppSettings::advancedPaneLinkingChanged,
                     &paneGridModel, [&]() { paneGridModel.setAdvancedPaneLinking(appSettings.advancedPaneLinking()); });
+   wxlens::data::RadarSiteDataService::SetHistoryMinutes(appSettings.playbackMinutes());
+   paneGridModel.restoreWorkspace(wxlens::settings::SettingsStore::Instance(),
+                                  QString::fromStdString(kDefaultRadarSite));
+   QObject::connect(&app, &QCoreApplication::aboutToQuit, &paneGridModel,
+                    [&]() { paneGridModel.saveWorkspace(); });
    paneGridModel.setCenterMapOnSiteChange(appSettings.centerMapOnSiteChange());
    paneGridModel.setRadarSiteScope(appSettings.radarSiteScope());
    QObject::connect(&appSettings, &wxlens::settings::AppSettings::centerMapOnSiteChangeChanged,
@@ -306,6 +336,22 @@ int main(int argc, char* argv[])
    QObject::connect(&appSettings, &wxlens::settings::AppSettings::radarSiteScopeChanged,
                     &paneGridModel, [&]() { paneGridModel.setRadarSiteScope(
                                              appSettings.radarSiteScope()); });
+   wxlens::panes::PlaybackController playback;
+   wxlens::panes::PlaybackBinding playbackBinding(playback);
+   auto bindPlayback = [&]() {
+      playbackBinding.setPane(qobject_cast<wxlens::panes::PaneController*>(paneGridModel.activePane()));
+   };
+   QObject::connect(&paneGridModel, &wxlens::panes::PaneGridModel::activePaneChanged,
+                    &playbackBinding, bindPlayback);
+   QObject::connect(&playback, &wxlens::panes::PlaybackController::liveRequested,
+                    &playbackBinding, &wxlens::panes::PlaybackBinding::live);
+   QObject::connect(&appSettings, &wxlens::settings::AppSettings::playbackMinutesChanged,
+                    &playbackBinding, [&]() {
+      wxlens::data::RadarSiteDataService::SetHistoryMinutes(appSettings.playbackMinutes());
+      playbackBinding.refresh();
+   });
+   bindPlayback();
+   engine.rootContext()->setContextProperty("playback", &playback);
    wxlens::data::RadarSiteMarkerSource radarSiteMarkers;
    engine.rootContext()->setContextProperty("radarSiteMarkers", &radarSiteMarkers);
    wxlens::theme::ThemeManager themeManager {wxlens::settings::SettingsStore::Instance()};
@@ -377,17 +423,23 @@ int main(int argc, char* argv[])
 
    const int result = QGuiApplication::exec();
 
-   // NOTE: the process still faults during teardown, after this point, inside MapLibre. It is
-   // fully diagnosed rather than mysterious - the crash handler installed above writes the stack
-   // to logs/wxlens-crash.log on every occurrence, and docs/ROADMAP.md records the analysis. It
-   // is an exit-path fault only: the window is already gone and nothing is left to lose.
+   // Everything of the user's that has to outlive the process is already on disk by this point:
+   // settings and the workspace save as they change and again on aboutToQuit, and the basemap
+   // cache is MapLibre's own transactional SQLite file. What is left is library teardown, and
+   // measured end to end it took 25-45 s: ~12 s joining wxdata's io_context behind one in-flight
+   // S3 object (the provider has no cancellation), then Aws::ShutdownAPI, then the Qt/QML teardown,
+   // in which ~Thread<MainResourceLoaderThread> blocks on a worker parked in QEventLoop::exec
+   // (upstream maplibre-native-qt#285, diagnosed in ADR 0004's upstream table).
+   // Patch 0015 fixed the fault that used to end that teardown early - see it and ROADMAP slice
+   // 20 - but a window that vanishes while the process lingers for half a minute is not an exit.
    //
-   // Gracefully stop the io_context main loop before shutting down the AWS SDK, so no posted
-   // work tries to make an S3 call after Aws::ShutdownAPI runs.
+   // So the application stands its background work down, flushes its logs and quits deliberately
+   // rather than waiting on destructors whose only remaining job is handing memory back to a
+   // process that is ending anyway. Two consequences if this is ever revisited: nothing after
+   // this line runs, and anything durable must be written before it rather than in a destructor.
+   wxlens::data::RadarSiteDataService::CancelBackgroundWork();
    ioContextWork.reset();
-   ioThreadPool.join();
-
-   Aws::ShutdownAPI(awsSdkOptions);
-
-   return result;
+   logger->info("Shutdown: quitting without waiting on library teardown");
+   logger->flush(); // Shares the file sink with every subsystem logger, so this flushes them all.
+   std::_Exit(result);
 }

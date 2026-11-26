@@ -109,7 +109,10 @@ find_package(tomlplusplus REQUIRED)
 
 add_executable(wxlens-app-test
     source/wxlens/app_test_main.cpp
+    source/wxlens/data/map_cache.test.cpp
     source/wxlens/data/frame_cache.test.cpp
+    source/wxlens/data/radar_site_data_service.test.cpp
+    source/wxlens/data/radar_task_queue.test.cpp
     source/wxlens/data/radar_site_database.test.cpp
     source/wxlens/data/radar_site_marker_source.test.cpp
     source/wxlens/objects/map_object_scope.test.cpp
@@ -123,7 +126,10 @@ add_executable(wxlens-app-test
     source/wxlens/products/level3_raster_product.test.cpp
     source/wxlens/products/level3_graphic_overlay.test.cpp
     source/wxlens/products/level3_text_product.test.cpp
+    source/wxlens/products/sweep_disk_cache.test.cpp
     source/wxlens/panes/pane_palette.test.cpp
+    source/wxlens/panes/playback.test.cpp
+    source/wxlens/panes/workspace.test.cpp
     source/wxlens/panes/pane_sync.test.cpp
     source/wxlens/panes/source_probe.test.cpp
     source/wxlens/settings/settings_store.test.cpp

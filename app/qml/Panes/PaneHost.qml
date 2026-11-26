@@ -99,6 +99,8 @@ Rectangle {
     readonly property real wheelZoomSensitivity: 0.25
 
     MapLibre {
+        cacheDatabasePath: appSettings.mapCachePath
+        cacheDatabaseMaximumSize: 256 * 1024 * 1024
         id: map
         anchors.fill: parent
         focus: true

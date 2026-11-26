@@ -45,6 +45,66 @@ Cache::Loader Counting(std::atomic_int& calls,
 
 } // namespace
 
+TEST(FrameCacheTest, RollingWindowUsesObservationTimeAndKeepsHeldFrameValid)
+{
+   Cache cache {1024};
+   const auto now = Cache::TimePoint {std::chrono::hours {100}};
+   auto held = cache.Load("old", Constant("old"), kSizeOf, now - std::chrono::minutes {30}).value;
+   cache.Load("recent", Constant("recent"), kSizeOf, now - std::chrono::minutes {29});
+   cache.PruneBefore(now - std::chrono::minutes {30});
+   EXPECT_FALSE(cache.Contains("old"));
+   EXPECT_TRUE(cache.Contains("recent"));
+   EXPECT_EQ(held->label, "old");
+   EXPECT_EQ(cache.size_bytes(), 1);
+}
+
+TEST(FrameCacheTest, ExpiredInFlightLoadCannotRepopulateCache)
+{
+   Cache cache {1024};
+   const auto observation = Cache::TimePoint {std::chrono::hours {100}};
+   const auto result = cache.Load("old", [&]()
+   {
+      cache.PruneBefore(observation);
+      return std::make_shared<Frame>(Frame {"old", 1});
+   }, kSizeOf, observation);
+   ASSERT_NE(result.value, nullptr);
+   EXPECT_EQ(cache.count(), 0);
+}
+
+TEST(FrameCacheTest, WarmLoopDoesNotDownloadAgainWithinWindow)
+{
+   Cache cache {1024};
+   std::atomic_int downloads {0};
+   const auto now = Cache::TimePoint {std::chrono::hours {100}};
+   cache.PruneBefore(now - std::chrono::minutes {30});
+   for (int repeat = 0; repeat < 3; ++repeat)
+      for (int frame = 0; frame < 6; ++frame)
+         cache.Load(std::to_string(frame), Counting(downloads, "frame"), kSizeOf,
+                    now - std::chrono::minutes {frame * 5});
+   EXPECT_EQ(downloads, 6);
+}
+
+TEST(FrameCacheTest, GrowingTheBudgetKeepsWhatShrinkingItEvicted)
+{
+   Cache cache {2};
+   cache.Load("a", Constant("a"), kSizeOf);
+   cache.Load("b", Constant("b"), kSizeOf);
+   EXPECT_EQ(cache.count(), 2U);
+
+   cache.SetCapacityBytes(1);
+   EXPECT_EQ(cache.count(), 1U);
+   EXPECT_TRUE(cache.Contains("b")); // Least recently used goes first.
+   EXPECT_FALSE(cache.Contains("a"));
+
+   cache.SetCapacityBytes(4);
+   EXPECT_EQ(cache.capacity_bytes(), 4U);
+   std::atomic_int downloads {0};
+   cache.Load("a", Counting(downloads, "a"), kSizeOf);
+   cache.Load("b", Counting(downloads, "b"), kSizeOf);
+   EXPECT_EQ(downloads, 1); // Only the evicted key reloads.
+   EXPECT_EQ(cache.count(), 2U);
+}
+
 // --- Retention ---------------------------------------------------------------
 
 TEST(FrameCacheTest, RepeatedSelectionReusesOneLoad)

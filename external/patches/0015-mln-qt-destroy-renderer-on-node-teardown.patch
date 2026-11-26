@@ -1,0 +1,34 @@
+diff --git a/src/quick/texture_node_opengl.cpp b/src/quick/texture_node_opengl.cpp
+index b8d28cf..6661a83 100644
+--- a/src/quick/texture_node_opengl.cpp
++++ b/src/quick/texture_node_opengl.cpp
+@@ -16,11 +16,25 @@ constexpr int DefaultSize = 64;
+ namespace QMapLibre {
+ 
+ TextureNodeOpenGL::~TextureNodeOpenGL() {
+-    // Clean up framebuffer
+-    if (m_fbo != 0) {
+-        if (const QOpenGLContext *glContext = QOpenGLContext::currentContext()) {
+-            QOpenGLFunctions *gl = glContext->functions();
++    // A QSGNode is deleted on the render thread with the scene graph's context current, which is
++    // the last moment MapLibre's gl::Context can release its GL objects. The Map outlives this
++    // node - MapQuickItem holds the other shared_ptr - so left alone the renderer is destroyed by
++    // ~MapPrivate on the GUI thread instead, where mbgl's function loader dereferences a null
++    // QOpenGLContext and takes the process down on exit. MapWidget::~MapWidget already calls
++    // destroyRenderer() for exactly this reason; the Quick item had no equivalent, so every
++    // application using it crashed on shutdown.
++    if (const QOpenGLContext *glContext = QOpenGLContext::currentContext()) {
++        QOpenGLFunctions *gl = glContext->functions();
++
++        // Before the framebuffer: the renderer's own teardown still reads and binds GL state.
++        if (m_map != nullptr && m_rendererBound) {
++            m_map->destroyRenderer();
++            m_rendererBound = false;
++        }
++
++        if (m_fbo != 0) {
+             gl->glDeleteFramebuffers(1, &m_fbo);
++            m_fbo = 0;
+         }
+     }
+ }

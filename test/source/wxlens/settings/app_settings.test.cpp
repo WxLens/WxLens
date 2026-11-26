@@ -6,6 +6,7 @@
 // visible, because shipping them hidden is the silent omission that section exists to prevent.
 
 #include <wxlens/objects/map_object.hpp>
+#include <wxlens/products/radar_sweep_product.hpp>
 #include <wxlens/settings/app_settings.hpp>
 #include <wxlens/settings/settings_store.hpp>
 #include <wxlens/util/unit_format.hpp>
@@ -38,8 +39,11 @@ protected:
 
    void TearDown() override
    {
-      // Leaves the process-wide formatting preference as the next test expects to find it.
+      // Leaves process-wide state as the next test expects to find it - both of these are plain
+      // static flags outside AppSettings itself (see products::SetSweepDiskCachePersistenceEnabled's
+      // doc comment for why that one lives there), so they otherwise leak between test cases.
       util::SetDistanceUnitPreference(util::DistanceUnitPreference::Both);
+      products::SetSweepDiskCachePersistenceEnabled(true);
    }
 
    [[nodiscard]] QVariantMap Row(const QString& id) const
@@ -100,6 +104,29 @@ TEST_F(AppSettingsTest, ShippedDefaults)
    // hardcoded constant.
    EXPECT_EQ(settings_->defaultObjectScope(),
              static_cast<int>(objects::MapObjectScopeKind::CurrentPaneOnly));
+   EXPECT_TRUE(settings_->persistRadarCache());
+}
+
+TEST_F(AppSettingsTest, PersistRadarCachePersistsResetsAndDrivesTheRuntimeFlag)
+{
+   // Constructing AppSettings itself pushes the loaded value into products:: (not just the
+   // setter), so a fresh instance over a store that already says "off" must come up off.
+   EXPECT_TRUE(products::SweepDiskCachePersistenceEnabled());
+
+   settings_->setPersistRadarCache(false);
+   EXPECT_FALSE(settings_->persistRadarCache());
+   EXPECT_FALSE(products::SweepDiskCachePersistenceEnabled());
+
+   SettingsStore reloaded;
+   reloaded.SetConfigDirectory(tempDir_.path());
+   AppSettings reopened {reloaded};
+   EXPECT_FALSE(reopened.persistRadarCache());
+   EXPECT_FALSE(products::SweepDiskCachePersistenceEnabled())
+      << "the constructor, not just setPersistRadarCache, must sync the runtime flag";
+
+   reopened.resetToDefaults();
+   EXPECT_TRUE(reopened.persistRadarCache());
+   EXPECT_TRUE(products::SweepDiskCachePersistenceEnabled());
 }
 
 TEST_F(AppSettingsTest, TerrainAndAglRowsDefaultVisible)

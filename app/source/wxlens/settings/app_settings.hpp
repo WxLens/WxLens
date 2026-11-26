@@ -31,6 +31,23 @@ class SettingsStore;
 class AppSettings : public QObject
 {
    Q_OBJECT
+   Q_PROPERTY(int playbackMinutes READ playbackMinutes WRITE setPlaybackMinutes NOTIFY playbackMinutesChanged)
+   Q_PROPERTY(QString mapCachePath READ mapCachePath CONSTANT)
+   Q_PROPERTY(QString radarSweepCachePath READ radarSweepCachePath CONSTANT)
+
+   /**
+    * Whether the radar sweep cache is written to disk at all (Storage settings section).
+    * Defaults on - that is what makes an archive frame you already looked at skip the
+    * network on a later launch, the whole point of the disk cache. Off is for a
+    * storage-constrained machine: no new disk writes happen, nothing already on disk is read
+    * back either, and turning it off clears whatever had already accumulated. It does not
+    * touch the always-on in-memory decode/geometry caches - those are bounded by
+    * `playbackMinutes` above and vanish on their own when the process exits, so there is
+    * nothing for a *persistence* toggle to do there. See
+    * products::SetSweepDiskCachePersistenceEnabled for exactly what this gates.
+    */
+   Q_PROPERTY(bool persistRadarCache READ persistRadarCache WRITE setPersistRadarCache NOTIFY
+                 persistRadarCacheChanged)
 
    /// Which gesture starts a measurement (§4.4). See MeasurementGesture for why this is a
    /// preference rather than a fixed behaviour.
@@ -43,8 +60,8 @@ class AppSettings : public QObject
 
    /**
     * Default scope for newly placed objects (§4.3). Explicitly a setting, not a constant: that
-    * section records that RadarOmega and RadarScope disagree here and both are right for their
-    * users, so the shipped default is `CurrentPaneOnly` but the value is read from config.
+    * section records that existing radar apps disagree here and both approaches are right for
+    * their users, so the shipped default is `CurrentPaneOnly` but the value is read from config.
     */
    Q_PROPERTY(int defaultObjectScope READ defaultObjectScope WRITE setDefaultObjectScope NOTIFY
                  defaultObjectScopeChanged)
@@ -54,6 +71,12 @@ class AppSettings : public QObject
       int distanceUnits READ distanceUnits WRITE setDistanceUnits NOTIFY distanceUnitsChanged)
    Q_PROPERTY(
       int velocityUnits READ velocityUnits WRITE setVelocityUnits NOTIFY velocityUnitsChanged)
+
+   /// How a Level 3 tilt variant is labeled in the product picker (§7 Phase 1 slice 3F's
+   /// near-term product/tilt presentation follow-up). Defaults to Both until usability testing
+   /// shows angle-only is clearer.
+   Q_PROPERTY(int productTiltLabelStyle READ productTiltLabelStyle WRITE
+                 setProductTiltLabelStyle NOTIFY productTiltLabelStyleChanged)
 
    /// Basemap appearance: follow the chrome by default, or force dark/light independently.
    Q_PROPERTY(int mapTheme READ mapTheme WRITE setMapTheme NOTIFY mapThemeChanged)
@@ -83,6 +106,30 @@ class AppSettings : public QObject
    Q_PROPERTY(QVariantList geometryRows READ geometryRows NOTIFY geometryRowsChanged)
 
 public:
+   int playbackMinutes() const;
+   void setPlaybackMinutes(int minutes);
+   [[nodiscard]] QString mapCachePath() const;
+   [[nodiscard]] QString radarSweepCachePath() const;
+   [[nodiscard]] bool persistRadarCache() const;
+   void setPersistRadarCache(bool enabled);
+
+   /**
+    * Deletes the basemap's on-disk tile/style cache. Returns true if it cleared immediately,
+    * false if a live pane still has it open (Windows cannot delete an in-use file without
+    * FILE_SHARE_DELETE, which the SQLite VFS does not request) - in which case the clear is
+    * deferred to the next launch, before anything has a chance to reopen it.
+    */
+   Q_INVOKABLE bool clearMapCache();
+
+   /// Deletes every disk-persisted radar sweep. Safe to call immediately - see
+   /// products::ClearSweepDiskCache.
+   Q_INVOKABLE void clearRadarSweepCache();
+
+   /// Current on-disk size of each cache, for the Storage settings section - queried on demand
+   /// rather than kept as a live property, since the UI only needs a fresh number when it opens
+   /// or just cleared one.
+   [[nodiscard]] Q_INVOKABLE qint64 mapCacheSizeBytes() const;
+   [[nodiscard]] Q_INVOKABLE qint64 radarSweepCacheSizeBytes() const;
    /**
     * Slice 7 shipped press-drag-release and click-then-click-again together, so neither habit is
     * punished. That is a good default and a bad mandate: with both live, a click that does not
@@ -118,6 +165,16 @@ public:
       MetersPerSecond
    };
    Q_ENUM(VelocityUnits)
+
+   /// Mirrors ROADMAP §7 Phase 1 slice 3F: the normal picker shows one friendly family row plus
+   /// a tilt selector; this controls how that selector's label reads.
+   enum class ProductTiltLabelStyle
+   {
+      Both = 0, ///< the shipped default, e.g. "0.5°  ·  N0C"
+      Angle,    ///< elevation angle only, e.g. "0.5°"
+      AwipsCode ///< AWIPS identity only, e.g. "N0C"
+   };
+   Q_ENUM(ProductTiltLabelStyle)
 
    enum class SnapStrength
    {
@@ -162,6 +219,7 @@ public:
    [[nodiscard]] int defaultObjectScope() const;
    [[nodiscard]] int distanceUnits() const;
    [[nodiscard]] int velocityUnits() const;
+   [[nodiscard]] int productTiltLabelStyle() const;
    [[nodiscard]] int mapTheme() const;
    [[nodiscard]] bool advancedPaneLinking() const;
    [[nodiscard]] bool controlBarDocked() const;
@@ -177,6 +235,7 @@ public:
    void setDefaultObjectScope(int scopeKind);
    void setDistanceUnits(int units);
    void setVelocityUnits(int units);
+   void setProductTiltLabelStyle(int style);
    void setMapTheme(int theme);
    void setAdvancedPaneLinking(bool enabled);
    void setControlBarDocked(bool docked);
@@ -221,12 +280,15 @@ public:
    [[nodiscard]] Q_INVOKABLE QString configDirectory() const;
 
 signals:
+   void playbackMinutesChanged();
+   void persistRadarCacheChanged();
    void measurementGestureChanged();
    void preferredMeasurementToolChanged();
    void snapStrengthChanged();
    void defaultObjectScopeChanged();
    void distanceUnitsChanged();
    void velocityUnitsChanged();
+   void productTiltLabelStyleChanged();
    void mapThemeChanged();
    void advancedPaneLinkingChanged();
    void controlBarDockedChanged();
