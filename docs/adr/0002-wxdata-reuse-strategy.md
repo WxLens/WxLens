@@ -51,5 +51,30 @@ rebuild `wxdata` and its tests first to catch this class of issue again.
   fast-follow, not blocking — deferred per §3.1's `[OPEN QUESTION]` #2 in `docs/ROADMAP.md` §9,
   since it touches the *live*, currently-shipping Supercell Wx repo and is the user's call, not an
   agent's.
-- `wxdata` is linked into WxLens unmodified; any bugfix belongs upstream in the legacy repo first,
-  then the submodule pin advances — don't fork/patch `wxdata` in place inside WxLens.
+- `wxdata` is linked into WxLens without in-place edits. A fix still goes upstream in the legacy
+  repo where that's practical, and then the submodule pin advances. Since the 2026-11-26
+  amendment below, a fix WxLens needs sooner can also ship as a tracked patch — never as a
+  hand-edit of `external/legacy-supercell-wx/`.
+
+## Amendment (2026-11-26): tracked `wxdata` patches are allowed
+**Decision.** `wxdata` may carry tracked patches under `external/patches/`, using the same
+mechanism as MapLibre Native Qt (ADR 0004). `external/legacy-supercell-wx.cmake` applies them
+idempotently at configure time through the shared `wxlens_apply_patch_series()` in
+`external/patch-series.cmake`, before the top-level `CMakeLists.txt` adds `wxdata`. The
+submodule stays pristine in git; only the configured working tree carries the patch.
+
+**Why.** The first case was a performance fix in `Ar2vFile::DecompressLDMRecords`
+(`0016-wxdata-parallel-ldm-decompress.patch`). Decompressing a Level 2 volume's bzip2 LDM
+records one at a time was most of the cost of loading a volume. Decompressing them in parallel
+measured 1.6–2.9× faster `LoadData` on real volumes, with byte-identical decoded output
+(`docs/performance-baseline.md`, 2026-11-26). Waiting on an upstream release would have held
+back a user-visible speedup for a change entirely internal to one function.
+
+**Rules for a `wxdata` patch.**
+- Keep it small and self-contained, and don't change the public API or file formats.
+  Anything larger belongs upstream, or calls for revisiting Option B (extracting `wxdata`).
+- It must not add a Qt dependency to `wxdata`.
+- Verify it against the `wxlens-wxdata-test` suite. A behavior-preserving change should also
+  be checked for identical output (`wxlens-level2-decode-bench` fingerprints decoded volumes).
+- Offer it upstream too. Once the pin advances past an accepted upstream fix, delete the
+  patch; a patch that no longer applies fails the configure step.

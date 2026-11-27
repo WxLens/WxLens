@@ -76,8 +76,9 @@ endif()
 message(STATUS "WxLens ${WXLENS_VERSION} (build ${WXLENS_BUILD_COMMIT})")
 
 # wxdata reuse: docs/adr/0002-wxdata-reuse-strategy.md (Option A) - link the legacy Supercell Wx
-# repo's Qt-free wxdata library unmodified. Only wxdata is added; the rest of the legacy repo
-# (scwx-qt, its own external/) is not built.
+# repo's Qt-free wxdata library, plus its tracked patches (applied by external/legacy-supercell-wx.cmake
+# inside add_subdirectory(external) below - ADR 0002's 2026-11-26 amendment). Only wxdata is added;
+# the rest of the legacy repo (scwx-qt, its own external/) is not built.
 add_subdirectory(external)
 add_subdirectory(external/legacy-supercell-wx/wxdata ${CMAKE_BINARY_DIR}/wxdata)
 add_subdirectory(app)

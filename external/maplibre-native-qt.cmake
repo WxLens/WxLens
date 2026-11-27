@@ -11,7 +11,6 @@ set(MLN_WITH_OPENGL ON)
 # docs/adr/0004-maplibre-qml-integration.md), each fix is a tracked patch under external/patches/,
 # applied idempotently at configure time (git apply --check --reverse tests whether it's already
 # applied first, so re-configuring is safe) - re-verify each still applies after a submodule bump.
-find_package(Git REQUIRED)
 set(MLN_QT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native-qt")
 
 # The rendering core is a submodule *inside* maplibre-native-qt, so patches against it carry paths
@@ -19,44 +18,7 @@ set(MLN_QT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native-qt")
 # repository refuses any path that crosses into a submodule.
 set(MLN_CORE_SOURCE_DIR "${MLN_QT_SOURCE_DIR}/vendor/maplibre-native")
 
-# Applies an ordered patch series to sourceDir, idempotently. The LAST patch doubles as the
-# series' completion marker: later fixes intentionally touch lines introduced by earlier ones, so
-# reverse-testing an earlier patch in isolation stops being valid once a later one is present. A
-# clean checkout cannot contain the final patch without the whole series having applied first.
-function(wxlens_apply_patch_series label sourceDir)
-    set(patches ${ARGN})
-    list(GET patches -1 finalPatch)
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" apply --check --reverse "${finalPatch}"
-        WORKING_DIRECTORY "${sourceDir}"
-        RESULT_VARIABLE alreadyApplied
-        OUTPUT_QUIET ERROR_QUIET)
-    if (alreadyApplied EQUAL 0)
-        message(STATUS "${label} patch series already applied (ADR 0004)")
-        return()
-    endif()
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" apply --check ${patches}
-        WORKING_DIRECTORY "${sourceDir}"
-        RESULT_VARIABLE applicable
-        OUTPUT_QUIET ERROR_QUIET)
-    if (NOT applicable EQUAL 0)
-        message(FATAL_ERROR "${label} patch series is neither cleanly applied nor applicable to "
-                            "${sourceDir} - see ADR 0004")
-    endif()
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" apply ${patches}
-        WORKING_DIRECTORY "${sourceDir}"
-        RESULT_VARIABLE applyResult)
-    if (NOT applyResult EQUAL 0)
-        message(FATAL_ERROR "Failed to apply ${label} patch series - see ADR 0004")
-    endif()
-    # Stated outright so a CI log proves the series went on. The guards above make a silent no-op
-    # impossible, but "configure succeeded" is indirect evidence and a build log should not need
-    # that inference to establish which vendored fixes are actually in the binary.
-    list(LENGTH patches patchCount)
-    message(STATUS "${label}: applied ${patchCount} patch(es) to ${sourceDir}")
-endfunction()
+# wxlens_apply_patch_series() lives in patch-series.cmake, shared with the wxdata patch.
 
 set(MLN_QT_PATCHES
     "${CMAKE_CURRENT_SOURCE_DIR}/patches/0004-mln-qt-plugins-cmake-source-dir.patch"

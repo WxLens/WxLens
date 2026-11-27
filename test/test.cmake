@@ -96,6 +96,20 @@ target_link_libraries(wxlens-wxdata-test GTest::gtest
 gtest_discover_tests(wxlens-wxdata-test PROPERTIES LABELS "wxlens;wxdata")
 
 # ---------------------------------------------------------------------------------------------
+# wxlens-level2-decode-bench: times Ar2vFile::LoadData on real Archive II files held in memory
+# (no network, no disk) and fingerprints the decoded output, so loader changes can be measured
+# and checked for identical results. A measurement tool, deliberately not registered with ctest.
+add_executable(wxlens-level2-decode-bench source/wxlens/bench/level2_decode_bench.cpp)
+set_target_properties(wxlens-level2-decode-bench PROPERTIES CXX_STANDARD 20
+                                                             CXX_STANDARD_REQUIRED ON
+                                                             CXX_EXTENSIONS OFF)
+if (MSVC)
+    set_target_properties(wxlens-level2-decode-bench PROPERTIES LINK_FLAGS "/ignore:4099")
+    target_compile_options(wxlens-level2-decode-bench PRIVATE -DNOMINMAX)
+endif()
+target_link_libraries(wxlens-level2-decode-bench wxdata Boost::timer Boost::json)
+
+# ---------------------------------------------------------------------------------------------
 # wxlens-app-test: WxLens's own C++ model classes, tested independently of QML (docs/ROADMAP.md).
 # Separate target from wxlens-wxdata-test because these need Qt, while the wxdata suite is
 # deliberately Qt-free.

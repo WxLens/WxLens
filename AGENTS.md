@@ -7,12 +7,14 @@ agent execution rules). This file is a fast-lookup companion, not a replacement 
 
 ## Project architecture
 
-### `wxdata` (reused, unmodified) + `app/` (new)
+### `wxdata` (reused) + `app/` (new)
 - **`external/legacy-supercell-wx/wxdata/`** — the Qt-free NEXRAD Level 2/3 parsing, `.pal` color
-  table, AWIPS text-product, and network-provider library from Supercell Wx, linked in unmodified
-  via `add_subdirectory` (see `docs/adr/0002-wxdata-reuse-strategy.md`). **Never edit files under
+  table, AWIPS text-product, and network-provider library from Supercell Wx, linked in via
+  `add_subdirectory` (see `docs/adr/0002-wxdata-reuse-strategy.md`). **Never edit files under
   `external/`** — that's the read-only reference/reused-dependency tree. If `wxdata` needs a
-  change, it belongs upstream in the legacy repo first, then the submodule pin advances.
+  change, prefer upstream in the legacy repo, then advance the submodule pin. A small,
+  self-contained fix WxLens needs sooner can be a tracked patch instead; see ADR 0002's
+  2026-11-26 amendment and "Vendored-dependency patches" below.
 - **`app/`** — the new Qt Quick application. `app/qml/` is presentation-only; `app/source/wxlens/`
   is C++20 owning all state/business logic, namespace `wxlens`. See `docs/ROADMAP.md` §3.2 for the
   full intended directory layout (`data/`, `products/`, `render/`, `panes/`, `objects/`, `theme/`,
@@ -123,12 +125,14 @@ install already (confirmed during Phase 0).
 `external/maplibre-native-qt` needed real fixes/additions this repo can't make upstream directly
 (a build-breaking CMake bug, a missing custom-layer API, a black-screen rendering bug, a
 lost-signal race that strands every map after the first, a Quick item with no way to configure its
-tile cache, and a renderer never destroyed while a GL context is current — see ADR 0004). Rather than hand-editing
-the vendored source, each fix is a tracked `.patch` file under
-`external/patches/`, applied idempotently at CMake configure time by
-`wxlens_apply_mln_qt_patch()` in `external/maplibre-native-qt.cmake` (checks
+tile cache, and a renderer never destroyed while a GL context is current — see ADR 0004).
+`wxdata` carries tracked patches too: currently `0016`, parallel Level 2 LDM-record
+decompression (ADR 0002 amendment). Rather than hand-editing the vendored source, each fix is a
+tracked `.patch` file under `external/patches/`, applied idempotently at CMake configure time by
+`wxlens_apply_patch_series()` in `external/patch-series.cmake`. It's called from
+`external/maplibre-native-qt.cmake` and `external/legacy-supercell-wx.cmake`. It checks
 `git apply --check --reverse` first, so re-configuring is safe and `external/` stays pristine in
-git). If a future submodule bump breaks one of these patches, that function's `FATAL_ERROR`
+git. If a future submodule bump breaks one of these patches, that function's `FATAL_ERROR`
 will say so at configure time — reconcile the patch against the new upstream source, don't just
 delete it. Follow this same pattern for any other vendored-dependency fix that isn't a WxLens-side
 bug.
